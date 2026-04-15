@@ -3,12 +3,12 @@
 
 // --- CONFIGURATIE (Vul hier je gegevens in) ---
 const firebaseConfig = {
-  apiKey: "AIzaSyAypJeyJcGQhePR7NX5fVpVXfNmuk836Uk",
-  authDomain: "tupperlife-5ee9c.firebaseapp.com",
-  projectId: "tupperlife-5ee9c",
-  storageBucket: "tupperlife-5ee9c.firebasestorage.app",
-  messagingSenderId: "73539007904",
-  appId: "1:73539007904:web:df2d2218de559ee45060c5"
+  apiKey: "AIzaSyBnJ_HaN0_pmvs8gV9g47wJNMAmVp3XY68",
+  authDomain: "tupperlife-e90c5.firebaseapp.com",
+  projectId: "tupperlife-e90c5",
+  storageBucket: "tupperlife-e90c5.firebasestorage.app",
+  messagingSenderId: "993548471182",
+  appId: "1:993548471182:web:9b846a1da085685981b2df"
 };
 
 // Controleren of Firebase al geladen is via de CDN scripts in HTML
