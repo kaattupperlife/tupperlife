@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Overzicht - Tupperware Tracker</title>
+    
+    <!-- 1. Stijlen -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- 2. React Libraries -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- 3. Icoontjes -->
+    <script src="https://unpkg.com/lucide-react@0.344.0/dist/umd/lucide-react.js"></script>
+
+    <!-- 4. Firebase Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
+
+    <!-- 5. FOUTOPSPORING -->
+    <script>
+        window.onerror = function(msg, url, line, col, error) {
+            var div = document.getElementById('debug-console');
+            if (div) {
+                div.style.display = 'block';
+                div.innerHTML += '<div style="margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">' +
+                    '<strong>Fout:</strong> ' + msg + '<br>' +
+                    '<small>Regel ' + line + '</small>' +
+                    '</div>';
+                var root = document.getElementById('root');
+                if(root) root.style.display = 'none';
+            }
+            return false;
+        };
+    </script>
+
+    <!-- 6. JOUW EIGEN CONFIGURATIE -->
+    <script src="firebase-setup.js"></script>
+
+    <style>
+        .loading-text { font-family: sans-serif; text-align: center; margin-top: 50px; color: #666; }
+        .debug-box { display:none; position: fixed; top: 0; left: 0; right: 0; background: #fff0f0; border-bottom: 2px solid red; color: #d8000c; padding: 20px; z-index: 9999; max-height: 50vh; overflow: auto; font-family: monospace; }
+        /* Modal animatie */
+        @keyframes modalFade { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .modal-content { animation: modalFade 0.2s ease-out forwards; }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-800">
+
+    <!-- Debug venster -->
+    <div id="debug-console" class="debug-box">
+        <h3 style="margin-top: 0; font-weight: bold;">⚠️ Er is een fout opgetreden:</h3>
+    </div>
+
+    <!-- Loading Scherm -->
+    <div id="root">
+        <div class="loading-text">
+            <h1>Dashboard wordt geladen...</h1>
+            <p>Blijft dit staan? Controleer het rode vak hierboven.</p>
+        </div>
+    </div>
+
+    <!-- APP LOGICA -->
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        const LucideIcons = window.lucideReact || window.lucide || {};
+        const { 
+            Loader2, LogOut, Monitor, ChevronDown, ChevronUp, Gift, 
+            Plus, Trash2, CheckCircle2, Image: ImageIcon, Settings, X, Edit2, User, Upload, Calendar
+        } = LucideIcons;
+
+        const MONTHS = ['Januari', 'Februari', 'Maart', 'April', 'Mei', 'Juni', 'Juli', 'Augustus', 'September', 'Oktober', 'November', 'December'];
+
+        // --- COMPONENT: PS BEHEER MODAL (POPUP) ---
+        const PsManagementModal = ({ isOpen, onClose, psLevels, updatePsLevels, formatCurrency, user }) => {
+            const [uploadingId, setUploadingId] = useState(null);
+
+            if (!isOpen) return null;
+
+            const addLevel = () => {
+                const newLevels = [...psLevels, { id: Date.now(), amount: '', name: '', image: '' }];
+                updatePsLevels(newLevels);
+            };
+
+            const updateLevel = (id, field, value) => {
+                const newLevels = psLevels.map(lvl => lvl.id === id ? { ...lvl, [field]: value } : lvl);
+                updatePsLevels(newLevels);
+            };
+
+            const deleteLevel = (id) => {
+                if(!confirm("Weet je zeker dat je deze beloning wilt verwijderen?")) return;
+                updatePsLevels(psLevels.filter(lvl => lvl.id !== id));
+            };
+
+            const handleImageUpload = async (e, levelId) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                if (!firebase.storage) {
+                    alert("Firebase Storage is niet geladen. Heb je stap 1 van de instructies gevolgd?");
+                    return;
+                }
+
+                setUploadingId(levelId);
+                try {
+                    const storageRef = firebase.storage().ref();
+                    const fileRef = storageRef.child(`users/${user.uid}/ps_images/${Date.now()}_${file.name}`);
+                    await fileRef.put(file);
+                    const downloadURL = await fileRef.getDownloadURL();
+                    updateLevel(levelId, 'image', downloadURL);
+                } catch (error) {
+                    console.error("Upload fout:", error);
+                    alert("Upload mislukt: " + error.message);
+                } finally {
+                    setUploadingId(null);
+                }
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col modal-content" onClick={e => e.stopPropagation()}>
+                        <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl">
+                            <h3 className="font-bold text-slate-700 flex items-center gap-2">
+                                {Settings && <Settings className="w-5 h-5 text-emerald-600"/>} 
+                                Beloningen Beheren
+                            </h3>
+                            <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+                                {X && <X className="w-5 h-5 text-slate-500"/>}
+                            </button>
+                        </div>
+                        
+                        <div className="p-4 overflow-y-auto space-y-4">
+                            {psLevels.length === 0 && (
+                                <div className="text-center py-8 text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
+                                    <p>Nog geen beloningen ingesteld.</p>
+                                </div>
+                            )}
+
+                            {psLevels.sort((a,b)=>(Number(a.amount)||0)-(Number(b.amount)||0)).map((level, index) => (
+                                <div key={level.id} className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-3">
+                                    <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                                        <span className="text-xs font-bold text-slate-500 uppercase">PS {index + 1}</span>
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); deleteLevel(level.id); }} 
+                                            className="text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors text-xs flex items-center gap-1 font-medium"
+                                        >
+                                            {Trash2 && <Trash2 className="w-3 h-3"/>} Verwijderen
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-3 gap-3 pr-2">
+                                        <div className="col-span-1">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase">Bedrag (€)</label>
+                                            <input type="number" value={level.amount} onChange={(e)=>updateLevel(level.id, 'amount', e.target.value)} className="w-full px-2 py-1.5 text-sm font-bold border border-slate-300 rounded focus:border-emerald-500 outline-none"/>
+                                        </div>
+                                        <div className="col-span-2">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase">Naam</label>
+                                            <input type="text" placeholder="Bijv. Braadpan" value={level.name} onChange={(e)=>updateLevel(level.id, 'name', e.target.value)} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded focus:border-emerald-500 outline-none"/>
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase">Afbeelding</label>
+                                        <div className="flex gap-2 items-center">
+                                            <div className="w-10 h-10 rounded border bg-white flex items-center justify-center overflow-hidden shrink-0 relative">
+                                                {uploadingId === level.id ? (
+                                                    <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
+                                                        {Loader2 && <Loader2 className="w-4 h-4 animate-spin text-emerald-600"/>}
+                                                    </div>
+                                                ) : level.image ? (
+                                                    <img src={level.image} className="w-full h-full object-cover" onError={e=>e.target.style.display='none'}/>
+                                                ) : (
+                                                    (ImageIcon && <ImageIcon className="w-4 h-4 text-slate-300"/>)
+                                                )}
+                                            </div>
+
+                                            <div className="flex-grow">
+                                                <label className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-300 rounded cursor-pointer hover:bg-emerald-50 hover:border-emerald-300 transition-colors">
+                                                    <input 
+                                                        type="file" 
+                                                        accept="image/*" 
+                                                        className="hidden" 
+                                                        onChange={(e) => handleImageUpload(e, level.id)}
+                                                    />
+                                                    {Upload && <Upload className="w-3 h-3 text-slate-500"/>}
+                                                    <span className="text-xs text-slate-600">Upload Foto</span>
+                                                </label>
+                                            </div>
+                                            
+                                            <input 
+                                                type="text" 
+                                                placeholder="Of plak link..." 
+                                                value={level.image} 
+                                                onChange={(e)=>updateLevel(level.id, 'image', e.target.value)} 
+                                                className="w-1/3 px-2 py-1.5 text-xs border border-slate-300 rounded bg-white text-slate-400 focus:text-slate-800 outline-none"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+
+                            <button onClick={addLevel} className="w-full py-3 border-2 border-dashed border-emerald-200 text-emerald-600 rounded-xl font-bold hover:bg-emerald-50 transition-colors flex items-center justify-center gap-2">
+                                {Plus && <Plus className="w-4 h-4"/>} Nieuw Niveau Toevoegen
+                            </button>
+                        </div>
+
+                        <div className="p-4 border-t border-slate-100 bg-slate-50 rounded-b-2xl">
+                            <button onClick={onClose} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-emerald-200 transition-all">
+                                Klaar & Opslaan
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- SUB-COMPONENT: MAAND RIJ ---
+        const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurrency, user }) => {
+            const [isExpanded, setIsExpanded] = useState(false);
+            const [isModalOpen, setIsModalOpen] = useState(false);
+            
+            const COMMISSION_RATE = 0.29;
+            const psLevels = data.psLevels || [];
+
+            // KALENDER LOGICA: Berekent de werkelijke weken in deze specifieke maand en jaar
+            const getMonthWeeks = (y, m) => {
+                const weeks = [];
+                let currentDate = new Date(y, m, 1);
+                const lastDate = new Date(y, m + 1, 0);
+
+                while (currentDate <= lastDate) {
+                    let start = new Date(currentDate);
+                    let end = new Date(currentDate);
+                    
+                    // Bereken dagen tot zondag (zondag = 0, dus als vandaag zondag is, is het 0 dagen, anders 7 - huidige dag)
+                    let daysUntilSunday = end.getDay() === 0 ? 0 : 7 - end.getDay();
+                    end.setDate(end.getDate() + daysUntilSunday);
+
+                    // Als het einde van de week na het einde van de maand valt, sluit af op laatste dag van de maand
+                    if (end > lastDate) {
+                        end = new Date(lastDate);
+                    }
+
+                    // Formatteer de datum (bijv. "1 apr")
+                    const formatShortDate = (d) => `${d.getDate()} ${MONTHS[d.getMonth()].substring(0,3).toLowerCase()}`;
+
+                    weeks.push({
+                        start: new Date(start),
+                        end: new Date(end),
+                        label: `${formatShortDate(start)} - ${formatShortDate(end)}`
+                    });
+
+                    // Ga naar de maandag van de volgende week
+                    currentDate = new Date(end);
+                    currentDate.setDate(currentDate.getDate() + 1);
+                }
+                return weeks;
+            };
+
+            const calendarWeeks = getMonthWeeks(year, monthIndex);
+
+            const calculateTotal = () => {
+                let total = 0;
+                // Tel tot 6 weken op (maximaal aantal weken mogelijk in een kalendermaand)
+                for (let i = 1; i <= 6; i++) {
+                    total += Number(data[`week${i}`]) || 0;
+                }
+                return total;
+            };
+
+            const totalSales = calculateTotal();
+            const totalProfit = totalSales * COMMISSION_RATE;
+            const earnedLevels = psLevels.filter(level => totalSales >= (Number(level.amount) || 0)).length;
+
+            return (
+                <React.Fragment>
+                    <tr onClick={() => setIsExpanded(!isExpanded)} className={`cursor-pointer transition-colors border-b border-emerald-100 ${isExpanded ? 'bg-emerald-50 border-emerald-200' : 'hover:bg-emerald-50/30'}`}>
+                        <td className="p-4 font-medium text-slate-700 flex items-center gap-2">
+                            {isExpanded ? (ChevronUp && <ChevronUp className="w-4 h-4 text-emerald-500" />) : (ChevronDown && <ChevronDown className="w-4 h-4 text-emerald-400" />)}
+                            <div>
+                                <div className="font-semibold">{month}</div>
+                                {earnedLevels > 0 && <div className="sm:hidden text-xs text-emerald-600 flex items-center gap-1 mt-1 font-medium">{Gift && <Gift className="w-3 h-3"/>} {earnedLevels} PS</div>}
+                            </div>
+                        </td>
+                        <td className="p-4 text-slate-600 font-medium align-top">{formatCurrency(totalSales)}</td>
+                        <td className="p-4 font-bold text-emerald-700 text-right font-mono align-top">{formatCurrency(totalProfit)}</td>
+                    </tr>
+
+                    {isExpanded && (
+                        <tr className="bg-emerald-50/30">
+                            <td colSpan="3" className="p-0 border-b border-emerald-200">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-4 sm:p-6 animate-in">
+                                    
+                                    {/* Linker Kolom: Weken Invoer o.b.v. Kalender */}
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center pb-2 border-b border-emerald-200/50">
+                                            <span className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1">
+                                                {Calendar && <Calendar className="w-4 h-4 text-emerald-600" />}
+                                                Verkoop Kalender ({year})
+                                            </span>
+                                        </div>
+                                        
+                                        {/* NIEUW: De handmatige keuze voor 4 of 5 weken is hier volledig weggelaten! */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            {calendarWeeks.map((weekInfo, index) => {
+                                                const weekNum = index + 1;
+                                                return (
+                                                    <div key={weekNum} className="flex flex-col gap-1.5 bg-white p-3 rounded-lg border border-emerald-50 shadow-sm transition-all hover:border-emerald-200">
+                                                        <div className="flex justify-between items-center text-[10px] text-slate-400">
+                                                            <span className="font-bold uppercase tracking-wider text-emerald-600">Week {weekNum}</span>
+                                                            <span className="bg-emerald-50 px-2 py-0.5 rounded text-emerald-700">{weekInfo.label}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="bg-emerald-500 text-white w-8 h-8 shrink-0 rounded-full flex justify-center items-center text-sm font-bold shadow-sm">{weekNum}</div>
+                                                            <input 
+                                                                type="number" 
+                                                                min="0" step="0.01" placeholder="0.00" 
+                                                                value={data[`week${weekNum}`] || ''} 
+                                                                onChange={(e) => updateMonthData(month, `week${weekNum}`, e.target.value)} 
+                                                                onClick={e=>e.stopPropagation()} 
+                                                                className="w-full pl-2 pr-2 py-1.5 rounded border border-slate-200 focus:border-emerald-500 outline-none text-sm font-mono transition-colors"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    {/* Rechter Kolom: PS Niveaus */}
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center pb-2 border-b border-emerald-200/50">
+                                            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">PS Beloningen</span>
+                                            
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); setIsModalOpen(true); }} 
+                                                className="flex items-center gap-1 text-xs px-3 py-1.5 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-lg transition-colors font-medium shadow-sm"
+                                            >
+                                                {Settings && <Settings className="w-3 h-3"/>} Instellen
+                                            </button>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            {psLevels.length === 0 ? (
+                                                <div className="text-center py-8 bg-white/50 border border-dashed border-slate-300 rounded-xl text-slate-400 text-sm">
+                                                    <p>Geen beloningen ingesteld.</p>
+                                                    <button onClick={(e) => { e.stopPropagation(); setIsModalOpen(true); }} className="text-emerald-600 underline text-xs mt-1">Klik hier om in te stellen</button>
+                                                </div>
+                                            ) : (
+                                                psLevels
+                                                    .sort((a, b) => (Number(a.amount) || 0) - (Number(b.amount) || 0))
+                                                    .map((level, index) => { 
+                                                        const amount = Number(level.amount) || 0;
+                                                        const isUnlocked = totalSales >= amount && amount > 0;
+                                                        const progress = amount > 0 ? Math.min(100, (totalSales / amount) * 100) : 0;
+                                                        const remaining = Math.max(0, amount - totalSales);
+
+                                                        return (
+                                                            <div key={level.id} className={`bg-white rounded-xl border overflow-hidden transition-all duration-300 ${isUnlocked ? 'border-emerald-500 shadow-md ring-1 ring-emerald-500' : 'border-emerald-100 shadow-sm'}`}>
+                                                                <div className={`h-1.5 w-full ${isUnlocked ? 'bg-emerald-500' : 'bg-slate-100'}`}>
+                                                                   {!isUnlocked && amount > 0 && <div className="h-full bg-emerald-400 transition-all duration-500" style={{ width: `${progress}%` }}></div>}
+                                                                </div>
+                                                                
+                                                                <div className="p-3 flex gap-3 items-center">
+                                                                    <div className="w-12 h-12 shrink-0 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden relative">
+                                                                        {level.image ? (
+                                                                            <img src={level.image} alt={level.name} className="w-full h-full object-cover" onError={(e) => e.target.style.display='none'} />
+                                                                        ) : (
+                                                                            (ImageIcon && <ImageIcon className="w-5 h-5 text-slate-300" />)
+                                                                        )}
+                                                                    </div>
+
+                                                                    <div className="flex-grow min-w-0">
+                                                                        <div className="flex justify-between items-baseline mb-0.5">
+                                                                            <div className="flex flex-col">
+                                                                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">PS {index + 1}</span>
+                                                                                <h4 className="font-bold text-slate-700 text-sm truncate pr-2">{level.name || 'Naamloos'}</h4>
+                                                                            </div>
+                                                                            <span className="text-xs font-mono text-slate-500">{formatCurrency(amount)}</span>
+                                                                        </div>
+                                                                        
+                                                                        <div className="text-xs">
+                                                                            {isUnlocked ? (
+                                                                                <span className="flex items-center gap-1 text-emerald-600 font-bold animate-pulse">
+                                                                                    {CheckCircle2 && <CheckCircle2 className="w-3 h-3 fill-emerald-100" />} BEHAALD!
+                                                                                </span>
+                                                                            ) : (
+                                                                                <span className="text-slate-400">
+                                                                                    Nog <span className="font-medium text-slate-600">{formatCurrency(remaining)}</span>
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    )}
+
+                    <PsManagementModal 
+                        isOpen={isModalOpen} 
+                        onClose={() => setIsModalOpen(false)}
+                        psLevels={psLevels}
+                        updatePsLevels={(newLevels) => updateMonthData(month, 'psLevels', newLevels)}
+                        formatCurrency={formatCurrency}
+                        user={user}
+                    />
+                </React.Fragment>
+            );
+        };
+
+        // --- HOOFD COMPONENT ---
+        function DashboardPage() {
+            const [user, setUser] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+            const [monthlyData, setMonthlyData] = useState({});
+            const [saving, setSaving] = useState(false);
+            const [error, setError] = useState(null);
+            const [showProfileMenu, setShowProfileMenu] = useState(false);
+
+            useEffect(() => {
+                if (!window.auth) {
+                    setError("Firebase Auth niet gevonden. Check firebase-setup.js");
+                    setLoading(false);
+                    return;
+                }
+                const unsubscribe = window.auth.onAuthStateChanged((u) => {
+                    if (!u) {
+                        window.location.href = 'index.html';
+                    } else {
+                        setUser(u);
+                        setLoading(false);
+                    }
+                });
+                return () => unsubscribe();
+            }, []);
+
+            useEffect(() => {
+                if (!user || !window.db) return;
+                const yearRef = window.db.collection('users').doc(user.uid)
+                                  .collection('years').doc(String(selectedYear)).collection('months');
+
+                const unsubscribe = yearRef.onSnapshot((snapshot) => {
+                    const newData = {};
+                    snapshot.forEach((doc) => newData[doc.id] = doc.data());
+                    setMonthlyData(newData);
+                }, (err) => {
+                    console.error("Firestore Fout:", err);
+                    if (err.code === 'permission-denied') {
+                        setError("Toegang geweigerd! Check je Firestore regels.");
+                    } else {
+                        setError("Data fout: " + err.message);
+                    }
+                });
+                return () => unsubscribe();
+            }, [user, selectedYear]);
+
+            const handleLogout = async () => {
+                await window.auth.signOut();
+                window.location.href = 'index.html';
+            };
+
+            const updateMonthData = async (month, field, value) => {
+                if (!user) return;
+                setSaving(true);
+                const docRef = window.db.collection('users').doc(user.uid)
+                                 .collection('years').doc(String(selectedYear)).collection('months').doc(month);
+                try { await docRef.set({ [field]: value }, { merge: true }); } 
+                catch (err) { console.error(err); alert("Kon niet opslaan: " + err.message); } 
+                finally { setSaving(false); }
+            };
+
+            const formatCurrency = (amount) => {
+                return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(amount || 0);
+            };
+
+            if (error) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
+                        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded max-w-md">
+                            <strong className="font-bold">Foutmelding: </strong>
+                            <span className="block sm:inline">{error}</span>
+                            <button onClick={()=>window.location.reload()} className="mt-2 text-sm underline">Herladen</button>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (loading) {
+                return <div className="h-screen flex items-center justify-center text-emerald-600">{Loader2 ? <Loader2 className="w-8 h-8 animate-spin" /> : "Laden..."}</div>;
+            }
+
+            return (
+                <div className="min-h-screen bg-slate-50 font-sans text-slate-800 pb-20">
+                    <header className="bg-emerald-600 text-white shadow-md sticky top-0 z-20">
+                        <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center font-bold text-lg">
+                            <div className="flex items-center gap-2">
+                                {Monitor && <Monitor className="w-5 h-5 opacity-80" />}
+                                <span>Tupperlife by Kaat</span>
+                            </div>
+                            {/* DIT IS HET BEWIJS DAT JE DE NIEUWE VERSIE HEBT */}
+                            <div className="bg-emerald-500 px-3 py-1 rounded-full text-xs font-medium border border-emerald-400 shadow-sm flex items-center gap-1">
+                                {Calendar && <Calendar className="w-3 h-3" />}
+                                Kalender Versie Actief
+                            </div>
+                        </div>
+                    </header>
+
+                    <div className="p-4 max-w-4xl mx-auto animate-in">
+                        <div className="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-emerald-100">
+                            <div>
+                                <h2 className="text-lg font-semibold text-emerald-900">Jaaroverzicht</h2>
+                                <p className="text-xs text-emerald-600/80">Welkom, {user ? (user.displayName || 'Gebruiker') : '...'}</p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))} className="px-4 py-2 rounded-lg border border-emerald-200 outline-none cursor-pointer bg-emerald-50 text-emerald-800 font-bold">
+                                    {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(year => <option key={year} value={year}>{year}</option>)}
+                                </select>
+                                
+                                {/* PROFIEL SECTIE */}
+                                <div className="relative">
+                                    <button 
+                                        onClick={() => setShowProfileMenu(!showProfileMenu)}
+                                        className="w-10 h-10 rounded-full border-2 border-emerald-100 overflow-hidden hover:border-emerald-300 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1 flex items-center justify-center bg-emerald-50"
+                                    >
+                                        {user?.photoURL ? (
+                                            <img src={user.photoURL} alt="Profiel" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <span className="text-emerald-600">
+                                                {User && <User className="w-5 h-5" />}
+                                            </span>
+                                        )}
+                                    </button>
+
+                                    {showProfileMenu && (
+                                        <React.Fragment>
+                                            <div className="fixed inset-0 z-10" onClick={() => setShowProfileMenu(false)}></div>
+                                            <div className="absolute right-0 mt-2 w-60 bg-white rounded-xl shadow-xl border border-slate-100 z-20 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+                                                <div className="p-4 bg-slate-50 border-b border-slate-100">
+                                                    <p className="text-sm font-bold text-slate-800 truncate">{user?.displayName || 'Gebruiker'}</p>
+                                                    <p className="text-xs text-slate-500 truncate">{user?.email}</p>
+                                                </div>
+                                                <div className="p-1">
+                                                    <button 
+                                                        onClick={handleLogout}
+                                                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                    >
+                                                        {LogOut && <LogOut className="w-4 h-4" />} Uitloggen
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </React.Fragment>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white shadow-md rounded-xl border border-emerald-100 overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-emerald-100/80 text-emerald-900 text-sm sm:text-base border-b border-emerald-200">
+                                            <th className="p-4 font-bold">Maand</th>
+                                            <th className="p-4 font-bold">Totaal</th>
+                                            <th className="p-4 font-bold text-right">Winst</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="text-sm sm:text-base">
+                                        {MONTHS.map((month, index) => (
+                                            <MonthRow 
+                                                key={month} 
+                                                month={month} 
+                                                monthIndex={index} 
+                                                year={selectedYear} 
+                                                data={monthlyData[month] || {}} 
+                                                updateMonthData={updateMonthData} 
+                                                formatCurrency={formatCurrency} 
+                                                user={user} 
+                                            />
+                                        ))}
+                                    </tbody>
+                                    <tfoot className="bg-emerald-600 text-white font-bold shadow-inner">
+                                        <tr>
+                                            <td className="p-4">Totaal</td>
+                                            <td className="p-4">{formatCurrency(MONTHS.reduce((acc, m) => { let t=0; const d=monthlyData[m]||{}; for(let i=1;i<=6;i++) t+=Number(d[`week${i}`])||0; return acc+t; }, 0))}</td>
+                                            <td className="p-4 text-right">{formatCurrency(MONTHS.reduce((acc, m) => { let t=0; const d=monthlyData[m]||{}; for(let i=1;i<=6;i++) t+=Number(d[`week${i}`])||0; return acc+(t*0.29); }, 0))}</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                            {saving && <div className="p-2 text-center text-emerald-600 text-xs bg-emerald-50 border-t border-emerald-100">{Loader2 && <Loader2 className="w-3 h-3 animate-spin inline mr-2"/>} Opslaan...</div>}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<DashboardPage />);
+    </script>
+</body>
+</html>
