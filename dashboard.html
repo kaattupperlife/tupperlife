@@ -6,7 +6,1563 @@
     <title>Overzicht - Tupperware Tracker</title>
     
     <!-- 1. Stijlen -->
+    <script src="https://cdn.tailwindcss.com"></script><!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tupperlife by Kaat - Dashboard</title>
+    
+    <!-- PWA Settings -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#059669">
+    <link rel="shortcut icon" href="favicon.ico">
+
+    <!-- 1. EXTREME LIBRARIES & STYLES -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Configureer Tailwind voor dark mode via class strategie
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            bg: '#0f172a',      // Slate 900
+                            card: '#1e293b',    // Slate 800
+                            border: '#334155',  // Slate 700
+                            input: '#334155',   // Slate 700
+                            text: '#f1f5f9',    // Slate 100
+                            muted: '#94a3b8'    // Slate 400
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- React -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
+
+    <!-- Foutafhandeling voor debugging -->
+    <script>
+        window.onerror = function(msg, url, line, col, error) {
+            var div = document.getElementById('debug-console');
+            if (div) {
+                div.style.display = 'block';
+                div.innerHTML += `<div style="margin-bottom: 10px; border-bottom: 1px solid #ccc;"><strong>Fout:</strong> ${msg}<br><small>Regel ${line}</small></div>`;
+            }
+            return false;
+        };
+    </script>
+
+    <!-- Firebase Configuraties script -->
+    <script src="firebase-setup.js"></script>
+
+    <style>
+        .loading-text { font-family: sans-serif; text-align: center; margin-top: 50px; color: #666; }
+        .debug-box { display:none; position: fixed; top: 0; left: 0; right: 0; background: #fff0f0; border-bottom: 2px solid red; color: #d8000c; padding: 20px; z-index: 9999; max-height: 50vh; overflow: auto; font-family: monospace; }
+        
+        /* Animaties */
+        @keyframes modalFade { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .modal-content { animation: modalFade 0.2s ease-out forwards; }
+        .animate-in { animation: modalFade 0.3s ease-out forwards; }
+        
+        /* Custom scrollbar */
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+        
+        /* Dark mode scrollbar */
+        .dark .custom-scroll::-webkit-scrollbar-thumb { background: #475569; }
+        .dark .custom-scroll::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-dark-bg font-sans text-slate-800 dark:text-dark-text transition-colors duration-300">
+
+    <div id="debug-console" class="debug-box">
+        <h3 style="margin-top: 0; font-weight: bold;">⚠️ Er is een fout opgetreden:</h3>
+    </div>
+
+    <div id="root">
+        <div class="loading-text">
+            <h1>Dashboard wordt geladen...</h1>
+            <i class="fa-solid fa-spinner fa-spin" style="font-size: 2em; margin-top: 20px; color: #059669;"></i>
+        </div>
+    </div>
+
+    <!-- 3. JAVASCRIPT BESTAND -->
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        
+        // --- CONFIGURATIE ---
+        const ADMIN_EMAILS = ['jaiderjannis@gmail.com', 'kaat.tupperware@gmail.com']; 
+        const MONTHS = ['Januari', 'Februari', 'Maart', 'April', 'Mei', 'Juni', 'Juli', 'Augustus', 'September', 'Oktober', 'November', 'December'];
+        
+        // --- REACT COMPONENTEN VOOR ICONEN ---
+        const Icons = {
+            Loader: ({className}) => <i className={`fa-solid fa-spinner fa-spin ${className||''}`}></i>,
+            LogOut: () => <i className="fa-solid fa-right-from-bracket"></i>,
+            ChevronDown: () => <i className="fa-solid fa-chevron-down"></i>,
+            ChevronUp: () => <i className="fa-solid fa-chevron-up"></i>,
+            ChevronLeft: () => <i className="fa-solid fa-chevron-left"></i>,
+            ChevronRight: () => <i className="fa-solid fa-chevron-right"></i>,
+            Gift: () => <i className="fa-solid fa-gift"></i>,
+            Plus: () => <i className="fa-solid fa-plus"></i>,
+            Trash: () => <i className="fa-solid fa-trash"></i>,
+            CheckCircle: ({className}) => <i className={`fa-solid fa-circle-check ${className||''}`}></i>,
+            Image: ({className}) => <i className={`fa-regular fa-image ${className||''}`}></i>,
+            Settings: ({className}) => <i className={`fa-solid fa-gear ${className||''}`}></i>,
+            X: ({className}) => <i className={`fa-solid fa-xmark ${className||''}`}></i>,
+            User: ({className}) => <i className={`fa-solid fa-user ${className||''}`}></i>,
+            Upload: () => <i className="fa-solid fa-upload"></i>,
+            Users: () => <i className="fa-solid fa-users"></i>,
+            Shield: ({className}) => <i className={`fa-solid fa-user-shield ${className||''}`}></i>,
+            Clipboard: () => <i className="fa-solid fa-clipboard-list"></i>,
+            Check: () => <i className="fa-solid fa-check"></i>,
+            Package: ({className}) => <i className={`fa-solid fa-box-open ${className||''}`}></i>,
+            Box: () => <i className="fa-solid fa-box"></i>,
+            Layers: () => <i className="fa-solid fa-layer-group"></i>,
+            Search: () => <i className="fa-solid fa-magnifying-glass"></i>,
+            Edit: () => <i className="fa-solid fa-pen"></i>,
+            Euro: () => <i className="fa-solid fa-euro-sign"></i>,
+            Hash: () => <i className="fa-solid fa-hashtag"></i>,
+            Lock: ({className}) => <i className={`fa-solid fa-lock ${className||''}`}></i>,
+            Unlock: ({className}) => <i className={`fa-solid fa-lock-open ${className||''}`}></i>,
+            Eye: () => <i className="fa-solid fa-eye"></i>,
+            EyeSlash: () => <i className="fa-solid fa-eye-slash"></i>,
+            ToggleOn: ({className}) => <i className={`fa-solid fa-toggle-on ${className||''}`}></i>,
+            ToggleOff: ({className}) => <i className={`fa-solid fa-toggle-off ${className||''}`}></i>,
+            Moon: ({className}) => <i className={`fa-solid fa-moon ${className||''}`}></i>,
+            Sun: () => <i className="fa-solid fa-sun"></i>,
+            Calendar: () => <i className="fa-solid fa-calendar-days"></i>,
+            Target: () => <i className="fa-solid fa-bullseye"></i>,
+            AddressBook: () => <i className="fa-solid fa-address-book"></i>,
+            Phone: () => <i className="fa-solid fa-phone"></i>,
+            MapPin: () => <i className="fa-solid fa-map-pin"></i>,
+            Envelope: () => <i className="fa-solid fa-envelope"></i>,
+            Bars: () => <i className="fa-solid fa-bars"></i>,
+            BookOpen: () => <i className="fa-solid fa-book-open"></i>,
+            Utensils: () => <i className="fa-solid fa-utensils"></i>,
+            Printer: () => <i className="fa-solid fa-print"></i>,
+            Shirt: () => <i className="fa-solid fa-shirt"></i>,
+            Filter: () => <i className="fa-solid fa-filter"></i>
+        };
+
+        // --- KLEUREN PALET ---
+        const CATEGORY_COLORS = [
+            { name: 'Smaragd', bg: 'bg-emerald-100 dark:bg-emerald-900', text: 'text-emerald-700 dark:text-emerald-200' },
+            { name: 'Groenblauw', bg: 'bg-teal-100 dark:bg-teal-900', text: 'text-teal-700 dark:text-teal-200' },
+            { name: 'Cyaan', bg: 'bg-cyan-100 dark:bg-cyan-900', text: 'text-cyan-700 dark:text-cyan-200' },
+            { name: 'Hemelsblauw', bg: 'bg-sky-100 dark:bg-sky-900', text: 'text-sky-700 dark:text-sky-200' },
+            { name: 'Blauw', bg: 'bg-blue-100 dark:bg-blue-900', text: 'text-blue-700 dark:text-blue-200' },
+            { name: 'Indigo', bg: 'bg-indigo-100 dark:bg-indigo-900', text: 'text-indigo-700 dark:text-indigo-200' },
+            { name: 'Violet', bg: 'bg-violet-100 dark:bg-violet-900', text: 'text-violet-700 dark:text-violet-200' },
+            { name: 'Paars', bg: 'bg-purple-100 dark:bg-purple-900', text: 'text-purple-700 dark:text-purple-200' },
+            { name: 'Fuchsia', bg: 'bg-fuchsia-100 dark:bg-fuchsia-900', text: 'text-fuchsia-700 dark:text-fuchsia-200' },
+            { name: 'Roze', bg: 'bg-pink-100 dark:bg-pink-900', text: 'text-pink-700 dark:text-pink-200' },
+            { name: 'Rozerood', bg: 'bg-rose-100 dark:bg-rose-900', text: 'text-rose-700 dark:text-rose-200' },
+            { name: 'Rood', bg: 'bg-red-100 dark:bg-red-900', text: 'text-red-700 dark:text-red-200' },
+            { name: 'Oranje', bg: 'bg-orange-100 dark:bg-orange-900', text: 'text-orange-700 dark:text-orange-200' },
+            { name: 'Amber', bg: 'bg-amber-100 dark:bg-amber-900', text: 'text-amber-700 dark:text-amber-200' },
+            { name: 'Geel', bg: 'bg-yellow-100 dark:bg-yellow-900', text: 'text-yellow-700 dark:text-yellow-200' },
+            { name: 'Limoen', bg: 'bg-lime-100 dark:bg-lime-900', text: 'text-lime-700 dark:text-lime-200' },
+            { name: 'Leisteen', bg: 'bg-slate-100 dark:bg-slate-700', text: 'text-slate-700 dark:text-slate-200' },
+            { name: 'Zink', bg: 'bg-zinc-100 dark:bg-zinc-800', text: 'text-zinc-700 dark:text-zinc-200' },
+            { name: 'Neutraal', bg: 'bg-neutral-100 dark:bg-neutral-800', text: 'text-neutral-700 dark:text-neutral-200' },
+            { name: 'Steen', bg: 'bg-stone-100 dark:bg-stone-800', text: 'text-stone-700 dark:text-stone-200' },
+        ];
+
+        // --- KLANTEN MODULE ---
+        const CustomersTab = ({ targetUid }) => {
+            const [customers, setCustomers] = useState([]);
+            const [input, setInput] = useState({ name: '', email: '', phone: '', address: '', note: '' });
+            const [editingId, setEditingId] = useState(null);
+            const [searchTerm, setSearchTerm] = useState('');
+
+            useEffect(() => {
+                if(!targetUid) return;
+                const unsub = window.db.collection('users').doc(targetUid).collection('customers').orderBy('name').onSnapshot(snap => {
+                    setCustomers(snap.docs.map(d => ({id: d.id, ...d.data()})));
+                });
+                return () => unsub();
+            }, [targetUid]);
+
+            const handleSave = async () => {
+                if(!input.name) return;
+                if(editingId) {
+                    await window.db.collection('users').doc(targetUid).collection('customers').doc(editingId).update(input);
+                    setEditingId(null);
+                } else {
+                    await window.db.collection('users').doc(targetUid).collection('customers').add(input);
+                }
+                setInput({ name: '', email: '', phone: '', address: '', note: '' });
+            };
+
+            const handleDelete = async (id) => { if(confirm("Klant verwijderen?")) await window.db.collection('users').doc(targetUid).collection('customers').doc(id).delete(); };
+            
+            const filtered = customers.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()));
+
+            return (
+                <div className="space-y-6">
+                    <div className={`p-4 rounded-xl border shadow-sm transition-colors ${editingId ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700' : 'bg-white dark:bg-dark-card border-slate-200 dark:border-slate-700'}`}>
+                        <h3 className="font-bold mb-3 flex items-center gap-2 text-slate-700 dark:text-slate-200"><Icons.AddressBook className="text-purple-500"/> {editingId ? 'Klant Wijzigen' : 'Nieuwe Klant'}</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <input value={input.name} onChange={e=>setInput({...input, name:e.target.value})} placeholder="Naam" className="border dark:border-slate-600 dark:bg-slate-800 dark:text-white p-2 rounded outline-none"/>
+                            <input value={input.email} onChange={e=>setInput({...input, email:e.target.value})} placeholder="Email" className="border dark:border-slate-600 dark:bg-slate-800 dark:text-white p-2 rounded outline-none"/>
+                            <input value={input.phone} onChange={e=>setInput({...input, phone:e.target.value})} placeholder="Telefoon" className="border dark:border-slate-600 dark:bg-slate-800 dark:text-white p-2 rounded outline-none"/>
+                            <input value={input.address} onChange={e=>setInput({...input, address:e.target.value})} placeholder="Adres" className="border dark:border-slate-600 dark:bg-slate-800 dark:text-white p-2 rounded outline-none"/>
+                            <input value={input.note} onChange={e=>setInput({...input, note:e.target.value})} placeholder="Notitie" className="md:col-span-2 border dark:border-slate-600 dark:bg-slate-800 dark:text-white p-2 rounded outline-none"/>
+                        </div>
+                        <button onClick={handleSave} className={`w-full mt-3 py-2 text-white font-bold rounded shadow-sm ${editingId?'bg-amber-600':'bg-purple-600'}`}>{editingId ? 'Opslaan' : 'Toevoegen'}</button>
+                    </div>
+
+                    <div className="bg-white dark:bg-dark-card p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                        <input className="w-full mb-4 p-2 border dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded" placeholder="Zoek klant..." value={searchTerm} onChange={e=>setSearchTerm(e.target.value)}/>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {filtered.map(c => (
+                                <div key={c.id} className="border dark:border-slate-600 p-3 rounded-lg hover:border-purple-300 dark:hover:border-purple-700 relative group">
+                                    <div className="font-bold text-slate-800 dark:text-slate-200">{c.name}</div>
+                                    <div className="text-xs text-slate-500 dark:text-slate-400 space-y-1 mt-1">
+                                        {c.email && <div className="flex items-center gap-2"><Icons.Envelope className="w-3"/> {c.email}</div>}
+                                        {c.phone && <div className="flex items-center gap-2"><Icons.Phone className="w-3"/> {c.phone}</div>}
+                                        {c.address && <div className="flex items-center gap-2"><Icons.MapPin className="w-3"/> {c.address}</div>}
+                                    </div>
+                                    <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onClick={()=>{setInput(c);setEditingId(c.id);window.scrollTo({top:0,behavior:'smooth'})}} className="text-slate-400 hover:text-amber-500"><Icons.Edit/></button>
+                                        <button onClick={()=>handleDelete(c.id)} className="text-slate-400 hover:text-red-500"><Icons.Trash/></button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- PARTY PLANNER MODULE ---
+        const PartyPlannerTab = ({ targetUid }) => {
+            const [parties, setParties] = useState([]);
+            const [input, setInput] = useState({ date: '', host: '', location: '', sales: '', status: 'gepland' });
+            const [editingId, setEditingId] = useState(null);
+
+            useEffect(() => {
+                if(!targetUid) return;
+                const unsub = window.db.collection('users').doc(targetUid).collection('parties').orderBy('date').onSnapshot(snap => {
+                    setParties(snap.docs.map(d => ({id: d.id, ...d.data()})));
+                });
+                return () => unsub();
+            }, [targetUid]);
+
+            const handleSave = async () => {
+                if(!input.date || !input.host) return;
+                const data = { ...input, sales: Number(input.sales)||0 };
+                if(editingId) {
+                    await window.db.collection('users').doc(targetUid).collection('parties').doc(editingId).update(data);
+                    setEditingId(null);
+                } else {
+                    await window.db.collection('users').doc(targetUid).collection('parties').add(data);
+                }
+                setInput({ date: '', host: '', location: '', sales: '', status: 'gepland' });
+            };
+
+            const handleDelete = async (id) => { if(confirm("Party verwijderen?")) await window.db.collection('users').doc(targetUid).collection('parties').doc(id).delete(); };
+
+            const statusColors = { gepland: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200', gedaan: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200', geannuleerd: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200' };
+
+            return (
+                <div className="space-y-6">
+                    <div className={`p-4 rounded-xl border shadow-sm transition-colors ${editingId ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700' : 'bg-white dark:bg-dark-card border-slate-200 dark:border-slate-700'}`}>
+                        <h3 className="font-bold mb-3 flex items-center gap-2 text-slate-700 dark:text-slate-200"><Icons.Calendar className="text-pink-500"/> {editingId ? 'Party Wijzigen' : 'Nieuwe Party'}</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <input type="date" value={input.date} onChange={e=>setInput({...input, date:e.target.value})} className="border dark:border-slate-600 dark:bg-slate-800 dark:text-white p-2 rounded outline-none"/>
+                            <input value={input.host} onChange={e=>setInput({...input, host:e.target.value})} placeholder="Gastvrouw/heer" className="border dark:border-slate-600 dark:bg-slate-800 dark:text-white p-2 rounded outline-none"/>
+                            <input value={input.location} onChange={e=>setInput({...input, location:e.target.value})} placeholder="Locatie" className="border dark:border-slate-600 dark:bg-slate-800 dark:text-white p-2 rounded outline-none"/>
+                            <input type="text" inputMode="decimal" value={input.sales} 
+                                onChange={e=>{
+                                    const val = e.target.value.replace(',', '.');
+                                    if (/^\d*\.?\d*$/.test(val)) setInput({...input, sales: val});
+                                }} 
+                                placeholder="Omzet (€)" 
+                                className="border dark:border-slate-600 dark:bg-slate-800 dark:text-white p-2 rounded outline-none"/>
+                            <select value={input.status} onChange={e=>setInput({...input, status:e.target.value})} className="border dark:border-slate-600 dark:bg-slate-800 dark:text-white p-2 rounded outline-none md:col-span-2">
+                                <option value="gepland">📅 Gepland</option>
+                                <option value="gedaan">✅ Gedaan</option>
+                                <option value="geannuleerd">❌ Geannuleerd</option>
+                            </select>
+                        </div>
+                        <button onClick={handleSave} className={`w-full mt-3 py-2 text-white font-bold rounded shadow-sm ${editingId?'bg-amber-600':'bg-pink-600'}`}>{editingId ? 'Opslaan' : 'Inplannen'}</button>
+                    </div>
+
+                    <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                        {parties.length === 0 && <p className="p-6 text-center text-slate-400">Nog geen parties gepland.</p>}
+                        {parties.map(p => (
+                            <div key={p.id} className="p-4 border-b dark:border-slate-700 last:border-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-slate-100 dark:bg-slate-700 rounded-lg flex flex-col items-center justify-center shrink-0 border dark:border-slate-600">
+                                        <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400">{new Date(p.date).toLocaleString('default',{month:'short'})}</span>
+                                        <span className="text-lg font-bold text-slate-800 dark:text-slate-200">{new Date(p.date).getDate()}</span>
+                                    </div>
+                                    <div>
+                                        <div className="font-bold text-slate-800 dark:text-slate-200">{p.host}</div>
+                                        <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2"><Icons.MapPin className="w-3"/> {p.location || 'Locatie onbekend'}</div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center justify-between sm:justify-end gap-4">
+                                    <div className={`text-xs px-2 py-1 rounded font-bold uppercase ${statusColors[p.status]}`}>{p.status}</div>
+                                    {p.sales > 0 && <div className="font-bold text-emerald-600 dark:text-emerald-400">€{p.sales}</div>}
+                                    <div className="flex gap-2">
+                                        <button onClick={()=>{setInput(p);setEditingId(p.id);window.scrollTo({top:0,behavior:'smooth'})}} className="text-slate-400 hover:text-amber-500"><Icons.Edit/></button>
+                                        <button onClick={()=>handleDelete(p.id)} className="text-slate-400 hover:text-red-500"><Icons.Trash/></button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- MAAND DOELEN MODULE ---
+        const GoalsTab = ({ targetUid, monthlyData, updateMonthData, formatCurrency, selectedYear }) => {
+            return (
+                <div className="space-y-6">
+                    <div className="bg-white dark:bg-dark-card p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm text-center">
+                        <h3 className="font-bold text-slate-700 dark:text-slate-200 text-lg mb-2"><Icons.Target className="text-red-500"/> Doelen voor {selectedYear}</h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">Stel je doelen in en zie je voortgang groeien!</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {MONTHS.map(month => {
+                            const data = monthlyData[month] || {};
+                            let total = 0; 
+                            for(let i=1;i<=5;i++) total += Number(data[`week${i}`])||0;
+                            const goal = Number(data.goalAmount) || 0;
+                            const percent = goal > 0 ? Math.min(100, (total / goal) * 100) : 0;
+
+                            return (
+                                <div key={month} className="bg-white dark:bg-dark-card p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden">
+                                    <div className="flex justify-between items-center mb-3">
+                                        <span className="font-bold text-slate-700 dark:text-slate-200">{month}</span>
+                                        {goal > 0 && <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{Math.round(percent)}%</span>}
+                                    </div>
+                                    
+                                    <div className="mb-3">
+                                        <div className="flex justify-between text-xs mb-1 text-slate-500 dark:text-slate-400">
+                                            <span>Huidig: <span className="font-bold text-slate-700 dark:text-slate-300">{formatCurrency(total)}</span></span>
+                                            <span>Doel: <span className="font-bold text-slate-700 dark:text-slate-300">{formatCurrency(goal)}</span></span>
+                                        </div>
+                                        <div className="h-2 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                                            <div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all duration-1000" style={{width: `${percent}%`}}></div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 mt-2">
+                                        <label className="text-[10px] uppercase font-bold text-slate-400">Doel:</label>
+                                        <input 
+                                            type="number" 
+                                            value={data.goalAmount || ''} 
+                                            onChange={(e) => updateMonthData(month, 'goalAmount', e.target.value)}
+                                            placeholder="0"
+                                            className="w-full bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-600 text-sm py-1 px-2 outline-none dark:text-white"
+                                        />
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- RECEPTEN MODULE ---
+        const RecipesTab = ({ targetUid }) => {
+            const [recipes, setRecipes] = useState([]);
+            const [input, setInput] = useState({ name: '', product: '', ingredients: '', instructions: '', image: '' });
+            const [editingId, setEditingId] = useState(null);
+            const [searchTerm, setSearchTerm] = useState('');
+            const [uploading, setUploading] = useState(false);
+            const [viewingRecipe, setViewingRecipe] = useState(null); 
+
+            useEffect(() => {
+                if(!targetUid) return;
+                const unsub = window.db.collection('users').doc(targetUid).collection('recipes').orderBy('name').onSnapshot(snap => {
+                    setRecipes(snap.docs.map(d => ({id: d.id, ...d.data()})));
+                });
+                return () => unsub();
+            }, [targetUid]);
+
+            const handleSave = async () => {
+                if(!input.name) return;
+                if(editingId) {
+                    await window.db.collection('users').doc(targetUid).collection('recipes').doc(editingId).update(input);
+                    setEditingId(null);
+                } else {
+                    await window.db.collection('users').doc(targetUid).collection('recipes').add(input);
+                }
+                setInput({ name: '', product: '', ingredients: '', instructions: '', image: '' });
+            };
+
+            const handleDelete = async (id) => { if(confirm("Recept verwijderen?")) await window.db.collection('users').doc(targetUid).collection('recipes').doc(id).delete(); };
+
+            const handleImageUpload = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                setUploading(true);
+                try {
+                    const ref = firebase.storage().ref().child(`users/${targetUid}/recipes/${Date.now()}_${file.name}`);
+                    await ref.put(file);
+                    const url = await ref.getDownloadURL();
+                    setInput({...input, image: url});
+                } catch (error) { alert("Upload fout: " + error.message); } finally { setUploading(false); }
+            };
+
+            const filtered = recipes.filter(r => r.name.toLowerCase().includes(searchTerm.toLowerCase()) || (r.product||'').toLowerCase().includes(searchTerm.toLowerCase()));
+
+            const printRecipe = (recipe) => {
+                const printWindow = window.open('', '_blank');
+                // De backslash voor script is CRUCIAAL hieronder om de browser parser niet te breken
+                printWindow.document.write(`
+                    <html>
+                    <head>
+                        <title>${recipe.name}</title>
+                        <style>
+                            body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; color: #333; }
+                            img { max-width: 100%; height: auto; max-height: 400px; border-radius: 8px; margin-bottom: 20px; object-fit: cover; }
+                            h1 { color: #059669; border-bottom: 2px solid #059669; padding-bottom: 10px; margin-bottom: 5px; }
+                            .product { color: #666; text-transform: uppercase; font-weight: bold; font-size: 0.9em; margin-bottom: 20px; }
+                            h2 { color: #059669; margin-top: 25px; font-size: 1.2em; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+                            .content { white-space: pre-wrap; line-height: 1.6; }
+                            @media print {
+                                body { padding: 0; }
+                                h1 { color: black; border-color: black; }
+                                h2 { color: black; }
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>${recipe.name}</h1>
+                        <div class="product">${recipe.product || ''}</div>
+                        ${recipe.image ? `<img src="${recipe.image}" />` : ''}
+                        <h2>Ingrediënten</h2>
+                        <div class="content">${recipe.ingredients || '-'}</div>
+                        <h2>Bereiding</h2>
+                        <div class="content">${recipe.instructions || '-'}</div>
+                        <script>
+                            window.onload = function() { window.print(); }
+                        <\/script>
+                    </body>
+                    </html>
+                `);
+                printWindow.document.close();
+            };
+
+            return (
+                <div className="space-y-6">
+                     <div className={`p-4 rounded-xl border shadow-sm transition-colors ${editingId ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700' : 'bg-white dark:bg-dark-card border-slate-200 dark:border-slate-700'}`}>
+                        <h3 className="font-bold mb-3 flex items-center gap-2 text-slate-700 dark:text-slate-200"><Icons.BookOpen className="text-orange-500"/> {editingId ? 'Recept Wijzigen' : 'Nieuw Recept'}</h3>
+                        <div className="grid grid-cols-1 gap-3">
+                            <div className="flex gap-3">
+                                 <label className="w-24 h-24 border dark:border-slate-600 rounded bg-slate-50 dark:bg-slate-700 flex items-center justify-center cursor-pointer hover:bg-emerald-50 dark:hover:bg-slate-600 shrink-0 relative overflow-hidden">
+                                    <input type="file" className="hidden" onChange={handleImageUpload}/>
+                                    {uploading ? <Icons.Loader className="text-emerald-600"/> : (input.image ? <img src={input.image} className="w-full h-full object-cover"/> : <div className="text-center text-slate-400 text-[10px]"><Icons.Image className="text-2xl mb-1"/><br/>Foto</div>)}
+                                </label>
+                                <div className="flex-grow space-y-3">
+                                    <input value={input.name} onChange={e=>setInput({...input, name:e.target.value})} placeholder="Recept Naam" className="w-full border dark:border-slate-600 dark:bg-slate-800 dark:text-white p-2 rounded outline-none"/>
+                                    <input value={input.product} onChange={e=>setInput({...input, product:e.target.value})} placeholder="Gekoppeld Product (bv. MicroCook)" className="w-full border dark:border-slate-600 dark:bg-slate-800 dark:text-white p-2 rounded outline-none"/>
+                                </div>
+                            </div>
+                            <textarea value={input.ingredients} onChange={e=>setInput({...input, ingredients:e.target.value})} placeholder="Ingrediënten (elk op een nieuwe regel)" className="border dark:border-slate-600 dark:bg-slate-800 dark:text-white p-2 rounded outline-none h-24" />
+                            <textarea value={input.instructions} onChange={e=>setInput({...input, instructions:e.target.value})} placeholder="Bereiding..." className="border dark:border-slate-600 dark:bg-slate-800 dark:text-white p-2 rounded outline-none h-24" />
+                        </div>
+                        <button onClick={handleSave} className={`w-full mt-3 py-2 text-white font-bold rounded shadow-sm ${editingId?'bg-amber-600':'bg-orange-600'}`}>{editingId ? 'Opslaan' : 'Toevoegen'}</button>
+                    </div>
+
+                    <div className="bg-white dark:bg-dark-card p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                        <input className="w-full mb-4 p-2 border dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded" placeholder="Zoek recept..." value={searchTerm} onChange={e=>setSearchTerm(e.target.value)}/>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {filtered.map(r => (
+                                <div 
+                                    key={r.id} 
+                                    onClick={() => setViewingRecipe(r)}
+                                    className="border dark:border-slate-600 rounded-lg overflow-hidden flex flex-col hover:border-orange-300 dark:hover:border-orange-700 relative group cursor-pointer transition-all hover:shadow-md"
+                                >
+                                    <div className="h-32 bg-slate-100 dark:bg-slate-700 flex items-center justify-center overflow-hidden border-b dark:border-slate-600">
+                                        {r.image ? <img src={r.image} className="w-full h-full object-cover"/> : <Icons.Utensils className="text-slate-300 text-3xl"/>}
+                                    </div>
+                                    <div className="p-3 flex-grow">
+                                        <h4 className="font-bold text-slate-800 dark:text-slate-200">{r.name}</h4>
+                                        <div className="text-xs text-orange-600 font-bold mb-2 uppercase">{r.product}</div>
+                                        <div className="text-xs text-slate-500 dark:text-slate-400 line-clamp-3 whitespace-pre-line">{r.ingredients}</div>
+                                    </div>
+                                     <div className="absolute top-2 right-2 flex gap-2" onClick={e => e.stopPropagation()}>
+                                        <button onClick={()=>{setInput(r);setEditingId(r.id);window.scrollTo({top:0,behavior:'smooth'})}} className="w-8 h-8 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-amber-500 shadow-sm"><Icons.Edit/></button>
+                                        <button onClick={()=>handleDelete(r.id)} className="w-8 h-8 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-red-500 shadow-sm"><Icons.Trash/></button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* DETAIL MODAL VOOR RECEPT */}
+                    {viewingRecipe && (
+                        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setViewingRecipe(null)}>
+                            <div className="bg-white dark:bg-dark-card w-full max-w-2xl max-h-[90vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in" onClick={e => e.stopPropagation()}>
+                                {/* Header */}
+                                <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800">
+                                    <div className="min-w-0">
+                                        <h3 className="font-bold text-xl text-slate-800 dark:text-slate-100 truncate">{viewingRecipe.name}</h3>
+                                        {viewingRecipe.product && <p className="text-xs font-bold text-orange-600 uppercase tracking-wide">{viewingRecipe.product}</p>}
+                                    </div>
+                                    <div className="flex gap-2 shrink-0">
+                                        <button onClick={() => printRecipe(viewingRecipe)} className="w-9 h-9 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors" title="Printen"><Icons.Printer className="w-5 h-5"/></button>
+                                        <button onClick={() => setViewingRecipe(null)} className="w-9 h-9 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors"><Icons.X className="w-5 h-5"/></button>
+                                    </div>
+                                </div>
+                                
+                                {/* Content */}
+                                <div className="overflow-y-auto p-0">
+                                    {viewingRecipe.image && (
+                                        <div className="w-full h-64 sm:h-80 bg-slate-100 dark:bg-slate-900 flex items-center justify-center overflow-hidden">
+                                            <img src={viewingRecipe.image} className="w-full h-full object-cover"/>
+                                        </div>
+                                    )}
+                                    <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                                        <div className="md:col-span-1">
+                                            <h4 className="font-bold text-emerald-700 dark:text-emerald-400 mb-3 border-b dark:border-slate-700 pb-1">Ingrediënten</h4>
+                                            <div className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-line leading-relaxed">{viewingRecipe.ingredients || 'Geen ingrediënten opgegeven.'}</div>
+                                        </div>
+                                        <div className="md:col-span-2">
+                                            <h4 className="font-bold text-emerald-700 dark:text-emerald-400 mb-3 border-b dark:border-slate-700 pb-1">Bereiding</h4>
+                                            <div className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-line leading-relaxed">{viewingRecipe.instructions || 'Geen bereidingswijze opgegeven.'}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // --- STOCK COMPONENT ---
+        const StockTab = ({ targetUid, user }) => {
+            const [items, setItems] = useState([]);
+            const [categories, setCategories] = useState([{ name: 'Algemeen', color: CATEGORY_COLORS[16] }]); 
+            const [locations, setLocations] = useState([{ name: 'Algemeen', color: CATEGORY_COLORS[16] }]); 
+            const [newItem, setNewItem] = useState({ name: '', category: 'Algemeen', location: 'Algemeen', quantity: 1, price: 0, status: 'zolder', image: '', vinted: 0 });
+            const [loading, setLoading] = useState(true);
+            const [editingId, setEditingId] = useState(null); 
+            const [keepSettings, setKeepSettings] = useState(false); 
+            
+            // Managers
+            const [showCatManager, setShowCatManager] = useState(false);
+            const [showLocManager, setShowLocManager] = useState(false);
+            const [editName, setEditName] = useState('');
+            const [editColor, setEditColor] = useState(0);
+            const [editingItemIndex, setEditingItemIndex] = useState(null);
+            const [editingItemType, setEditingItemType] = useState(null);
+
+            const [previewImage, setPreviewImage] = useState(null);
+            const [uploading, setUploading] = useState(false);
+            
+            // Filters & Pagination
+            const [searchTerm, setSearchTerm] = useState('');
+            const [filterCategory, setFilterCategory] = useState('Alles');
+            const [filterStatus, setFilterStatus] = useState('Alles');
+            const [filterLocation, setFilterLocation] = useState('Alles');
+            const [filterVintedOnly, setFilterVintedOnly] = useState(false); // NIEUWE FILTER
+            const [sortBy, setSortBy] = useState('name');
+            const [currentPage, setCurrentPage] = useState(1);
+            const [itemsPerPage, setItemsPerPage] = useState(10); 
+
+            useEffect(() => {
+                if(!targetUid) return;
+                const unsubStock = window.db.collection('users').doc(targetUid).collection('stock').orderBy('createdAt', 'desc').onSnapshot(snap => { setItems(snap.docs.map(d => ({id: d.id, ...d.data()}))); setLoading(false); });
+                const unsubCats = window.db.collection('users').doc(targetUid).collection('settings').doc('categories').onSnapshot(doc => { 
+                    if(doc.exists && doc.data().list) {
+                        setCategories(doc.data().list.map(c => typeof c === 'string' ? {name:c, color: CATEGORY_COLORS[16]} : c)); 
+                    }
+                });
+                const unsubLocs = window.db.collection('users').doc(targetUid).collection('settings').doc('locations').onSnapshot(doc => { 
+                    if(doc.exists && doc.data().list) {
+                        setLocations(doc.data().list.map(l => typeof l === 'string' ? {name:l, color: CATEGORY_COLORS[16]} : l)); 
+                    }
+                });
+                return () => { unsubStock(); unsubCats(); unsubLocs(); };
+            }, [targetUid]);
+
+            useEffect(() => {
+                setCurrentPage(1);
+            }, [searchTerm, filterCategory, filterStatus, filterLocation, sortBy, filterVintedOnly]);
+
+            const handleSaveItem = async () => {
+                if(!newItem.name) return;
+                const itemData = { ...newItem, price: Number(newItem.price)||0, quantity: Number(newItem.quantity)||0, vinted: Number(newItem.vinted)||0, updatedAt: Date.now() };
+                try {
+                    if (editingId) { 
+                        await window.db.collection('users').doc(targetUid).collection('stock').doc(editingId).update(itemData); 
+                        setEditingId(null); 
+                        setNewItem({ name: '', category: 'Algemeen', location: 'Algemeen', quantity: 1, price: 0, status: 'zolder', image: '', vinted: 0 });
+                    } 
+                    else { 
+                        itemData.createdAt = Date.now(); 
+                        await window.db.collection('users').doc(targetUid).collection('stock').add(itemData); 
+                        if (keepSettings) {
+                            setNewItem(prev => ({ ...prev, name: '', quantity: 1, price: 0, image: '', vinted: 0 }));
+                        } else {
+                            setNewItem({ name: '', category: 'Algemeen', location: 'Algemeen', quantity: 1, price: 0, status: 'zolder', image: '', vinted: 0 });
+                        }
+                    }
+                } catch(err) { alert("Fout: " + err.message); }
+            };
+
+            const deleteItem = async (id) => { if(confirm("Verwijderen?")) await window.db.collection('users').doc(targetUid).collection('stock').doc(id).delete(); };
+            const updateQuantity = async (id, current, change) => { if(current+change >= 0) await window.db.collection('users').doc(targetUid).collection('stock').doc(id).update({ quantity: current+change }); };
+            
+            const handleImageUpload = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                setUploading(true);
+                try {
+                    const ref = firebase.storage().ref().child(`users/${user.uid}/stock/${Date.now()}_${file.name}`);
+                    await ref.put(file);
+                    const url = await ref.getDownloadURL();
+                    setNewItem({...newItem, image: url});
+                } catch (error) { alert("Upload fout: " + error.message); } finally { setUploading(false); }
+            };
+
+            const openManager = (type) => {
+                setEditingItemType(type);
+                setEditingItemIndex(null); 
+                setEditName('');
+                setEditColor(0);
+                if (type === 'category') setShowCatManager(true);
+                if (type === 'location') setShowLocManager(true);
+            };
+
+            const saveConfig = async (type) => {
+                if(!editName.trim()) return;
+                const list = type === 'cat' ? [...categories] : [...locations];
+                const newObj = { name: editName.trim(), color: CATEGORY_COLORS[editColor] };
+                if(editingItemIndex !== null) list[editingItemIndex] = newObj; else list.push(newObj);
+                await window.db.collection('users').doc(targetUid).collection('settings').doc(type === 'cat' ? 'categories' : 'locations').set({ list }, { merge: true });
+                setEditName(''); setEditingItemIndex(null);
+            };
+
+            const startEditConfig = (type, index, item) => {
+                setEditingItemType(type);
+                setEditingItemIndex(index);
+                setEditName(item.name);
+                const colorIndex = CATEGORY_COLORS.findIndex(c => c.bg === item.color.bg);
+                setEditColor(colorIndex !== -1 ? colorIndex : 16);
+            };
+
+            const deleteConfig = async (type, index) => {
+                if(!confirm("Verwijderen?")) return;
+                const list = (type === 'cat' ? categories : locations).filter((_, i) => i !== index);
+                await window.db.collection('users').doc(targetUid).collection('settings').doc(type === 'cat' ? 'categories' : 'locations').set({ list }, { merge: true });
+            };
+
+            const filteredItems = items.filter(item => {
+                return (item.name.toLowerCase().includes(searchTerm.toLowerCase()) || (item.location||'').toLowerCase().includes(searchTerm.toLowerCase())) &&
+                       (filterCategory === 'Alles' || item.category === filterCategory) &&
+                       (filterStatus === 'Alles' || item.status === filterStatus) &&
+                       (filterLocation === 'Alles' || item.location === filterLocation) &&
+                       (!filterVintedOnly || (item.vinted && Number(item.vinted) > 0)); // Filter specifiek op Vinted > 0
+            }).sort((a,b) => {
+                if(sortBy==='name') return a.name.localeCompare(b.name);
+                if(sortBy==='price-desc') return b.price - a.price;
+                if(sortBy==='price-asc') return a.price - b.price;
+                if(sortBy==='qty-desc') return b.quantity - a.quantity;
+                if(sortBy==='qty-asc') return a.quantity - b.quantity;
+                if(sortBy==='vinted-desc') return (Number(b.vinted)||0) - (Number(a.vinted)||0); // Veiligere sortering
+                if(sortBy==='vinted-asc') return (Number(a.vinted)||0) - (Number(b.vinted)||0); // Veiligere sortering
+                return 0;
+            });
+
+            // Totaal Berekening
+            const totalStockValue = filteredItems.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0);
+            const totalStockCount = filteredItems.reduce((sum, item) => sum + (item.quantity || 1), 0);
+
+            // PAGINERING LOGICA
+            const totalItems = filteredItems.length;
+            const totalPages = itemsPerPage === 'All' ? 1 : Math.ceil(totalItems / itemsPerPage);
+            const displayedItems = itemsPerPage === 'All' ? filteredItems : filteredItems.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+            // Helpers voor kleuren
+            const getCategoryColor = (catName) => {
+                const cat = categories.find(c => c.name === catName);
+                return cat ? cat.color : CATEGORY_COLORS[16];
+            };
+            const getLocationColor = (locName) => {
+                const loc = locations.find(l => l.name === locName);
+                return loc ? loc.color : CATEGORY_COLORS[16];
+            };
+
+            const formatEuro = (n) => new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(n || 0);
+            
+            if (loading) return <div className="text-center p-8"><Icons.Loader className="text-2xl text-emerald-600"/></div>;
+
+            return (
+                <div className="space-y-6">
+                    {/* INPUT CARD */}
+                    <div className={`p-5 rounded-xl shadow-sm border transition-colors ${editingId ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700' : 'bg-white dark:bg-dark-card border-emerald-100 dark:border-dark-border'}`}>
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className={`font-bold flex items-center gap-2 ${editingId ? 'text-amber-800 dark:text-amber-400' : 'text-emerald-900 dark:text-emerald-400'}`}>
+                                {editingId ? <Icons.Edit/> : <Icons.Package/>} {editingId ? 'Wijzigen' : 'Nieuw Product'}
+                            </h3>
+                            <div className="flex gap-2 text-xs">
+                                <button onClick={()=>openManager('category')} className="text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"><Icons.Settings className="w-3"/> Categorieën</button>
+                                <span className="text-slate-300 dark:text-slate-600">|</span>
+                                <button onClick={()=>openManager('location')} className="text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"><Icons.Settings className="w-3"/> Locaties</button>
+                            </div>
+                        </div>
+
+                        {(showCatManager || showLocManager) && (
+                            <div className="mb-4 p-3 bg-slate-50 dark:bg-slate-700/50 rounded border border-slate-200 dark:border-slate-600 text-sm animate-in">
+                                <div className="flex justify-between mb-2"><span className="font-bold text-slate-600 dark:text-slate-300">Beheer {showCatManager ? 'Categorieën' : 'Locaties'}</span> <button onClick={()=>{setShowCatManager(false);setShowLocManager(false)}}><Icons.X className="dark:text-slate-400"/></button></div>
+                                <div className="flex gap-2 mb-2">
+                                    <input value={editName} onChange={e=>setEditName(e.target.value)} className="border dark:border-slate-600 dark:bg-slate-800 dark:text-white p-1.5 rounded flex-grow outline-none" placeholder="Naam..."/>
+                                    <button onClick={()=>saveConfig(showCatManager?'cat':'loc')} className="bg-emerald-600 text-white px-3 rounded font-bold">OK</button>
+                                </div>
+                                <div className="flex gap-1 mb-2 flex-wrap">{CATEGORY_COLORS.map((c,i)=><button key={i} onClick={()=>setEditColor(i)} className={`w-6 h-6 rounded-full border-2 ${c.bg} ${editColor===i?'border-emerald-600 ring-2 ring-emerald-200':'border-transparent'}`} title={c.name}></button>)}</div>
+                                <div className="max-h-32 overflow-y-auto space-y-1">
+                                    {(showCatManager?categories:locations).map((it, idx) => (
+                                        <div key={idx} className="flex justify-between items-center bg-white dark:bg-slate-800 p-1.5 rounded border dark:border-slate-600">
+                                            <span className="flex items-center gap-2 text-slate-800 dark:text-slate-200"><span className={`w-3 h-3 rounded-full ${it.color.bg}`}></span>{it.name}</span>
+                                            <div className="flex gap-2 text-slate-400"><button onClick={()=>{startEditConfig(showCatManager?'category':'location', idx, it)}}><Icons.Edit/></button><button onClick={()=>deleteConfig(showCatManager?'cat':'loc', idx)}><Icons.Trash/></button></div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                            <div className="col-span-1 md:col-span-2"><label className="text-xs font-bold text-slate-400 uppercase">Naam</label><input value={newItem.name} onChange={e=>setNewItem({...newItem, name:e.target.value})} className="w-full border dark:border-slate-600 dark:bg-dark-input dark:text-white p-2 rounded outline-none focus:border-emerald-500" placeholder="Productnaam"/></div>
+                            <div><label className="text-xs font-bold text-slate-400 uppercase">Categorie</label><select value={newItem.category} onChange={e=>setNewItem({...newItem, category:e.target.value})} className="w-full border dark:border-slate-600 dark:bg-dark-input dark:text-white p-2 rounded outline-none">{categories.map((c,i)=><option key={i} value={c.name}>{c.name}</option>)}</select></div>
+                            <div><label className="text-xs font-bold text-slate-400 uppercase">Locatie</label><select value={newItem.location} onChange={e=>setNewItem({...newItem, location:e.target.value})} className="w-full border dark:border-slate-600 dark:bg-dark-input dark:text-white p-2 rounded outline-none">{locations.map((l,i)=><option key={i} value={l.name}>{l.name}</option>)}</select></div>
+                            <div><label className="text-xs font-bold text-slate-400 uppercase">Prijs (€)</label>
+                                <input 
+                                    type="text" 
+                                    inputMode="decimal"
+                                    value={newItem.price} 
+                                    onChange={e=>{
+                                        const val = e.target.value.replace(',', '.');
+                                        if (/^\d*\.?\d*$/.test(val)) setNewItem({...newItem, price:val});
+                                    }} 
+                                    className="w-full border dark:border-slate-600 dark:bg-dark-input dark:text-white p-2 rounded outline-none"
+                                />
+                            </div>
+                            <div><label className="text-xs font-bold text-slate-400 uppercase">Aantal</label><input type="number" value={newItem.quantity} onChange={e=>setNewItem({...newItem, quantity:e.target.value})} className="w-full border dark:border-slate-600 dark:bg-dark-input dark:text-white p-2 rounded outline-none"/></div>
+                            <div><label className="text-xs font-bold text-slate-400 uppercase">Op Vinted</label><input type="number" value={newItem.vinted} onChange={e=>setNewItem({...newItem, vinted:e.target.value})} className="w-full border dark:border-slate-600 dark:bg-dark-input dark:text-white p-2 rounded outline-none" placeholder="0"/></div>
+                            <div className="col-span-1 md:col-span-2">
+                                <label className="text-xs font-bold text-slate-400 uppercase">Status & Foto</label>
+                                <div className="flex gap-2">
+                                    <div className="flex bg-slate-100 dark:bg-slate-700 rounded p-1 flex-grow h-10">
+                                        <button onClick={()=>setNewItem({...newItem, status:'zolder'})} className={`flex-1 rounded text-xs font-bold transition-all ${newItem.status==='zolder'?'bg-white dark:bg-slate-600 shadow text-slate-800 dark:text-white':'text-slate-400'}`}>📦 Zolder</button>
+                                        <button onClick={()=>setNewItem({...newItem, status:'gebruik'})} className={`flex-1 rounded text-xs font-bold transition-all ${newItem.status==='gebruik'?'bg-white dark:bg-slate-600 shadow text-emerald-600 dark:text-emerald-400':'text-slate-400'}`}>🏠 Gebruik</button>
+                                    </div>
+                                    <div className="flex flex-col gap-1 w-1/2">
+                                        <label className="h-10 px-3 bg-white dark:bg-dark-input border dark:border-slate-600 rounded cursor-pointer flex items-center justify-center hover:bg-emerald-50 dark:hover:bg-slate-600 text-xs text-slate-500 dark:text-slate-300">
+                                            <input type="file" className="hidden" onChange={handleImageUpload}/>
+                                            {uploading ? <Icons.Loader/> : <span>Uploaden</span>}
+                                        </label>
+                                    </div>
+                                </div>
+                                <input type="text" placeholder="Of plak afbeeldingslink..." value={newItem.image} onChange={(e)=>setNewItem({...newItem, image: e.target.value})} className="w-full mt-2 px-2 py-2 text-xs border dark:border-slate-600 dark:bg-dark-input dark:text-white rounded outline-none"/>
+                            </div>
+                        </div>
+
+                        {!editingId && (
+                            <div className="flex items-center gap-2 mt-3 cursor-pointer select-none" onClick={()=>setKeepSettings(!keepSettings)}>
+                                <div className={`w-10 h-5 rounded-full relative transition-colors ${keepSettings ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                                    <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform shadow-sm ${keepSettings ? 'translate-x-5' : ''}`}></div>
+                                </div>
+                                <span className="text-xs text-slate-500 dark:text-slate-400 font-bold">Onthoud categorie & locatie voor volgend product</span>
+                            </div>
+                        )}
+
+                        <button onClick={handleSaveItem} className={`w-full mt-3 py-2 text-white font-bold rounded shadow-sm ${editingId?'bg-amber-600 hover:bg-amber-700':'bg-emerald-600 hover:bg-emerald-700'}`}>{editingId ? 'Opslaan' : 'Toevoegen'}</button>
+                    </div>
+
+                    {/* LIJST */}
+                    <div className="bg-white dark:bg-dark-card p-3 rounded-xl border border-slate-200 dark:border-dark-border shadow-sm space-y-3">
+                        <div className="relative">
+                            <input className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-dark-input dark:text-white outline-none focus:bg-white dark:focus:bg-slate-800 focus:border-emerald-500 transition-colors" placeholder="Zoek op naam, bak of categorie..." value={searchTerm} onChange={e=>setSearchTerm(e.target.value)}/>
+                            <div className="absolute left-3 top-2.5 text-slate-400"><Icons.Search/></div>
+                        </div>
+
+                        {/* FILTERS RIJ */}
+                        <div className="flex flex-wrap gap-2">
+                            <select value={filterCategory} onChange={e=>setFilterCategory(e.target.value)} className="px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-dark-input dark:text-white text-slate-600 outline-none focus:border-emerald-500">
+                                <option value="Alles">Alle Categorieën</option>
+                                {categories.map((c, i) => <option key={i} value={c.name}>{c.name}</option>)}
+                            </select>
+                            <select value={filterLocation} onChange={e=>setFilterLocation(e.target.value)} className="px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-dark-input dark:text-white text-slate-600 outline-none focus:border-emerald-500">
+                                <option value="Alles">Alle Locaties</option>
+                                {locations.map((l, i) => <option key={i} value={l.name}>{l.name}</option>)}
+                            </select>
+                            <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} className="px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-dark-input dark:text-white text-slate-600 outline-none focus:border-emerald-500">
+                                <option value="Alles">Alle Statussen</option>
+                                <option value="zolder">📦 Op Zolder</option>
+                                <option value="gebruik">🏠 In Gebruik</option>
+                            </select>
+                            
+                            {/* VINTED TOGGLE BUTTON */}
+                            <button 
+                                onClick={() => setFilterVintedOnly(!filterVintedOnly)} 
+                                className={`px-3 py-1.5 text-xs rounded-lg border transition-colors flex items-center gap-2 ${filterVintedOnly ? 'bg-cyan-100 text-cyan-700 border-cyan-300 dark:bg-cyan-900 dark:text-cyan-200' : 'bg-white dark:bg-dark-input text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:border-cyan-300'}`}
+                            >
+                                {filterVintedOnly ? <Icons.ToggleOn/> : <Icons.ToggleOff/>} Vinted Only
+                            </button>
+
+                            <select value={sortBy} onChange={e=>setSortBy(e.target.value)} className="px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-dark-input dark:text-white text-slate-600 outline-none focus:border-emerald-500 ml-auto">
+                                <option value="name">Naam (A-Z)</option>
+                                <option value="price-desc">Prijs (Hoog-Laag)</option>
+                                <option value="price-asc">Prijs (Laag-Hoog)</option>
+                                <option value="qty-desc">Aantal (Hoog-Laag)</option>
+                                <option value="qty-asc">Aantal (Laag-Hoog)</option>
+                                <option value="vinted-desc">Vinted (Hoog-Laag)</option>
+                                <option value="vinted-asc">Vinted (Laag-Hoog)</option>
+                            </select>
+                            
+                            <select value={itemsPerPage} onChange={e=>setItemsPerPage(e.target.value === 'All' ? 'All' : Number(e.target.value))} className="px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-dark-input dark:text-white text-slate-600 outline-none focus:border-emerald-500 ml-auto">
+                                <option value={10}>Toon 10</option>
+                                <option value={25}>Toon 25</option>
+                                <option value={50}>Toon 50</option>
+                                <option value="All">Toon Alles</option>
+                            </select>
+                        </div>
+                        
+                        {/* TOTAAL BLOK */}
+                        <div className="grid grid-cols-2 gap-3 mb-4">
+                            <div className="bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 flex justify-between items-center shadow-sm">
+                                <div>
+                                    <p className="text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider">Waarde</p>
+                                    <h2 className="text-lg sm:text-2xl font-bold text-emerald-800 dark:text-emerald-300">{formatEuro(totalStockValue)}</h2>
+                                </div>
+                                <div className="bg-white dark:bg-emerald-800 p-2 rounded-full shadow-sm text-emerald-600 dark:text-emerald-200">
+                                    <Icons.Euro className="w-5 h-5"/>
+                                </div>
+                            </div>
+                            <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-xl p-4 flex justify-between items-center shadow-sm">
+                                <div>
+                                    <p className="text-[10px] sm:text-xs text-blue-600 dark:text-blue-400 font-bold uppercase tracking-wider">Aantal</p>
+                                    <h2 className="text-lg sm:text-2xl font-bold text-blue-800 dark:text-blue-300">{totalStockCount} stuks</h2>
+                                </div>
+                                <div className="bg-white dark:bg-blue-800 p-2 rounded-full shadow-sm text-blue-600 dark:text-blue-200">
+                                    <Icons.Hash className="w-5 h-5"/>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* PRODUCTEN LIJST */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {displayedItems.length === 0 ? <p className="text-center text-slate-400 col-span-full py-8">Geen producten gevonden.</p> :
+                                displayedItems.map(item => {
+                                    const catColor = getCategoryColor(item.category);
+                                    const locColor = getLocationColor(item.location);
+                                    
+                                    return (
+                                        <div key={item.id} className="border dark:border-slate-700 rounded-lg p-3 flex gap-3 relative hover:border-emerald-300 dark:hover:border-emerald-700 bg-white dark:bg-dark-card">
+                                            <div onClick={()=>setPreviewImage(item.image)} className="w-16 h-16 bg-slate-50 dark:bg-slate-700 rounded flex items-center justify-center overflow-hidden cursor-pointer border dark:border-slate-600 shrink-0">
+                                                {item.image ? <img src={item.image} className="w-full h-full object-cover"/> : <Icons.Package className="text-slate-300 dark:text-slate-500 text-2xl"/>}
+                                            </div>
+                                            <div className="flex-grow min-w-0">
+                                                <div className="flex justify-between items-start gap-2">
+                                                    <div className="min-w-0 flex-1">
+                                                        <span className={`text-[10px] px-1.5 rounded uppercase font-bold ${catColor.bg} ${catColor.text}`}>{item.category}</span>
+                                                        <div className="font-bold text-slate-800 dark:text-slate-100 break-words">{item.name}</div>
+                                                        
+                                                        <div className={`flex items-center gap-1 text-[10px] mt-1 px-1.5 py-0.5 rounded-md w-fit ${locColor.bg} ${locColor.text}`}>
+                                                            <Icons.Box className="w-3 h-3"/> 
+                                                            <span className="font-bold">{item.location || 'Geen locatie'}</span>
+                                                        </div>
+                                                        {/* Vinted Badge */}
+                                                        {item.vinted > 0 && (
+                                                            <div className="flex items-center gap-1 text-[10px] mt-1 px-1.5 py-0.5 rounded-md w-fit bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-200 border border-cyan-200 dark:border-cyan-800">
+                                                                <Icons.Shirt className="w-3 h-3"/>
+                                                                <span className="font-bold">Online op Vinted: {item.vinted}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-right flex flex-col items-end shrink-0 ml-2">
+                                                        <div className="font-bold text-emerald-700 dark:text-emerald-400">{formatEuro(item.price)}</div>
+                                                        {item.quantity > 1 && (
+                                                            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium block">
+                                                                Totaal: {formatEuro((item.price || 0) * item.quantity)}
+                                                            </span>
+                                                        )}
+                                                        <div className={`text-[9px] px-1 rounded uppercase font-bold mt-1 inline-block ${item.status==='zolder'?'bg-slate-100 dark:bg-slate-700 dark:text-slate-300':'bg-orange-50 dark:bg-orange-900/50 text-orange-600 dark:text-orange-300'}`}>{item.status}</div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex justify-between items-center mt-2 border-t dark:border-slate-700 pt-2 border-slate-50">
+                                                    <div className="flex items-center border dark:border-slate-600 rounded bg-slate-50 dark:bg-slate-700">
+                                                        <button onClick={()=>updateQuantity(item.id,item.quantity,-1)} className="px-2 hover:bg-slate-200 dark:hover:bg-slate-600 dark:text-slate-200">-</button>
+                                                        <span className="px-2 font-mono font-bold text-sm bg-white dark:bg-slate-800 dark:text-white">{item.quantity}</span>
+                                                        <button onClick={()=>updateQuantity(item.id,item.quantity,1)} className="px-2 hover:bg-slate-200 dark:hover:bg-slate-600 dark:text-slate-200">+</button>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <button onClick={()=>{setNewItem(item);setEditingId(item.id);window.scrollTo({top:0,behavior:'smooth'})}} className="text-slate-400 hover:text-amber-500 dark:hover:text-amber-400"><Icons.Edit/></button>
+                                                        <button onClick={()=>deleteItem(item.id)} className="text-slate-400 hover:text-red-500 dark:hover:text-red-400"><Icons.Trash/></button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )
+                                })
+                            }
+                        </div>
+
+                        {/* PAGINERING CONTROLS */}
+                        {totalPages > 1 && (
+                            <div className="flex justify-center items-center gap-4 mt-4 py-2 border-t border-slate-100 dark:border-slate-700">
+                                <button 
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    disabled={currentPage === 1}
+                                    className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 ${currentPage === 1 ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30'}`}
+                                >
+                                    <Icons.ChevronLeft/> Vorige
+                                </button>
+                                <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Pagina {currentPage} van {totalPages}</span>
+                                <button 
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                    disabled={currentPage === totalPages}
+                                    className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 ${currentPage === totalPages ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30'}`}
+                                >
+                                    Volgende <Icons.ChevronRight/>
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                    {previewImage && <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={()=>setPreviewImage(null)}><img src={previewImage} className="max-w-full max-h-[80vh] rounded"/></div>}
+                </div>
+            );
+        };
+
+        // --- WENSEN COMPONENT ---
+        const RequestsTab = ({ targetUid }) => {
+            const [list, setList] = useState([]);
+            const [input, setInput] = useState({customer:'', product:'', note:'', image: '', email: '', phone: ''});
+            const [uploading, setUploading] = useState(false);
+            const [previewImage, setPreviewImage] = useState(null);
+            const [editingId, setEditingId] = useState(null); 
+            
+            useEffect(() => {
+                if(!targetUid) return;
+                const unsub = window.db.collection('users').doc(targetUid).collection('requests').orderBy('createdAt','desc').onSnapshot(s => setList(s.docs.map(d=>({id:d.id,...d.data()}))));
+                return () => unsub();
+            }, [targetUid]);
+
+            const handleSave = async () => { 
+                if(input.customer && input.product) { 
+                    if(editingId) {
+                        await window.db.collection('users').doc(targetUid).collection('requests').doc(editingId).update(input);
+                        setEditingId(null);
+                    } else {
+                        await window.db.collection('users').doc(targetUid).collection('requests').add({...input, completed:false, createdAt:Date.now()}); 
+                    }
+                    setInput({customer:'',product:'',note:'', image: '', email: '', phone: ''}); 
+                }
+            };
+            
+            const handleEdit = (item) => {
+                setInput({ customer: item.customer, product: item.product, note: item.note || '', image: item.image || '', email: item.email || '', phone: item.phone || '' });
+                setEditingId(item.id);
+                window.scrollTo({top:0, behavior:'smooth'});
+            };
+
+            const handleImageUpload = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                setUploading(true);
+                try {
+                    const ref = firebase.storage().ref().child(`users/${targetUid}/requests/${Date.now()}_${file.name}`);
+                    await ref.put(file);
+                    const url = await ref.getDownloadURL();
+                    setInput({...input, image: url});
+                } catch (error) { alert("Upload fout: " + error.message); } finally { setUploading(false); }
+            };
+
+            const toggle = async (item) => window.db.collection('users').doc(targetUid).collection('requests').doc(item.id).update({completed:!item.completed});
+            const del = async (id) => { if(confirm("Verwijderen?")) window.db.collection('users').doc(targetUid).collection('requests').doc(id).delete(); };
+
+            const activeRequests = list.filter(item => !item.completed);
+            const completedRequests = list.filter(item => item.completed);
+
+            return (
+                <div className="space-y-6">
+                    {/* INVULFORMULIER */}
+                    <div className={`p-4 rounded-xl border shadow-sm transition-colors ${editingId ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700' : 'bg-white dark:bg-dark-card border-emerald-100 dark:border-dark-border'}`}>
+                        <h3 className={`font-bold mb-2 flex items-center gap-2 ${editingId ? 'text-amber-800 dark:text-amber-400' : 'text-emerald-800 dark:text-emerald-400'}`}>
+                            {editingId ? <Icons.Edit/> : <Icons.Plus/>} {editingId ? 'Wens Wijzigen' : 'Nieuwe Wens'}
+                        </h3>
+                        <div className="flex flex-col gap-2">
+                            <div className="flex gap-2">
+                                <label className="w-20 h-20 border dark:border-slate-600 rounded bg-slate-50 dark:bg-slate-700 flex items-center justify-center cursor-pointer hover:bg-emerald-50 dark:hover:bg-slate-600 shrink-0 relative overflow-hidden">
+                                    <input type="file" className="hidden" onChange={handleImageUpload}/>
+                                    {uploading ? <Icons.Loader className="text-emerald-600"/> : (input.image ? <img src={input.image} className="w-full h-full object-cover"/> : <div className="text-center text-slate-400 text-[10px]"><Icons.Image className="text-xl mb-1"/><br/>Foto</div>)}
+                                </label>
+                                <div className="flex flex-col gap-2 flex-grow">
+                                    <input value={input.customer} onChange={e=>setInput({...input, customer:e.target.value})} placeholder="Klant naam" className="border dark:border-slate-600 dark:bg-dark-input dark:text-white p-2 rounded text-sm w-full outline-none"/>
+                                    <input value={input.product} onChange={e=>setInput({...input, product:e.target.value})} placeholder="Product" className="border dark:border-slate-600 dark:bg-dark-input dark:text-white p-2 rounded text-sm w-full outline-none"/>
+                                    <div className="flex gap-2">
+                                        <input value={input.email} onChange={e=>setInput({...input, email:e.target.value})} placeholder="Email (optioneel)" className="border dark:border-slate-600 dark:bg-dark-input dark:text-white p-2 rounded text-sm w-full outline-none"/>
+                                        <input value={input.phone} onChange={e=>setInput({...input, phone:e.target.value})} placeholder="Telefoon (optioneel)" className="border dark:border-slate-600 dark:bg-dark-input dark:text-white p-2 rounded text-sm w-full outline-none"/>
+                                    </div>
+                                </div>
+                            </div>
+                            <input value={input.image} onChange={e=>setInput({...input, image:e.target.value})} placeholder="Of plak afbeeldingslink..." className="border dark:border-slate-600 dark:bg-dark-input dark:text-slate-300 p-1.5 rounded text-xs w-full text-slate-500 outline-none"/>
+                            <input value={input.note} onChange={e=>setInput({...input, note:e.target.value})} placeholder="Notitie (optioneel)" className="border dark:border-slate-600 dark:bg-dark-input dark:text-white p-2 rounded text-sm w-full outline-none"/>
+                        </div>
+                        <button onClick={handleSave} className={`w-full mt-2 text-white py-2 rounded font-bold shadow-sm ${editingId ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
+                            {editingId ? 'Wijziging Opslaan' : 'Toevoegen'}
+                        </button>
+                    </div>
+
+                    {/* NOG TE ZOEKEN LIJST */}
+                    <div>
+                        <h4 className="font-bold text-slate-600 dark:text-slate-300 mb-2 flex items-center gap-2 text-sm uppercase tracking-wide"><Icons.Search/> Nog te zoeken</h4>
+                        <div className="space-y-2">
+                            {activeRequests.length===0 && <p className="text-center text-slate-400 py-4 italic text-sm border-2 border-dashed dark:border-slate-700 rounded-lg">Geen openstaande wensen.</p>}
+                            {activeRequests.map(item => (
+                                <div key={item.id} className="p-3 rounded-lg border bg-white dark:bg-dark-card border-slate-200 dark:border-slate-700 flex gap-3 items-center shadow-sm">
+                                    <div onClick={()=>item.image && setPreviewImage(item.image)} className={`w-12 h-12 rounded shrink-0 overflow-hidden flex items-center justify-center border border-slate-200 dark:border-slate-600 ${item.image ? 'cursor-pointer bg-white' : 'bg-slate-50 dark:bg-slate-800'}`}>
+                                         {item.image ? <img src={item.image} className="w-full h-full object-cover"/> : <Icons.Gift className="text-slate-300 dark:text-slate-500 text-xl"/>}
+                                    </div>
+                                    <div className="flex-grow min-w-0">
+                                        <div className="font-bold text-slate-800 dark:text-slate-100 truncate">{item.product}</div>
+                                        <div className="text-xs text-slate-500 dark:text-slate-400 flex flex-wrap gap-x-2 items-center">
+                                            <span>Voor: <span className="font-semibold">{item.customer}</span></span>
+                                            {item.email && <span className="flex items-center gap-1"><Icons.Envelope className="text-[10px]"/> {item.email}</span>}
+                                            {item.phone && <span className="flex items-center gap-1"><Icons.Phone className="text-[10px]"/> {item.phone}</span>}
+                                            {item.note && <span className="italic">({item.note})</span>}
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2 shrink-0">
+                                        <button onClick={()=>handleEdit(item)} className="w-8 h-8 rounded-full flex items-center justify-center text-slate-300 dark:text-slate-500 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30"><Icons.Edit/></button>
+                                        <button onClick={()=>toggle(item)} className="w-8 h-8 rounded-full flex items-center justify-center text-slate-300 dark:text-slate-500 bg-slate-100 dark:bg-slate-700 hover:text-emerald-500 hover:bg-emerald-100 dark:hover:bg-emerald-900/30"><Icons.Check/></button>
+                                        <button onClick={()=>del(item.id)} className="w-8 h-8 rounded-full flex items-center justify-center text-slate-300 dark:text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30"><Icons.Trash/></button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* GEVONDEN LIJST */}
+                    {completedRequests.length > 0 && (
+                        <div>
+                            <h4 className="font-bold text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-2 text-sm uppercase tracking-wide mt-6"><Icons.CheckCircle/> Reeds gevonden</h4>
+                            <div className="space-y-2 opacity-75">
+                                {completedRequests.map(item => (
+                                    <div key={item.id} className="p-3 rounded-lg border bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800 flex gap-3 items-center">
+                                        <div onClick={()=>item.image && setPreviewImage(item.image)} className={`w-12 h-12 rounded shrink-0 overflow-hidden flex items-center justify-center border border-emerald-200 dark:border-emerald-700 ${item.image ? 'cursor-pointer bg-white' : 'bg-white/50 dark:bg-slate-800'}`}>
+                                             {item.image ? <img src={item.image} className="w-full h-full object-cover grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all"/> : <Icons.Gift className="text-emerald-300 dark:text-emerald-700 text-xl"/>}
+                                        </div>
+                                        <div className="flex-grow min-w-0">
+                                            <div className="font-bold text-emerald-800 dark:text-emerald-300 line-through truncate">{item.product}</div>
+                                            <div className="text-xs text-emerald-600 dark:text-emerald-400">Gevonden voor: {item.customer}</div>
+                                        </div>
+                                        <div className="flex gap-2 shrink-0">
+                                            <button onClick={()=>toggle(item)} className="w-8 h-8 rounded-full flex items-center justify-center text-emerald-600 dark:text-emerald-400 bg-emerald-200 dark:bg-emerald-800 hover:bg-emerald-300 dark:hover:bg-emerald-700" title="Terugzetten naar te zoeken"><Icons.Check/></button>
+                                            <button onClick={()=>del(item.id)} className="w-8 h-8 rounded-full flex items-center justify-center text-emerald-400 dark:text-emerald-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30"><Icons.Trash/></button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {previewImage && <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={()=>setPreviewImage(null)}><img src={previewImage} className="max-w-full max-h-[80vh] rounded"/></div>}
+                </div>
+            );
+        };
+
+        // --- PS BEHEER MODAL (ONGWIJZIGD) ---
+        const PsManagementModal = ({ isOpen, onClose, psLevels, updatePsLevels, user }) => {
+            const [uploadingId, setUploadingId] = useState(null);
+            if (!isOpen) return null;
+            const addLevel = () => updatePsLevels([...(psLevels||[]), { id: Date.now(), amount: '', name: '', label: '', image: '' }]);
+            const updateLevel = (id, field, value) => updatePsLevels(psLevels.map(l => l.id === id ? { ...l, [field]: value } : l));
+            const deleteLevel = (id) => { if(confirm("Verwijderen?")) updatePsLevels(psLevels.filter(l => l.id !== id)); };
+            const handleImageUpload = async (e, levelId) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                setUploadingId(levelId);
+                try {
+                    const ref = firebase.storage().ref().child(`users/${user.uid}/ps_images/${Date.now()}_${file.name}`);
+                    await ref.put(file);
+                    const url = await ref.getDownloadURL();
+                    updateLevel(levelId, 'image', url);
+                } catch (error) { alert("Upload mislukt: " + error.message); } finally { setUploadingId(null); }
+            };
+            return (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
+                    <div className="bg-white dark:bg-dark-card rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col modal-content" onClick={e => e.stopPropagation()}>
+                        <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800 rounded-t-2xl"><h3 className="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2"><Icons.Settings className="text-emerald-600 dark:text-emerald-400"/> Beloningen Beheren</h3><button onClick={onClose}><Icons.X className="dark:text-slate-400"/></button></div>
+                        <div className="p-4 overflow-y-auto space-y-4">
+                            {(!psLevels || psLevels.length === 0) && <div className="text-center py-8 text-slate-400 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl"><p>Nog geen beloningen ingesteld.</p></div>}
+                            {(psLevels||[]).sort((a,b)=>(Number(a.amount)||0)-(Number(b.amount)||0)).map((level, index) => (
+                                <div key={level.id} className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 space-y-3">
+                                    <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-2"><span className="text-xs font-bold text-slate-500 uppercase">{level.label || `PS ${index + 1}`}</span><button onClick={() => deleteLevel(level.id)} className="text-red-500 hover:text-red-700 text-xs flex items-center gap-1 font-medium"><Icons.Trash/> Verwijderen</button></div>
+                                    <div className="grid grid-cols-1 gap-3">
+                                        <div><label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Label</label><input type="text" placeholder={`PS ${index + 1}`} value={level.label} onChange={(e)=>updateLevel(level.id, 'label', e.target.value)} className="w-full px-2 py-2 text-sm font-bold border dark:border-slate-600 dark:bg-slate-700 dark:text-emerald-400 rounded outline-none text-emerald-700"/></div>
+                                        <div><label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Bedrag (€)</label><input type="number" value={level.amount} onChange={(e)=>updateLevel(level.id, 'amount', e.target.value)} className="w-full px-2 py-2 text-sm font-bold border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded outline-none"/></div>
+                                        <div><label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Naam</label><input type="text" placeholder="Bijv. Braadpan" value={level.name} onChange={(e)=>updateLevel(level.id, 'name', e.target.value)} className="w-full px-2 py-2 text-sm border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded outline-none"/></div>
+                                    </div>
+                                    <div><label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Afbeelding</label><div className="flex gap-2 items-center"><div className="w-20 h-20 rounded border dark:border-slate-600 bg-white dark:bg-slate-700 flex items-center justify-center overflow-hidden shrink-0 relative">{uploadingId === level.id ? <Icons.Loader className="text-emerald-600"/> : level.image ? <img src={level.image} className="w-full h-full object-cover"/> : <Icons.Image className="text-2xl text-slate-300"/>}</div><div className="flex-grow flex flex-col gap-2"><label className="flex items-center justify-center gap-2 px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded cursor-pointer hover:bg-emerald-50 dark:hover:bg-slate-600 w-full"><input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, level.id)}/><Icons.Upload className="text-slate-500"/><span className="text-xs text-slate-600 dark:text-slate-300 font-medium">Upload Foto</span></label><input type="text" placeholder="Of plak link..." value={level.image} onChange={(e)=>updateLevel(level.id, 'image', e.target.value)} className="w-full px-2 py-1.5 text-xs border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded outline-none"/></div></div></div>
+                                </div>
+                            ))}
+                            <button onClick={addLevel} className="w-full py-3 border-2 border-dashed border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 rounded-xl font-bold hover:bg-emerald-50 dark:hover:bg-emerald-900/20 flex items-center justify-center gap-2"><Icons.Plus/> Nieuw Niveau</button>
+                        </div>
+                        <div className="p-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-b-2xl"><button onClick={onClose} className="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl shadow-lg">Klaar & Opslaan</button></div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- USER SELECTOR & SETTINGS MODAL (AANGEPAST) ---
+        const AdminUserModal = ({ isOpen, onClose, selectedYear, onSelectUser }) => {
+            const [usersList, setUsersList] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [editingUserPerms, setEditingUserPerms] = useState(null); // ID van user wiens rechten we bewerken
+            const [perms, setPerms] = useState({ showStock: true, showRequests: true, showCustomers: true, showRecipes: true });
+
+            useEffect(() => {
+                if (!isOpen) return;
+                // Haal gebruikers op uit alle maanden (een simpele manier om actieve gebruikers te vinden)
+                const unsub = window.db.collectionGroup('months').where('yearId', '==', selectedYear).onSnapshot(snapshot => {
+                    const usersMap = {};
+                    snapshot.forEach(doc => {
+                        const d = doc.data();
+                        if (d.userId && !usersMap[d.userId]) usersMap[d.userId] = { uid: d.userId, name: d.userName || 'Onbekend', email: d.userEmail, photo: d.userPhoto };
+                    });
+                    setUsersList(Object.values(usersMap));
+                    setLoading(false);
+                });
+                return () => unsub();
+            }, [isOpen, selectedYear]);
+
+            // Open permissie beheer paneel voor specifieke user
+            const openPermissions = async (e, user) => {
+                e.stopPropagation();
+                setEditingUserPerms(user.uid);
+                // Haal bestaande config op
+                const doc = await window.db.collection('users').doc(user.uid).collection('settings').doc('config').get();
+                if (doc.exists) setPerms(doc.data());
+                else setPerms({ showStock: true, showRequests: true, showCustomers: true, showRecipes: true });
+            };
+
+            const togglePerm = async (key) => {
+                const newPerms = { ...perms, [key]: !perms[key] };
+                setPerms(newPerms);
+                await window.db.collection('users').doc(editingUserPerms).collection('settings').doc('config').set(newPerms, { merge: true });
+            };
+
+            if (!isOpen) return null;
+
+            return (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
+                    <div className="bg-white dark:bg-dark-card rounded-2xl shadow-xl w-full max-w-md overflow-hidden modal-content" onClick={e=>e.stopPropagation()}>
+                        <div className="p-4 border-b bg-slate-50 dark:bg-slate-800 flex justify-between items-center"><h3 className="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2"><Icons.Shield className="text-red-500"/> Beheer Gebruikers</h3><button onClick={onClose}><Icons.X className="dark:text-slate-400"/></button></div>
+                        <div className="p-4 max-h-[60vh] overflow-y-auto space-y-2">
+                            {loading ? <Icons.Loader className="mx-auto block text-emerald-600"/> : usersList.map(u => (
+                                <div key={u.uid} className="bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-xl overflow-hidden shadow-sm hover:border-emerald-300 dark:hover:border-emerald-600 transition-all">
+                                    <div className="flex items-center gap-3 p-3 cursor-pointer hover:bg-emerald-50 dark:hover:bg-slate-700" onClick={() => onSelectUser(u)}>
+                                        <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-600 overflow-hidden shrink-0">{u.photo?<img src={u.photo} className="w-full h-full object-cover"/>:<Icons.User className="m-2.5 text-slate-400"/>}</div>
+                                        <div className="flex-grow">
+                                            <div className="font-bold text-slate-800 dark:text-slate-200 text-sm">{u.name}</div>
+                                            <div className="text-xs text-slate-400">{u.uid.slice(0,6)}...</div>
+                                        </div>
+                                        {/* Instellingen knop */}
+                                        <button onClick={(e)=>openPermissions(e, u)} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-white rounded-full transition-colors" title="Rechten Beheren">
+                                            <Icons.Settings/>
+                                        </button>
+                                    </div>
+                                    
+                                    {/* Permissies Paneel (Inline) */}
+                                    {editingUserPerms === u.uid && (
+                                        <div className="bg-slate-50 dark:bg-slate-700 border-t dark:border-slate-600 p-3 text-sm animate-in">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <span className="font-bold text-xs text-slate-500 dark:text-slate-300 uppercase">Opties voor {u.name}</span>
+                                                <button onClick={()=>setEditingUserPerms(null)} className="text-slate-400"><Icons.X className="w-3"/></button>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                <button onClick={()=>togglePerm('showStock')} className={`flex items-center gap-2 px-3 py-1.5 rounded border transition-colors ${perms.showStock ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800' : 'bg-white dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-600'}`}>
+                                                    {perms.showStock ? <Icons.Unlock className="w-3"/> : <Icons.Lock className="w-3"/>}
+                                                    Voorraad
+                                                </button>
+                                                <button onClick={()=>togglePerm('showRequests')} className={`flex items-center gap-2 px-3 py-1.5 rounded border transition-colors ${perms.showRequests ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800' : 'bg-white dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-600'}`}>
+                                                    {perms.showRequests ? <Icons.Unlock className="w-3"/> : <Icons.Lock className="w-3"/>}
+                                                    Wensen
+                                                </button>
+                                                <button onClick={()=>togglePerm('showRecipes')} className={`flex items-center gap-2 px-3 py-1.5 rounded border transition-colors ${perms.showRecipes ? 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-200 border-orange-200 dark:border-orange-800' : 'bg-white dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-600'}`}>
+                                                    {perms.showRecipes ? <Icons.Unlock className="w-3"/> : <Icons.Lock className="w-3"/>}
+                                                    Recepten
+                                                </button>
+                                                <button onClick={()=>togglePerm('showCustomers')} className={`flex items-center gap-2 px-3 py-1.5 rounded border transition-colors ${perms.showCustomers ? 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-200 border-purple-200 dark:border-purple-800' : 'bg-white dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-600'}`}>
+                                                    {perms.showCustomers ? <Icons.Unlock className="w-3"/> : <Icons.Lock className="w-3"/>}
+                                                    Klanten
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- SUB-COMPONENT: MAAND RIJ ---
+        const MonthRow = ({ month, data, updateMonthData, formatCurrency, user }) => {
+            const [expanded, setExpanded] = useState(false);
+            const [isModalOpen, setIsModalOpen] = useState(false);
+            const weeks = data.weeks || 4;
+            const psLevels = data.psLevels || [];
+            
+            let total = 0; for(let i=1;i<=5;i++) total += Number(data[`week${i}`])||0;
+            const profit = total * 0.29184;
+            const earnedLevels = psLevels.filter(l => total >= (Number(l.amount)||0)).length;
+
+            // Goal visual in list
+            const goal = Number(data.goalAmount) || 0;
+            const goalPercent = goal > 0 ? Math.min(100, (total/goal)*100) : 0;
+
+            const toggleReceived = (id) => { 
+                const newLevels = psLevels.map(l => l.id === id ? { ...l, received: !l.received } : l); 
+                updateMonthData(month, 'psLevels', newLevels); 
+            };
+
+            return (
+                <React.Fragment>
+                    <tr onClick={()=>setExpanded(!expanded)} className={`cursor-pointer border-b border-emerald-100 dark:border-emerald-800 transition-colors ${expanded?'bg-emerald-50 dark:bg-emerald-900/20':''}`}>
+                        <td className="p-2 sm:p-4 font-medium text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                            {expanded ? <Icons.ChevronUp className="text-emerald-500"/> : <Icons.ChevronDown className="text-emerald-300 dark:text-emerald-700"/>} 
+                            <div className="flex-grow">
+                                <div className="font-semibold flex items-center gap-2">
+                                    {month}
+                                </div>
+                                {earnedLevels > 0 && <div className="sm:hidden text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-1 font-medium"><Icons.Gift className="w-3 h-3"/> {earnedLevels} Cadeaus</div>}
+                            </div>
+                        </td>
+                        <td className="p-2 sm:p-4 font-bold text-sm sm:text-lg text-slate-700 dark:text-slate-200">{formatCurrency(total)}</td>
+                        <td className="p-2 sm:p-4 font-bold text-sm sm:text-lg text-right text-emerald-700 dark:text-emerald-400 font-mono">{formatCurrency(profit)}</td>
+                    </tr>
+                    {expanded && (
+                        <tr className="bg-emerald-50/50 dark:bg-emerald-900/10">
+                            <td colSpan="3" className="p-0 border-b border-emerald-200 dark:border-emerald-800">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-4 sm:p-6 animate-in">
+                                    {/* LINKER KOLOM: WEKEN */}
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center pb-2 border-b border-emerald-200/50 dark:border-emerald-700/50">
+                                            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Verkoop</span>
+                                            <div className="flex bg-white dark:bg-slate-800 rounded-lg p-1 border border-emerald-100 dark:border-slate-600 shadow-sm">{[4,5].map(n=><button key={n} onClick={(e)=>{e.stopPropagation();updateMonthData(month,'weeks',n)}} className={`px-3 py-1 rounded text-xs font-bold ${weeks===n?'bg-emerald-500 text-white':'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}`}>{n}</button>)}</div>
+                                        </div>
+                                        <div className="grid grid-cols-1 gap-3">
+                                            {Array.from({length:weeks},(_,i)=>i+1).map(w => {
+                                                const weekVal = Number(data[`week${w}`]) || 0;
+                                                const weekProfit = weekVal * 0.29184;
+                                                return (
+                                                    <div key={w} className="flex items-center gap-3 bg-white dark:bg-slate-800 p-3 rounded-lg border border-emerald-50 dark:border-slate-700 shadow-sm">
+                                                        <div className="bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 w-10 h-10 rounded-full flex justify-center items-center text-base font-bold shadow-sm shrink-0">{w}</div>
+                                                        <div className="flex-grow">
+                                                            <input 
+                                                                type="text" 
+                                                                inputMode="decimal"
+                                                                placeholder="0.00" 
+                                                                value={data[`week${w}`]||''} 
+                                                                onClick={e=>e.stopPropagation()} 
+                                                                onChange={e=>{
+                                                                    const val = e.target.value.replace(',', '.');
+                                                                    // Alleen getallen en max 1 punt toestaan
+                                                                    if (/^\d*\.?\d*$/.test(val)) updateMonthData(month,`week${w}`,val);
+                                                                }} 
+                                                                className="w-full pl-2 pr-2 py-2 rounded border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white outline-none text-base font-mono"
+                                                            />
+                                                        </div>
+                                                        <div className="text-right shrink-0 min-w-[70px]">
+                                                            <div className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-bold">Winst</div>
+                                                            <div className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-sm">{formatCurrency(weekProfit)}</div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    {/* RECHTER KOLOM: PS BELONINGEN */}
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center pb-2 border-b border-emerald-200/50 dark:border-emerald-700/50">
+                                            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">PS Beloningen</span>
+                                            <button onClick={(e)=>{e.stopPropagation();setIsModalOpen(true)}} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300 hover:bg-emerald-200 rounded-lg font-medium"><Icons.Settings className="w-3"/> Instellen</button>
+                                        </div>
+                                        <div className="space-y-3">
+                                            {psLevels.length === 0 ? <div className="text-center py-8 text-slate-400 dark:text-slate-500 border-2 border-dashed dark:border-slate-700 rounded-xl"><p>Nog geen beloningen ingesteld.</p></div> : 
+                                                psLevels.sort((a,b)=>(Number(a.amount)||0)-(Number(b.amount)||0)).map((level, index) => {
+                                                    const amt = Number(level.amount)||0; const unlocked = total >= amt && amt > 0;
+                                                    return (
+                                                        <div key={level.id} className={`bg-white dark:bg-slate-800 rounded-xl border overflow-hidden ${unlocked ? 'border-emerald-500 shadow-md ring-1 ring-emerald-500' : 'border-emerald-100 dark:border-slate-700 shadow-sm'}`}>
+                                                            <div className={`h-1.5 w-full ${unlocked ? 'bg-emerald-500' : 'bg-slate-100 dark:bg-slate-700'}`}>{!unlocked && amt > 0 && <div className="h-full bg-emerald-400" style={{ width: `${Math.min(100, (total/amt)*100)}%` }}></div>}</div>
+                                                            <div className="p-3 flex gap-3 items-center">
+                                                                <div className="w-16 h-16 shrink-0 rounded-lg bg-slate-50 dark:bg-slate-700 border flex items-center justify-center overflow-hidden relative">
+                                                                    {level.image ? <img src={level.image} className="w-full h-full object-cover"/> : <Icons.Image className="text-2xl text-slate-300"/>}
+                                                                </div>
+                                                                <div className="flex-grow min-w-0">
+                                                                    <div className="flex flex-col mb-1"><span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">{level.label || `PS ${index+1}`}</span><h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm truncate">{level.name||'Naamloos'}</h4></div>
+                                                                    <div className="text-xs mt-1">{unlocked ? (<div className="flex items-center gap-2">{level.received ? (<span className="flex items-center gap-1 text-blue-600 dark:text-blue-300 font-bold bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded-md cursor-pointer border border-blue-100 dark:border-blue-800" onClick={(e) => {e.stopPropagation(); toggleReceived(level.id);}}><Icons.Check className="w-3"/> ONTVANGEN!</span>) : (<><span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold animate-pulse"><Icons.CheckCircle className="w-3"/> BEHAALD!</span><button onClick={(e) => { e.stopPropagation(); toggleReceived(level.id); }} className="bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded text-[10px] transition-colors">Ontvangen?</button></>)}</div>) : <span className="text-slate-400">Nog <span className="font-medium text-slate-600 dark:text-slate-400">{formatCurrency(Math.max(0, amt-total))}</span></span>}</div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    )}
+                    <PsManagementModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} psLevels={psLevels} updatePsLevels={(newLevels) => updateMonthData(month, 'psLevels', newLevels)} user={user} />
+                </React.Fragment>
+            )
+        };
+
+        // --- HOOFD DASHBOARD ---
+        function DashboardPage() {
+            const [user, setUser] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+            const [monthlyData, setMonthlyData] = useState({});
+            
+            // UI State
+            const [activeTab, setActiveTab] = useState('overview');
+            const [showAdminModal, setShowAdminModal] = useState(false);
+            const [viewingUser, setViewingUser] = useState(null); 
+            const [showProfileMenu, setShowProfileMenu] = useState(false);
+            const [darkMode, setDarkMode] = useState(localStorage.getItem('theme') === 'dark');
+            const [showMobileMenu, setShowMobileMenu] = useState(false); // NIEUW: Voor hamburger menu
+            const [userPermissions, setUserPermissions] = useState({ showStock: true, showRequests: true, showCustomers: true, showRecipes: true });
+
+            useEffect(() => {
+                const unsub = window.auth.onAuthStateChanged(u => {
+                    if (!u) window.location.href = 'index.html'; // Redirect als niet ingelogd
+                    else { setUser(u); setLoading(false); }
+                });
+                return () => unsub();
+            }, []);
+
+            useEffect(() => {
+                if (darkMode) { document.documentElement.classList.add('dark'); localStorage.setItem('theme', 'dark'); } 
+                else { document.documentElement.classList.remove('dark'); localStorage.setItem('theme', 'light'); }
+            }, [darkMode]);
+
+            const targetUid = viewingUser ? viewingUser.uid : (user ? user.uid : null);
+            const isAdmin = user && ADMIN_EMAILS.includes(user.email);
+
+            // DATA OPHALEN
+            useEffect(() => {
+                if (!targetUid || !window.db) return;
+                
+                // 1. Haal maand data op
+                const unsubData = window.db.collection('users').doc(targetUid).collection('years').doc(String(selectedYear)).collection('months')
+                    .onSnapshot(snap => {
+                        const d = {};
+                        snap.forEach(doc => d[doc.id] = doc.data());
+                        setMonthlyData(d);
+                    });
+
+                // 2. Haal permissies op (voor toggle wensen/voorraad)
+                const unsubPerms = window.db.collection('users').doc(targetUid).collection('settings').doc('config')
+                    .onSnapshot(doc => {
+                        if (doc.exists) setUserPermissions(doc.data());
+                        else setUserPermissions({ showStock: true, showRequests: true, showCustomers: true, showRecipes: true }); // Default alles aan
+                    });
+
+                return () => { unsubData(); unsubPerms(); };
+            }, [targetUid, selectedYear]);
+
+            const updateMonthData = async (month, field, value) => {
+                if(!targetUid) return;
+                await window.db.collection('users').doc(targetUid).collection('years').doc(String(selectedYear)).collection('months').doc(month).set({
+                    [field]: value, userId: targetUid, userName: viewingUser ? viewingUser.name : user.displayName, yearId: selectedYear, monthId: month
+                }, { merge: true });
+            };
+
+            const formatCurrency = (val) => new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(val || 0);
+
+            if (loading) return <div className="h-screen flex items-center justify-center text-emerald-600 bg-slate-50 dark:bg-dark-bg"><Icons.Loader className="text-4xl"/></div>;
+
+            return (
+                <div className={`min-h-screen pb-20 transition-colors ${viewingUser ? 'bg-amber-50 dark:bg-amber-950' : 'bg-slate-50 dark:bg-dark-bg'}`}>
+                    {/* Header */}
+                    <header className={`${viewingUser ? 'bg-amber-600 dark:bg-amber-800' : 'bg-emerald-600 dark:bg-emerald-800'} text-white shadow-md sticky top-0 z-30 transition-colors`}>
+                        <div className="max-w-4xl mx-auto px-4 py-3 relative flex items-center justify-between">
+                            {/* HAMBURGER MENU VOOR MOBIEL */}
+                            <button onClick={() => setShowMobileMenu(!showMobileMenu)} className="sm:hidden text-white text-xl">
+                                <Icons.Bars />
+                            </button>
+
+                            {/* TITEL GECENTREERD OP DESKTOP, LINKS VAN PROFIEL OP MOBIEL */}
+                            <h1 className="font-bold text-lg flex items-center gap-2 select-none absolute left-1/2 transform -translate-x-1/2 sm:static sm:translate-x-0">
+                                {viewingUser ? <Icons.Shield/> : <img src="favicon-32x32.png" className="w-6 h-6 bg-white rounded-full"/>}
+                                <span className="hidden sm:inline">Tupperlife {viewingUser ? '(ADMIN)' : ''}</span>
+                                <span className="sm:hidden">{viewingUser ? 'ADMIN' : 'Tupperlife'}</span>
+                            </h1>
+                            
+                            {/* PROFIEL RECHTS */}
+                            <div className="relative">
+                                <button onClick={()=>setShowProfileMenu(!showProfileMenu)} className="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center border border-white/40">
+                                    {user.photoURL ? <img src={user.photoURL} className="w-full h-full rounded-full object-cover"/> : <Icons.User/>}
+                                </button>
+                                {showProfileMenu && (
+                                    <React.Fragment>
+                                        <div className="fixed inset-0 z-10" onClick={()=>setShowProfileMenu(false)}></div>
+                                        <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-dark-card rounded-xl shadow-xl border border-slate-100 dark:border-slate-700 z-20 text-slate-700 dark:text-slate-200 py-1">
+                                            <div className="px-4 py-2 border-b dark:border-slate-700 text-sm font-bold truncate">{user.displayName}</div>
+                                            
+                                            {/* DARK MODE TOGGLE */}
+                                            <div className="px-4 py-2 border-b dark:border-slate-700 flex items-center justify-between">
+                                                <span className="text-sm font-medium flex items-center gap-2"><Icons.Moon className="text-slate-400"/> Donkere modus</span>
+                                                <button onClick={()=>setDarkMode(!darkMode)} className={`w-10 h-5 rounded-full relative transition-colors ${darkMode ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+                                                    <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform shadow-sm ${darkMode ? 'translate-x-5' : ''}`}></div>
+                                                </button>
+                                            </div>
+
+                                            {isAdmin && <button onClick={()=>{setShowAdminModal(true);setShowProfileMenu(false)}} className="w-full text-left px-4 py-2 hover:bg-amber-50 dark:hover:bg-amber-900/30 text-amber-600 dark:text-amber-400 font-bold flex gap-2 items-center"><Icons.Users/> Beheer Gebruikers</button>}
+                                            <button onClick={()=>window.auth.signOut()} className="w-full text-left px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 flex gap-2 items-center"><Icons.LogOut/> Uitloggen</button>
+                                        </div>
+                                    </React.Fragment>
+                                )}
+                            </div>
+                        </div>
+                        {viewingUser && <div className="bg-amber-100 dark:bg-amber-900 text-amber-900 dark:text-amber-100 text-center text-xs font-bold py-1 flex justify-center gap-2"><span>Je bekijkt nu: {viewingUser.name}</span> <button onClick={()=>setViewingUser(null)} className="underline">Terug</button></div>}
+                    </header>
+
+                    {/* MOBILE MENU DROPDOWN */}
+                    {showMobileMenu && (
+                        <div className="sm:hidden bg-white dark:bg-dark-card border-b dark:border-slate-700 shadow-md absolute w-full z-20 animate-in">
+                            <div className="flex flex-col p-2">
+                                {['overview', 'requests', 'stock', 'recipes', 'customers'].map(tab => {
+                                    if(tab === 'requests' && !userPermissions.showRequests && !isAdmin) return null;
+                                    if(tab === 'stock' && !userPermissions.showStock && !isAdmin) return null;
+                                    if(tab === 'recipes' && !userPermissions.showRecipes && !isAdmin) return null;
+                                    if(tab === 'customers' && !userPermissions.showCustomers && !isAdmin) return null;
+
+                                    const labels = { overview: 'Overzicht', requests: 'Wensen', stock: 'Voorraad', recipes: 'Recepten', customers: 'Klanten' };
+                                    const icons = {
+                                        overview: '',
+                                        requests: !userPermissions.showRequests && <Icons.Lock className="text-[10px] ml-1 opacity-50"/>,
+                                        stock: !userPermissions.showStock && <Icons.Lock className="text-[10px] ml-1 opacity-50"/>,
+                                        recipes: !userPermissions.showRecipes && <Icons.Lock className="text-[10px] ml-1 opacity-50"/>,
+                                        customers: !userPermissions.showCustomers && <Icons.Lock className="text-[10px] ml-1 opacity-50"/>
+                                    };
+                                    
+                                    return (
+                                        <button key={tab} onClick={()=>{setActiveTab(tab); setShowMobileMenu(false)}} className={`text-left px-4 py-3 rounded-md text-sm font-bold transition-all ${activeTab===tab?'bg-emerald-50 dark:bg-slate-700 text-emerald-700 dark:text-emerald-300':'text-slate-600 dark:text-slate-400'}`}>
+                                            {labels[tab]} {icons[tab]}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="max-w-4xl mx-auto p-4 animate-in">
+                        {/* Navigatie Balk (Desktop) */}
+                        <div className="hidden sm:flex flex-row gap-3 items-center justify-between bg-white dark:bg-dark-card p-2 rounded-xl border border-emerald-100 dark:border-slate-700 shadow-sm mb-6">
+                            <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-1 w-auto">
+                                {['overview', 'requests', 'stock', 'recipes', 'customers'].map(tab => {
+                                    if(tab === 'requests' && !userPermissions.showRequests && !isAdmin) return null;
+                                    if(tab === 'stock' && !userPermissions.showStock && !isAdmin) return null;
+                                    if(tab === 'recipes' && !userPermissions.showRecipes && !isAdmin) return null;
+                                    if(tab === 'customers' && !userPermissions.showCustomers && !isAdmin) return null;
+
+                                    const labels = { overview: 'Overzicht', requests: 'Wensen', stock: 'Voorraad', recipes: 'Recepten', customers: 'Klanten' };
+                                    const icons = {
+                                        overview: '',
+                                        requests: !userPermissions.showRequests && <Icons.Lock className="text-[10px] ml-1 opacity-50"/>,
+                                        stock: !userPermissions.showStock && <Icons.Lock className="text-[10px] ml-1 opacity-50"/>,
+                                        recipes: !userPermissions.showRecipes && <Icons.Lock className="text-[10px] ml-1 opacity-50"/>,
+                                        customers: !userPermissions.showCustomers && <Icons.Lock className="text-[10px] ml-1 opacity-50"/>
+                                    };
+                                    
+                                    return (
+                                        <button key={tab} onClick={()=>setActiveTab(tab)} className={`whitespace-nowrap px-4 py-2 rounded-md text-sm font-bold transition-all ${activeTab===tab?'bg-white dark:bg-slate-600 shadow text-emerald-700 dark:text-emerald-300':'text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-300'}`}>
+                                            {labels[tab]} {icons[tab]}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            
+                            {activeTab === 'overview' && (
+                                <select value={selectedYear} onChange={e=>setSelectedYear(Number(e.target.value))} className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 font-bold px-4 py-2 rounded-lg border-emerald-100 dark:border-emerald-800 border outline-none cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors">
+                                    {[0,1,2,3,4].map(i => <option key={i} value={new Date().getFullYear()-2+i}>{new Date().getFullYear()-2+i}</option>)}
+                                </select>
+                            )}
+                        </div>
+
+                        {/* Mobiele Titelbalk (als vervanging voor tabs) */}
+                        <div className="sm:hidden flex items-center justify-between bg-white dark:bg-dark-card p-3 rounded-xl border border-emerald-100 dark:border-slate-700 shadow-sm mb-4">
+                            <span className="font-bold text-slate-700 dark:text-slate-200">
+                                {activeTab === 'overview' && 'Overzicht'}
+                                {activeTab === 'requests' && 'Wensen'}
+                                {activeTab === 'stock' && 'Voorraad'}
+                                {activeTab === 'recipes' && 'Recepten'}
+                                {activeTab === 'customers' && 'Klanten'}
+                            </span>
+                            {activeTab === 'overview' && (
+                                <select value={selectedYear} onChange={e=>setSelectedYear(Number(e.target.value))} className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold px-2 py-1 rounded border-none outline-none text-sm">
+                                    {[0,1,2,3,4].map(i => <option key={i} value={new Date().getFullYear()-2+i}>{new Date().getFullYear()-2+i}</option>)}
+                                </select>
+                            )}
+                        </div>
+
+                        {/* Inhoud */}
+                        {activeTab === 'overview' && (
+                            <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-emerald-100 dark:border-emerald-900 overflow-hidden">
+                                <table className="w-full text-left">
+                                    <thead className="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-900 dark:text-emerald-200 border-b border-emerald-100 dark:border-emerald-900"><tr><th className="p-2 sm:p-4">Maand</th><th className="p-2 sm:p-4">Verkoop</th><th className="p-2 sm:p-4 text-right">Winst</th></tr></thead>
+                                    <tbody>{MONTHS.map(m => <MonthRow key={m} month={m} data={monthlyData[m]||{}} updateMonthData={updateMonthData} formatCurrency={formatCurrency} user={user} />)}</tbody>
+                                    <tfoot className="bg-emerald-600 dark:bg-emerald-800 text-white font-bold">
+                                        <tr>
+                                            <td className="p-2 sm:p-4">Totaal</td>
+                                            <td className="p-2 sm:p-4 text-sm sm:text-lg">{formatCurrency(MONTHS.reduce((acc,m)=>{let t=0;for(let i=1;i<=5;i++)t+=Number((monthlyData[m]||{})[`week${i}`])||0;return acc+t},0))}</td>
+                                            <td className="p-2 sm:p-4 text-sm sm:text-lg text-right">{formatCurrency(MONTHS.reduce((acc,m)=>{let t=0;for(let i=1;i<=5;i++)t+=Number((monthlyData[m]||{})[`week${i}`])||0;return acc+(t*0.29184)},0))}</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        )}
+
+                        {activeTab === 'requests' && ((userPermissions.showRequests || isAdmin) ? <RequestsTab targetUid={targetUid}/> : <div className="text-center p-10 text-slate-400">Deze module is uitgeschakeld voor u.</div>)}
+                        {activeTab === 'stock' && ((userPermissions.showStock || isAdmin) ? <StockTab targetUid={targetUid} user={user}/> : <div className="text-center p-10 text-slate-400">Deze module is uitgeschakeld voor u.</div>)}
+                        {activeTab === 'recipes' && ((userPermissions.showRecipes || isAdmin) ? <RecipesTab targetUid={targetUid}/> : <div className="text-center p-10 text-slate-400">Deze module is uitgeschakeld voor u.</div>)}
+                        {activeTab === 'customers' && ((userPermissions.showCustomers || isAdmin) ? <CustomersTab targetUid={targetUid}/> : <div className="text-center p-10 text-slate-400">Deze module is uitgeschakeld voor u.</div>)}
+                    </div>
+
+                    <AdminUserModal isOpen={showAdminModal} onClose={()=>setShowAdminModal(false)} selectedYear={selectedYear} onSelectUser={(u)=>{setViewingUser(u);setShowAdminModal(false)}}/>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<DashboardPage />);
+    </script>
+</body>
+</html>
 
     <!-- 2. React Libraries -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
