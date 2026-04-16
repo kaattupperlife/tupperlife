@@ -243,22 +243,24 @@
             );
         };
 
-        // --- CLUB & GOLD MODULE BINNENIN OVERZICHT ---
+        // --- CLUB GOLD MODULE BINNENIN OVERZICHT ---
         const ClubTab = ({ targetUid, monthlyData, selectedYear, formatCurrency }) => {
-            const [goals, setGoals] = useState({ club: 20000, gold: 40000 });
+            const [goal, setGoal] = useState({ amount: 40000 });
             const [isEditing, setIsEditing] = useState(false);
+            const [isExpanded, setIsExpanded] = useState(false);
 
             useEffect(() => {
                 if(!targetUid) return;
-                const unsub = window.db.collection('users').doc(targetUid).collection('settings').doc(`goals_${selectedYear}`)
+                const unsub = window.db.collection('users').doc(targetUid).collection('settings').doc(`clubgold_${selectedYear}`)
                     .onSnapshot(doc => {
-                        if(doc.exists) setGoals({ club: doc.data().club || 20000, gold: doc.data().gold || 40000 });
+                        if(doc.exists) setGoal({ amount: doc.data().amount || 40000 });
                     });
                 return () => unsub();
             }, [targetUid, selectedYear]);
 
-            const saveGoals = async () => {
-                await window.db.collection('users').doc(targetUid).collection('settings').doc(`goals_${selectedYear}`).set(goals, {merge: true});
+            const saveGoal = async (e) => {
+                e?.stopPropagation();
+                await window.db.collection('users').doc(targetUid).collection('settings').doc(`clubgold_${selectedYear}`).set(goal, {merge: true});
                 setIsEditing(false);
             };
 
@@ -270,93 +272,88 @@
                 return acc + t;
             }, 0);
 
-            const clubPercent = goals.club > 0 ? Math.min(100, (totalSales / goals.club) * 100) : 0;
-            const goldPercent = goals.gold > 0 ? Math.min(100, (totalSales / goals.gold) * 100) : 0;
+            const progressPercent = goal.amount > 0 ? Math.min(100, (totalSales / goal.amount) * 100) : 0;
 
             return (
-                <div className="space-y-6 mb-6">
-                    <div className="bg-white dark:bg-dark-card p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                        <div>
-                            <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xl flex items-center gap-2"><Icons.Crown className="text-amber-500"/> Club & Gold - {selectedYear}</h3>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Volg je jaarlijkse voortgang voor de Tupperware Club en Gold statussen.</p>
-                        </div>
-                        <button onClick={() => setIsEditing(!isEditing)} className="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors font-bold text-sm shrink-0">
-                            {isEditing ? 'Annuleren' : 'Doelen Aanpassen'}
-                        </button>
-                    </div>
-
-                    {isEditing && (
-                        <div className="bg-amber-50 dark:bg-amber-900/20 p-4 rounded-xl border border-amber-200 dark:border-amber-800 shadow-sm flex flex-col sm:flex-row gap-4 items-end animate-in">
-                            <div className="w-full">
-                                <label className="text-xs font-bold text-amber-800 dark:text-amber-400 uppercase">Club Doel (€)</label>
-                                <input type="number" value={goals.club} onChange={e=>setGoals({...goals, club: Number(e.target.value)})} className="w-full mt-1 p-2 rounded border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-800 dark:text-white outline-none"/>
-                            </div>
-                            <div className="w-full">
-                                <label className="text-xs font-bold text-amber-800 dark:text-amber-400 uppercase">Gold Doel (€)</label>
-                                <input type="number" value={goals.gold} onChange={e=>setGoals({...goals, gold: Number(e.target.value)})} className="w-full mt-1 p-2 rounded border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-800 dark:text-white outline-none"/>
-                            </div>
-                            <button onClick={saveGoals} className="w-full sm:w-auto px-6 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded shadow-sm">Opslaan</button>
-                        </div>
-                    )}
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* CLUB CARD */}
-                        <div className={`p-6 rounded-2xl border ${totalSales >= goals.club ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-300 dark:border-emerald-700 shadow-emerald-100' : 'bg-white dark:bg-dark-card border-slate-200 dark:border-slate-700'} shadow-sm relative overflow-hidden transition-colors`}>
-                            <div className="flex justify-between items-start mb-4">
-                                <div>
-                                    <h4 className="text-2xl font-black text-slate-800 dark:text-slate-100">Club Status</h4>
-                                    <div className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Doel: {formatCurrency(goals.club)}</div>
-                                </div>
-                                <div className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-inner ${totalSales >= goals.club ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'}`}>
-                                    {totalSales >= goals.club ? <Icons.CheckCircle /> : <Icons.Target />}
-                                </div>
-                            </div>
-
-                            <div className="mt-8">
-                                <div className="flex justify-between text-sm font-bold mb-2">
-                                    <span className={totalSales >= goals.club ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-300'}>{formatCurrency(totalSales)}</span>
-                                    <span className={totalSales >= goals.club ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-500'}>{Math.round(clubPercent)}%</span>
-                                </div>
-                                <div className="h-4 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden shadow-inner">
-                                    <div className={`h-full transition-all duration-1000 ${totalSales >= goals.club ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{width: `${clubPercent}%`}}></div>
-                                </div>
-                                {totalSales < goals.club && (
-                                    <div className="text-xs text-slate-500 dark:text-slate-400 text-center mt-3 font-medium">Nog <span className="font-bold text-blue-600 dark:text-blue-400">{formatCurrency(goals.club - totalSales)}</span> te gaan!</div>
-                                )}
-                                {totalSales >= goals.club && (
-                                    <div className="text-xs text-emerald-600 dark:text-emerald-400 text-center mt-3 font-bold animate-pulse flex items-center justify-center gap-1"><Icons.CheckCircle/> GEFELICITEERD, CLUB BEHAALD!</div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* GOLD CARD */}
-                        <div className={`p-6 rounded-2xl border ${totalSales >= goals.gold ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-300 dark:border-amber-700 shadow-amber-100' : 'bg-white dark:bg-dark-card border-slate-200 dark:border-slate-700'} shadow-sm relative overflow-hidden transition-colors`}>
-                            <div className="flex justify-between items-start mb-4">
-                                <div>
-                                    <h4 className="text-2xl font-black text-amber-600 dark:text-amber-500">Gold Status</h4>
-                                    <div className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Doel: {formatCurrency(goals.gold)}</div>
-                                </div>
-                                <div className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-inner ${totalSales >= goals.gold ? 'bg-amber-500 text-white shadow-amber-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'}`}>
+                <div className="mb-6">
+                    <div 
+                        onClick={() => setIsExpanded(!isExpanded)}
+                        className="bg-[#0f0f0f] p-4 sm:p-6 rounded-xl border-2 border-amber-400 shadow-lg shadow-amber-500/10 cursor-pointer transition-all hover:border-amber-300"
+                    >
+                        <div className="flex justify-between items-center">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
                                     <Icons.Crown />
                                 </div>
+                                <div>
+                                    <h3 className="font-black text-amber-400 text-lg sm:text-xl uppercase tracking-wider">
+                                        Club Gold {selectedYear}
+                                    </h3>
+                                    {isExpanded && <p className="text-xs sm:text-sm text-slate-400 mt-1">Jouw voortgang voor de ultieme status.</p>}
+                                </div>
                             </div>
-
-                            <div className="mt-8">
-                                <div className="flex justify-between text-sm font-bold mb-2">
-                                    <span className={totalSales >= goals.gold ? 'text-amber-700 dark:text-amber-400' : 'text-slate-700 dark:text-slate-300'}>{formatCurrency(totalSales)}</span>
-                                    <span className={totalSales >= goals.gold ? 'text-amber-700 dark:text-amber-400' : 'text-slate-500 dark:text-slate-500'}>{Math.round(goldPercent)}%</span>
-                                </div>
-                                <div className="h-4 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden shadow-inner">
-                                    <div className={`h-full transition-all duration-1000 ${totalSales >= goals.gold ? 'bg-amber-500' : 'bg-amber-300 dark:bg-amber-600'}`} style={{width: `${goldPercent}%`}}></div>
-                                </div>
-                                {totalSales < goals.gold && (
-                                    <div className="text-xs text-slate-500 dark:text-slate-400 text-center mt-3 font-medium">Nog <span className="font-bold text-amber-600 dark:text-amber-400">{formatCurrency(goals.gold - totalSales)}</span> te gaan!</div>
+                            <div className="flex items-center gap-4">
+                                {!isExpanded && (
+                                    <div className="text-right hidden sm:block">
+                                        <div className="text-amber-400 font-bold text-lg">{formatCurrency(totalSales)} <span className="text-amber-600">/ {formatCurrency(goal.amount)}</span></div>
+                                    </div>
                                 )}
-                                {totalSales >= goals.gold && (
-                                    <div className="text-xs text-amber-600 dark:text-amber-400 text-center mt-3 font-bold animate-pulse flex items-center justify-center gap-1"><Icons.Crown/> GEFELICITEERD, GOLD BEHAALD!</div>
-                                )}
+                                <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
+                                    <Icons.ChevronDown className={`text-amber-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                </div>
                             </div>
                         </div>
+
+                        {isExpanded && (
+                            <div className="mt-6 pt-6 border-t border-amber-900/30" onClick={e => e.stopPropagation()}>
+                                <div className="flex justify-end mb-4">
+                                    <button onClick={() => setIsEditing(!isEditing)} className="px-3 py-1.5 bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded hover:bg-amber-500/20 transition-colors font-bold text-xs uppercase tracking-wider">
+                                        {isEditing ? 'Annuleren' : 'Doel Aanpassen'}
+                                    </button>
+                                </div>
+
+                                {isEditing && (
+                                    <div className="bg-[#1a1a1a] p-4 rounded-lg border border-amber-900 mb-6 flex flex-col sm:flex-row gap-4 items-end animate-in">
+                                        <div className="w-full">
+                                            <label className="text-xs font-bold text-amber-500 uppercase tracking-wider mb-1 block">Doelbedrag (€)</label>
+                                            <input type="number" value={goal.amount} onChange={e=>setGoal({amount: Number(e.target.value)})} className="w-full p-2.5 rounded border border-amber-700/50 bg-black text-amber-100 outline-none focus:border-amber-400 font-mono text-lg"/>
+                                        </div>
+                                        <button onClick={saveGoal} className="w-full sm:w-auto px-8 py-2.5 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-black font-black rounded shadow-sm uppercase tracking-wider transition-all">Opslaan</button>
+                                    </div>
+                                )}
+
+                                <div className="relative">
+                                    <div className="flex justify-between items-end mb-3">
+                                        <div>
+                                            <div className="text-[10px] sm:text-xs text-amber-600 font-bold uppercase tracking-widest mb-1">Huidige Verkoop</div>
+                                            <div className="text-2xl sm:text-4xl font-black text-amber-100">{formatCurrency(totalSales)}</div>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-[10px] sm:text-xs text-amber-600 font-bold uppercase tracking-widest mb-1">Doel</div>
+                                            <div className="text-lg sm:text-2xl font-bold text-amber-400">{formatCurrency(goal.amount)}</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="h-6 sm:h-8 w-full bg-[#111] rounded-full overflow-hidden shadow-inner border border-amber-900/50 relative">
+                                        <div className="h-full bg-gradient-to-r from-amber-700 via-amber-400 to-yellow-300 transition-all duration-1000 relative" style={{width: `${progressPercent}%`}}>
+                                            <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'linear-gradient(45deg,rgba(255,255,255,1) 25%,transparent 25%,transparent 50%,rgba(255,255,255,1) 50%,rgba(255,255,255,1) 75%,transparent 75%,transparent)' , backgroundSize: '2rem 2rem'}}></div>
+                                        </div>
+                                        <div className="absolute inset-0 flex items-center justify-center mix-blend-difference text-white text-xs sm:text-sm font-black tracking-widest drop-shadow-md">
+                                            {Math.round(progressPercent)}%
+                                        </div>
+                                    </div>
+
+                                    {totalSales < goal.amount && (
+                                        <div className="text-xs sm:text-sm text-slate-400 text-center mt-5 font-medium tracking-wide">Nog <span className="font-bold text-amber-400">{formatCurrency(goal.amount - totalSales)}</span> te gaan voor Club Gold!</div>
+                                    )}
+                                    {totalSales >= goal.amount && goal.amount > 0 && (
+                                        <div className="text-xs sm:text-sm text-amber-400 text-center mt-5 font-black uppercase tracking-widest animate-pulse flex items-center justify-center gap-2">
+                                            <Icons.Crown className="text-xl sm:text-2xl"/> GEFELICITEERD, CLUB GOLD BEHAALD! <Icons.Crown className="text-xl sm:text-2xl"/>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             );
@@ -1194,7 +1191,7 @@
                                                 </button>
                                                 <button onClick={()=>togglePerm('showClub')} className={`flex items-center gap-2 px-3 py-1.5 rounded border transition-colors ${perms.showClub ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200 border-amber-200 dark:border-amber-800' : 'bg-white dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-600'}`}>
                                                     {perms.showClub ? <Icons.Unlock className="w-3"/> : <Icons.Lock className="w-3"/>}
-                                                    Club/Gold
+                                                    Club Gold
                                                 </button>
                                             </div>
                                         </div>
@@ -1472,7 +1469,7 @@
                             </button>
 
                             <h1 className="font-bold text-lg flex items-center gap-2 select-none absolute left-1/2 transform -translate-x-1/2 sm:static sm:translate-x-0">
-                                {viewingUser ? <Icons.Shield/> : <img src="favicon-32x32.png" className="w-6 h-6 bg-white rounded-full"/>}
+                                {viewingUser ? <Icons.Shield/> : <img src="logonieuw.png" className="w-6 h-6 bg-white rounded-full"/>}
                                 <span className="hidden sm:inline">Tupperlife {viewingUser ? '(ADMIN)' : ''}</span>
                                 <span className="sm:hidden">{viewingUser ? 'ADMIN' : 'Tupperlife'}</span>
                             </h1>
@@ -1588,7 +1585,7 @@
                         {/* Inhoud */}
                         {activeTab === 'overview' && (
                             <div className="space-y-6">
-                                {/* CLUB & GOLD MODULE Boven de maanden */}
+                                {/* CLUB GOLD MODULE Boven de maanden */}
                                 {(userPermissions.showClub || isAdmin) && (
                                     <ClubTab targetUid={targetUid} monthlyData={monthlyData} selectedYear={selectedYear} formatCurrency={formatCurrency} />
                                 )}
