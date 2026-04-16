@@ -295,7 +295,12 @@
                             <div className="flex items-center gap-4">
                                 {!isExpanded && (
                                     <div className="text-right hidden sm:block">
-                                        <div className="text-amber-400 font-bold text-lg">{formatCurrency(totalSales)} <span className="text-amber-600">/ {formatCurrency(goal.amount)}</span></div>
+                                        <div className="text-amber-400 font-bold text-lg leading-none">{formatCurrency(totalSales)} <span className="text-amber-600">/ {formatCurrency(goal.amount)}</span></div>
+                                        {totalSales < goal.amount ? (
+                                            <div className="text-[11px] text-amber-500/70 font-medium mt-1.5 tracking-wide">Nog {formatCurrency(goal.amount - totalSales)} te gaan</div>
+                                        ) : (
+                                            <div className="text-[11px] text-amber-400 font-bold mt-1.5 tracking-widest uppercase">Doel Behaald!</div>
+                                        )}
                                     </div>
                                 )}
                                 <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
@@ -1469,7 +1474,7 @@
                             </button>
 
                             <h1 className="font-bold text-lg flex items-center gap-2 select-none absolute left-1/2 transform -translate-x-1/2 sm:static sm:translate-x-0">
-                                {viewingUser ? <Icons.Shield/> : <img src="logonieuw.png" className="w-6 h-6 bg-white rounded-full"/>}
+                                {viewingUser ? <Icons.Shield/> : <img src="favicon-32x32.png" className="w-6 h-6 bg-white rounded-full"/>}
                                 <span className="hidden sm:inline">Tupperlife {viewingUser ? '(ADMIN)' : ''}</span>
                                 <span className="sm:hidden">{viewingUser ? 'ADMIN' : 'Tupperlife'}</span>
                             </h1>
