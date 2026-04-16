@@ -148,7 +148,8 @@
             Utensils: () => <i className="fa-solid fa-utensils"></i>,
             Printer: () => <i className="fa-solid fa-print"></i>,
             Shirt: () => <i className="fa-solid fa-shirt"></i>,
-            Filter: () => <i className="fa-solid fa-filter"></i>
+            Filter: () => <i className="fa-solid fa-filter"></i>,
+            Crown: ({className}) => <i className={`fa-solid fa-crown ${className||''}`}></i>
         };
 
         // --- KLEUREN PALET ---
@@ -242,136 +243,120 @@
             );
         };
 
-        // --- PARTY PLANNER MODULE ---
-        const PartyPlannerTab = ({ targetUid }) => {
-            const [parties, setParties] = useState([]);
-            const [input, setInput] = useState({ date: '', host: '', location: '', sales: '', status: 'gepland' });
-            const [editingId, setEditingId] = useState(null);
+        // --- CLUB & GOLD MODULE BINNENIN OVERZICHT ---
+        const ClubTab = ({ targetUid, monthlyData, selectedYear, formatCurrency }) => {
+            const [goals, setGoals] = useState({ club: 20000, gold: 40000 });
+            const [isEditing, setIsEditing] = useState(false);
 
             useEffect(() => {
                 if(!targetUid) return;
-                const unsub = window.db.collection('users').doc(targetUid).collection('parties').orderBy('date').onSnapshot(snap => {
-                    setParties(snap.docs.map(d => ({id: d.id, ...d.data()})));
-                });
+                const unsub = window.db.collection('users').doc(targetUid).collection('settings').doc(`goals_${selectedYear}`)
+                    .onSnapshot(doc => {
+                        if(doc.exists) setGoals({ club: doc.data().club || 20000, gold: doc.data().gold || 40000 });
+                    });
                 return () => unsub();
-            }, [targetUid]);
+            }, [targetUid, selectedYear]);
 
-            const handleSave = async () => {
-                if(!input.date || !input.host) return;
-                const data = { ...input, sales: Number(input.sales)||0 };
-                if(editingId) {
-                    await window.db.collection('users').doc(targetUid).collection('parties').doc(editingId).update(data);
-                    setEditingId(null);
-                } else {
-                    await window.db.collection('users').doc(targetUid).collection('parties').add(data);
-                }
-                setInput({ date: '', host: '', location: '', sales: '', status: 'gepland' });
+            const saveGoals = async () => {
+                await window.db.collection('users').doc(targetUid).collection('settings').doc(`goals_${selectedYear}`).set(goals, {merge: true});
+                setIsEditing(false);
             };
 
-            const handleDelete = async (id) => { if(confirm("Party verwijderen?")) await window.db.collection('users').doc(targetUid).collection('parties').doc(id).delete(); };
+            // Bereken totaal van ALLES in dit jaar
+            const totalSales = MONTHS.reduce((acc, m) => {
+                let t = 0;
+                const d = monthlyData[m] || {};
+                for (let i = 1; i <= 6; i++) t += Number(d[`week${i}`]) || 0;
+                return acc + t;
+            }, 0);
 
-            const statusColors = { gepland: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200', gedaan: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200', geannuleerd: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200' };
+            const clubPercent = goals.club > 0 ? Math.min(100, (totalSales / goals.club) * 100) : 0;
+            const goldPercent = goals.gold > 0 ? Math.min(100, (totalSales / goals.gold) * 100) : 0;
 
             return (
-                <div className="space-y-6">
-                    <div className={`p-4 rounded-xl border shadow-sm transition-colors ${editingId ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700' : 'bg-white dark:bg-dark-card border-slate-200 dark:border-slate-700'}`}>
-                        <h3 className="font-bold mb-3 flex items-center gap-2 text-slate-700 dark:text-slate-200"><Icons.Calendar className="text-pink-500"/> {editingId ? 'Party Wijzigen' : 'Nieuwe Party'}</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <input type="date" value={input.date} onChange={e=>setInput({...input, date:e.target.value})} className="border dark:border-slate-600 dark:bg-slate-800 dark:text-white p-2 rounded outline-none"/>
-                            <input value={input.host} onChange={e=>setInput({...input, host:e.target.value})} placeholder="Gastvrouw/heer" className="border dark:border-slate-600 dark:bg-slate-800 dark:text-white p-2 rounded outline-none"/>
-                            <input value={input.location} onChange={e=>setInput({...input, location:e.target.value})} placeholder="Locatie" className="border dark:border-slate-600 dark:bg-slate-800 dark:text-white p-2 rounded outline-none"/>
-                            <input type="text" inputMode="decimal" value={input.sales} 
-                                onChange={e=>{
-                                    const val = e.target.value.replace(',', '.');
-                                    if (/^\d*\.?\d*$/.test(val)) setInput({...input, sales: val});
-                                }} 
-                                placeholder="Omzet (€)" 
-                                className="border dark:border-slate-600 dark:bg-slate-800 dark:text-white p-2 rounded outline-none"/>
-                            <select value={input.status} onChange={e=>setInput({...input, status:e.target.value})} className="border dark:border-slate-600 dark:bg-slate-800 dark:text-white p-2 rounded outline-none md:col-span-2">
-                                <option value="gepland">📅 Gepland</option>
-                                <option value="gedaan">✅ Gedaan</option>
-                                <option value="geannuleerd">❌ Geannuleerd</option>
-                            </select>
+                <div className="space-y-6 mb-6">
+                    <div className="bg-white dark:bg-dark-card p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div>
+                            <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xl flex items-center gap-2"><Icons.Crown className="text-amber-500"/> Club & Gold - {selectedYear}</h3>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Volg je jaarlijkse voortgang voor de Tupperware Club en Gold statussen.</p>
                         </div>
-                        <button onClick={handleSave} className={`w-full mt-3 py-2 text-white font-bold rounded shadow-sm ${editingId?'bg-amber-600':'bg-pink-600'}`}>{editingId ? 'Opslaan' : 'Inplannen'}</button>
+                        <button onClick={() => setIsEditing(!isEditing)} className="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors font-bold text-sm shrink-0">
+                            {isEditing ? 'Annuleren' : 'Doelen Aanpassen'}
+                        </button>
                     </div>
 
-                    <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-                        {parties.length === 0 && <p className="p-6 text-center text-slate-400">Nog geen parties gepland.</p>}
-                        {parties.map(p => (
-                            <div key={p.id} className="p-4 border-b dark:border-slate-700 last:border-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 bg-slate-100 dark:bg-slate-700 rounded-lg flex flex-col items-center justify-center shrink-0 border dark:border-slate-600">
-                                        <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400">{new Date(p.date).toLocaleString('default',{month:'short'})}</span>
-                                        <span className="text-lg font-bold text-slate-800 dark:text-slate-200">{new Date(p.date).getDate()}</span>
-                                    </div>
-                                    <div>
-                                        <div className="font-bold text-slate-800 dark:text-slate-200">{p.host}</div>
-                                        <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2"><Icons.MapPin className="w-3"/> {p.location || 'Locatie onbekend'}</div>
-                                    </div>
+                    {isEditing && (
+                        <div className="bg-amber-50 dark:bg-amber-900/20 p-4 rounded-xl border border-amber-200 dark:border-amber-800 shadow-sm flex flex-col sm:flex-row gap-4 items-end animate-in">
+                            <div className="w-full">
+                                <label className="text-xs font-bold text-amber-800 dark:text-amber-400 uppercase">Club Doel (€)</label>
+                                <input type="number" value={goals.club} onChange={e=>setGoals({...goals, club: Number(e.target.value)})} className="w-full mt-1 p-2 rounded border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-800 dark:text-white outline-none"/>
+                            </div>
+                            <div className="w-full">
+                                <label className="text-xs font-bold text-amber-800 dark:text-amber-400 uppercase">Gold Doel (€)</label>
+                                <input type="number" value={goals.gold} onChange={e=>setGoals({...goals, gold: Number(e.target.value)})} className="w-full mt-1 p-2 rounded border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-800 dark:text-white outline-none"/>
+                            </div>
+                            <button onClick={saveGoals} className="w-full sm:w-auto px-6 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded shadow-sm">Opslaan</button>
+                        </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* CLUB CARD */}
+                        <div className={`p-6 rounded-2xl border ${totalSales >= goals.club ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-300 dark:border-emerald-700 shadow-emerald-100' : 'bg-white dark:bg-dark-card border-slate-200 dark:border-slate-700'} shadow-sm relative overflow-hidden transition-colors`}>
+                            <div className="flex justify-between items-start mb-4">
+                                <div>
+                                    <h4 className="text-2xl font-black text-slate-800 dark:text-slate-100">Club Status</h4>
+                                    <div className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Doel: {formatCurrency(goals.club)}</div>
                                 </div>
-                                <div className="flex items-center justify-between sm:justify-end gap-4">
-                                    <div className={`text-xs px-2 py-1 rounded font-bold uppercase ${statusColors[p.status]}`}>{p.status}</div>
-                                    {p.sales > 0 && <div className="font-bold text-emerald-600 dark:text-emerald-400">€{p.sales}</div>}
-                                    <div className="flex gap-2">
-                                        <button onClick={()=>{setInput(p);setEditingId(p.id);window.scrollTo({top:0,behavior:'smooth'})}} className="text-slate-400 hover:text-amber-500"><Icons.Edit/></button>
-                                        <button onClick={()=>handleDelete(p.id)} className="text-slate-400 hover:text-red-500"><Icons.Trash/></button>
-                                    </div>
+                                <div className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-inner ${totalSales >= goals.club ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'}`}>
+                                    {totalSales >= goals.club ? <Icons.CheckCircle /> : <Icons.Target />}
                                 </div>
                             </div>
-                        ))}
-                    </div>
-                </div>
-            );
-        };
 
-        // --- MAAND DOELEN MODULE ---
-        const GoalsTab = ({ targetUid, monthlyData, updateMonthData, formatCurrency, selectedYear }) => {
-            return (
-                <div className="space-y-6">
-                    <div className="bg-white dark:bg-dark-card p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm text-center">
-                        <h3 className="font-bold text-slate-700 dark:text-slate-200 text-lg mb-2"><Icons.Target className="text-red-500"/> Doelen voor {selectedYear}</h3>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">Stel je doelen in en zie je voortgang groeien!</p>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {MONTHS.map(month => {
-                            const data = monthlyData[month] || {};
-                            let total = 0; 
-                            for(let i=1;i<=6;i++) total += Number(data[`week${i}`])||0; // AANGEPAST NAAR MAX 6
-                            const goal = Number(data.goalAmount) || 0;
-                            const percent = goal > 0 ? Math.min(100, (total / goal) * 100) : 0;
-
-                            return (
-                                <div key={month} className="bg-white dark:bg-dark-card p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden">
-                                    <div className="flex justify-between items-center mb-3">
-                                        <span className="font-bold text-slate-700 dark:text-slate-200">{month}</span>
-                                        {goal > 0 && <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{Math.round(percent)}%</span>}
-                                    </div>
-                                    
-                                    <div className="mb-3">
-                                        <div className="flex justify-between text-xs mb-1 text-slate-500 dark:text-slate-400">
-                                            <span>Huidig: <span className="font-bold text-slate-700 dark:text-slate-300">{formatCurrency(total)}</span></span>
-                                            <span>Doel: <span className="font-bold text-slate-700 dark:text-slate-300">{formatCurrency(goal)}</span></span>
-                                        </div>
-                                        <div className="h-2 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                                            <div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all duration-1000" style={{width: `${percent}%`}}></div>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-2 mt-2">
-                                        <label className="text-[10px] uppercase font-bold text-slate-400">Doel:</label>
-                                        <input 
-                                            type="number" 
-                                            value={data.goalAmount || ''} 
-                                            onChange={(e) => updateMonthData(month, 'goalAmount', e.target.value)}
-                                            placeholder="0"
-                                            className="w-full bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-600 text-sm py-1 px-2 outline-none dark:text-white"
-                                        />
-                                    </div>
+                            <div className="mt-8">
+                                <div className="flex justify-between text-sm font-bold mb-2">
+                                    <span className={totalSales >= goals.club ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-300'}>{formatCurrency(totalSales)}</span>
+                                    <span className={totalSales >= goals.club ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-500'}>{Math.round(clubPercent)}%</span>
                                 </div>
-                            );
-                        })}
+                                <div className="h-4 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden shadow-inner">
+                                    <div className={`h-full transition-all duration-1000 ${totalSales >= goals.club ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{width: `${clubPercent}%`}}></div>
+                                </div>
+                                {totalSales < goals.club && (
+                                    <div className="text-xs text-slate-500 dark:text-slate-400 text-center mt-3 font-medium">Nog <span className="font-bold text-blue-600 dark:text-blue-400">{formatCurrency(goals.club - totalSales)}</span> te gaan!</div>
+                                )}
+                                {totalSales >= goals.club && (
+                                    <div className="text-xs text-emerald-600 dark:text-emerald-400 text-center mt-3 font-bold animate-pulse flex items-center justify-center gap-1"><Icons.CheckCircle/> GEFELICITEERD, CLUB BEHAALD!</div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* GOLD CARD */}
+                        <div className={`p-6 rounded-2xl border ${totalSales >= goals.gold ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-300 dark:border-amber-700 shadow-amber-100' : 'bg-white dark:bg-dark-card border-slate-200 dark:border-slate-700'} shadow-sm relative overflow-hidden transition-colors`}>
+                            <div className="flex justify-between items-start mb-4">
+                                <div>
+                                    <h4 className="text-2xl font-black text-amber-600 dark:text-amber-500">Gold Status</h4>
+                                    <div className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Doel: {formatCurrency(goals.gold)}</div>
+                                </div>
+                                <div className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-inner ${totalSales >= goals.gold ? 'bg-amber-500 text-white shadow-amber-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'}`}>
+                                    <Icons.Crown />
+                                </div>
+                            </div>
+
+                            <div className="mt-8">
+                                <div className="flex justify-between text-sm font-bold mb-2">
+                                    <span className={totalSales >= goals.gold ? 'text-amber-700 dark:text-amber-400' : 'text-slate-700 dark:text-slate-300'}>{formatCurrency(totalSales)}</span>
+                                    <span className={totalSales >= goals.gold ? 'text-amber-700 dark:text-amber-400' : 'text-slate-500 dark:text-slate-500'}>{Math.round(goldPercent)}%</span>
+                                </div>
+                                <div className="h-4 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden shadow-inner">
+                                    <div className={`h-full transition-all duration-1000 ${totalSales >= goals.gold ? 'bg-amber-500' : 'bg-amber-300 dark:bg-amber-600'}`} style={{width: `${goldPercent}%`}}></div>
+                                </div>
+                                {totalSales < goals.gold && (
+                                    <div className="text-xs text-slate-500 dark:text-slate-400 text-center mt-3 font-medium">Nog <span className="font-bold text-amber-600 dark:text-amber-400">{formatCurrency(goals.gold - totalSales)}</span> te gaan!</div>
+                                )}
+                                {totalSales >= goals.gold && (
+                                    <div className="text-xs text-amber-600 dark:text-amber-400 text-center mt-3 font-bold animate-pulse flex items-center justify-center gap-1"><Icons.Crown/> GEFELICITEERD, GOLD BEHAALD!</div>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
             );
@@ -1129,7 +1114,7 @@
             const [usersList, setUsersList] = useState([]);
             const [loading, setLoading] = useState(true);
             const [editingUserPerms, setEditingUserPerms] = useState(null); // ID van user wiens rechten we bewerken
-            const [perms, setPerms] = useState({ showStock: true, showRequests: true, showCustomers: true, showRecipes: true });
+            const [perms, setPerms] = useState({ showStock: true, showRequests: true, showCustomers: true, showRecipes: true, showClub: true });
 
             useEffect(() => {
                 if (!isOpen) return;
@@ -1153,7 +1138,7 @@
                 // Haal bestaande config op
                 const doc = await window.db.collection('users').doc(user.uid).collection('settings').doc('config').get();
                 if (doc.exists) setPerms(doc.data());
-                else setPerms({ showStock: true, showRequests: true, showCustomers: true, showRecipes: true });
+                else setPerms({ showStock: true, showRequests: true, showCustomers: true, showRecipes: true, showClub: true });
             };
 
             const togglePerm = async (key) => {
@@ -1206,6 +1191,10 @@
                                                 <button onClick={()=>togglePerm('showCustomers')} className={`flex items-center gap-2 px-3 py-1.5 rounded border transition-colors ${perms.showCustomers ? 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-200 border-purple-200 dark:border-purple-800' : 'bg-white dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-600'}`}>
                                                     {perms.showCustomers ? <Icons.Unlock className="w-3"/> : <Icons.Lock className="w-3"/>}
                                                     Klanten
+                                                </button>
+                                                <button onClick={()=>togglePerm('showClub')} className={`flex items-center gap-2 px-3 py-1.5 rounded border transition-colors ${perms.showClub ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200 border-amber-200 dark:border-amber-800' : 'bg-white dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-600'}`}>
+                                                    {perms.showClub ? <Icons.Unlock className="w-3"/> : <Icons.Lock className="w-3"/>}
+                                                    Club/Gold
                                                 </button>
                                             </div>
                                         </div>
@@ -1421,7 +1410,7 @@
             const [showProfileMenu, setShowProfileMenu] = useState(false);
             const [darkMode, setDarkMode] = useState(localStorage.getItem('theme') === 'dark');
             const [showMobileMenu, setShowMobileMenu] = useState(false); 
-            const [userPermissions, setUserPermissions] = useState({ showStock: true, showRequests: true, showCustomers: true, showRecipes: true });
+            const [userPermissions, setUserPermissions] = useState({ showStock: true, showRequests: true, showCustomers: true, showRecipes: true, showClub: true });
 
             useEffect(() => {
                 const unsub = window.auth.onAuthStateChanged(u => {
@@ -1455,7 +1444,7 @@
                 const unsubPerms = window.db.collection('users').doc(targetUid).collection('settings').doc('config')
                     .onSnapshot(doc => {
                         if (doc.exists) setUserPermissions(doc.data());
-                        else setUserPermissions({ showStock: true, showRequests: true, showCustomers: true, showRecipes: true }); 
+                        else setUserPermissions({ showStock: true, showRequests: true, showCustomers: true, showRecipes: true, showClub: true }); 
                     });
 
                 return () => { unsubData(); unsubPerms(); };
@@ -1483,9 +1472,9 @@
                             </button>
 
                             <h1 className="font-bold text-lg flex items-center gap-2 select-none absolute left-1/2 transform -translate-x-1/2 sm:static sm:translate-x-0">
-                                {viewingUser ? <Icons.Shield/> : <img src="logonieuw.png" className="w-6 h-6 bg-white rounded-full"/>}
-                                <span className="hidden sm:inline">Tupperlife by Kaat {viewingUser ? '(ADMIN)' : ''}</span>
-                                <span className="sm:hidden">{viewingUser ? 'ADMIN' : 'Tupperlife by Kaat'}</span>
+                                {viewingUser ? <Icons.Shield/> : <img src="favicon-32x32.png" className="w-6 h-6 bg-white rounded-full"/>}
+                                <span className="hidden sm:inline">Tupperlife {viewingUser ? '(ADMIN)' : ''}</span>
+                                <span className="sm:hidden">{viewingUser ? 'ADMIN' : 'Tupperlife'}</span>
                             </h1>
                             
                             {/* PROFIEL RECHTS */}
@@ -1549,7 +1538,7 @@
                     <div className="max-w-4xl mx-auto p-4 animate-in">
                         {/* Navigatie Balk (Desktop) */}
                         <div className="hidden sm:flex flex-row gap-3 items-center justify-between bg-white dark:bg-dark-card p-2 rounded-xl border border-emerald-100 dark:border-slate-700 shadow-sm mb-6">
-                            <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-1 w-auto">
+                            <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-1 w-auto overflow-x-auto">
                                 {['overview', 'requests', 'stock', 'recipes', 'customers'].map(tab => {
                                     if(tab === 'requests' && !userPermissions.showRequests && !isAdmin) return null;
                                     if(tab === 'stock' && !userPermissions.showStock && !isAdmin) return null;
@@ -1598,20 +1587,28 @@
 
                         {/* Inhoud */}
                         {activeTab === 'overview' && (
-                            <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-emerald-100 dark:border-emerald-900 overflow-hidden">
-                                <table className="w-full text-left">
-                                    <thead className="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-900 dark:text-emerald-200 border-b border-emerald-100 dark:border-emerald-900"><tr><th className="p-2 sm:p-4">Maand</th><th className="p-2 sm:p-4">Verkoop</th><th className="p-2 sm:p-4 text-right">Winst</th></tr></thead>
-                                    <tbody>
-                                        {MONTHS.map((m, index) => <MonthRow key={m} month={m} monthIndex={index} year={selectedYear} data={monthlyData[m]||{}} updateMonthData={updateMonthData} formatCurrency={formatCurrency} user={user} />)}
-                                    </tbody>
-                                    <tfoot className="bg-emerald-600 dark:bg-emerald-800 text-white font-bold">
-                                        <tr>
-                                            <td className="p-2 sm:p-4">Totaal</td>
-                                            <td className="p-2 sm:p-4 text-sm sm:text-lg">{formatCurrency(MONTHS.reduce((acc,m)=>{let t=0;for(let i=1;i<=6;i++)t+=Number((monthlyData[m]||{})[`week${i}`])||0;return acc+t},0))}</td>
-                                            <td className="p-2 sm:p-4 text-sm sm:text-lg text-right">{formatCurrency(MONTHS.reduce((acc,m)=>{let t=0;for(let i=1;i<=6;i++)t+=Number((monthlyData[m]||{})[`week${i}`])||0;return acc+(t*0.29184)},0))}</td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
+                            <div className="space-y-6">
+                                {/* CLUB & GOLD MODULE Boven de maanden */}
+                                {(userPermissions.showClub || isAdmin) && (
+                                    <ClubTab targetUid={targetUid} monthlyData={monthlyData} selectedYear={selectedYear} formatCurrency={formatCurrency} />
+                                )}
+
+                                {/* MAANDEN TABEL */}
+                                <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-emerald-100 dark:border-emerald-900 overflow-hidden">
+                                    <table className="w-full text-left">
+                                        <thead className="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-900 dark:text-emerald-200 border-b border-emerald-100 dark:border-emerald-900"><tr><th className="p-2 sm:p-4">Maand</th><th className="p-2 sm:p-4">Verkoop</th><th className="p-2 sm:p-4 text-right">Winst</th></tr></thead>
+                                        <tbody>
+                                            {MONTHS.map((m, index) => <MonthRow key={m} month={m} monthIndex={index} year={selectedYear} data={monthlyData[m]||{}} updateMonthData={updateMonthData} formatCurrency={formatCurrency} user={user} />)}
+                                        </tbody>
+                                        <tfoot className="bg-emerald-600 dark:bg-emerald-800 text-white font-bold">
+                                            <tr>
+                                                <td className="p-2 sm:p-4">Totaal</td>
+                                                <td className="p-2 sm:p-4 text-sm sm:text-lg">{formatCurrency(MONTHS.reduce((acc,m)=>{let t=0;for(let i=1;i<=6;i++)t+=Number((monthlyData[m]||{})[`week${i}`])||0;return acc+t},0))}</td>
+                                                <td className="p-2 sm:p-4 text-sm sm:text-lg text-right">{formatCurrency(MONTHS.reduce((acc,m)=>{let t=0;for(let i=1;i<=6;i++)t+=Number((monthlyData[m]||{})[`week${i}`])||0;return acc+(t*0.29184)},0))}</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
                             </div>
                         )}
 
