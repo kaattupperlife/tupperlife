@@ -3,21 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tupperlife by Kaat</title>
+    <title>Tupperlife by Kaat - Dashboard</title>
     
     <!-- PWA & Favicon Settings -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#059669">
     
     <!-- Standaard Favicons -->
-    <link rel="icon" type="image/png" href="logonieuw.png">
-    <link rel="shortcut icon" href="logonieuw.png">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
     
     <!-- Apple Touch Icon (iPhone/iPad) -->
-    <link rel="apple-touch-icon" href="logonieuw.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+    
+    <!-- Android / Chrome / PWA -->
+    <link rel="icon" type="image/png" sizes="192x192" href="android-chrome-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="android-chrome-512x512.png">
     
     <!-- Windows Metro Tile -->
-    <meta name="msapplication-TileImage" content="logonieuw.png">
+    <meta name="msapplication-TileImage" content="android-chrome-192x192.png">
     <meta name="msapplication-TileColor" content="#059669">
 
     <!-- 1. EXTREME LIBRARIES & STYLES -->
@@ -1484,9 +1489,9 @@
                             </button>
 
                             <h1 className="font-bold text-lg flex items-center gap-2 select-none absolute left-1/2 transform -translate-x-1/2 sm:static sm:translate-x-0">
-                                {viewingUser ? <Icons.Shield/> : <img src="logonieuw.png" className="w-6 h-6 bg-white rounded-full"/>}
-                                <span className="hidden sm:inline">Tupperlife by Kaat {viewingUser ? '(ADMIN)' : ''}</span>
-                                <span className="sm:hidden">{viewingUser ? 'ADMIN' : 'Tupperlife by Kaat'}</span>
+                                {viewingUser ? <Icons.Shield/> : <img src="favicon-32x32.png" className="w-6 h-6 bg-white rounded-full"/>}
+                                <span className="hidden sm:inline">Tupperlife {viewingUser ? '(ADMIN)' : ''}</span>
+                                <span className="sm:hidden">{viewingUser ? 'ADMIN' : 'Tupperlife'}</span>
                             </h1>
                             
                             {/* PROFIEL RECHTS */}
