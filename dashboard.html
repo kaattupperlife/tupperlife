@@ -164,7 +164,8 @@
             Printer: () => <i className="fa-solid fa-print"></i>,
             Shirt: () => <i className="fa-solid fa-shirt"></i>,
             Filter: () => <i className="fa-solid fa-filter"></i>,
-            Crown: ({className}) => <i className={`fa-solid fa-crown ${className||''}`}></i>
+            Crown: ({className}) => <i className={`fa-solid fa-crown ${className||''}`}></i>,
+            History: () => <i className="fa-solid fa-clock-rotate-left"></i>
         };
 
         // --- KLEUREN PALET ---
@@ -379,6 +380,189 @@
             );
         };
 
+        // --- MIJN DOELEN WEERGAVE (OP HET OVERZICHT) ---
+        const CustomGoalsDisplay = ({ customGoals, monthlyData, selectedYear, formatCurrency }) => {
+            // Filter alleen doelen die op DIT moment niet verlopen zijn.
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            
+            const activeGoals = customGoals.filter(g => new Date(g.endDate) >= today);
+
+            if (activeGoals.length === 0) return null;
+
+            return (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    {activeGoals.map(goal => {
+                        const goalStart = new Date(goal.startDate);
+                        const goalEnd = new Date(goal.endDate);
+
+                        // Berekening: Tel totalen op van maanden (in het geselecteerde jaar) 
+                        // die binnen de start- en einddatum van dit doel vallen.
+                        let totalSales = 0;
+                        MONTHS.forEach((m, index) => {
+                            const monthStart = new Date(selectedYear, index, 1);
+                            const monthEnd = new Date(selectedYear, index + 1, 0); // Laatste dag van de maand
+
+                            // Controleer of de maand gedeeltelijk of helemaal in de periode valt
+                            if (monthStart <= goalEnd && monthEnd >= goalStart) {
+                                const d = monthlyData[m] || {};
+                                for (let i = 1; i <= 6; i++) {
+                                    totalSales += Number(d[`week${i}`]) || 0;
+                                }
+                            }
+                        });
+
+                        const progressPercent = goal.amount > 0 ? Math.min(100, (totalSales / goal.amount) * 100) : 0;
+                        const remaining = Math.max(0, goal.amount - totalSales);
+
+                        return (
+                            <div key={goal.id} className="bg-white dark:bg-dark-card rounded-xl border border-indigo-100 dark:border-indigo-900/50 shadow-sm p-4 relative overflow-hidden">
+                                <div className="flex justify-between items-start mb-3">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+                                            <Icons.Target className="w-4 h-4"/>
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-slate-800 dark:text-slate-100">{goal.name}</h4>
+                                            <div className="text-[10px] text-slate-400 font-medium">
+                                                {goalStart.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })} t/m {goalEnd.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-indigo-600 dark:text-indigo-400 font-bold leading-none">{formatCurrency(totalSales)}</div>
+                                        <div className="text-[10px] text-slate-400 mt-1 font-medium">/ {formatCurrency(goal.amount)}</div>
+                                    </div>
+                                </div>
+
+                                <div className="h-3 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden shadow-inner border border-slate-200 dark:border-slate-700">
+                                    <div className="h-full bg-gradient-to-r from-indigo-400 to-indigo-600 transition-all duration-1000" style={{width: `${progressPercent}%`}}></div>
+                                </div>
+                                
+                                <div className="mt-2 text-[11px] font-medium text-center text-slate-500 dark:text-slate-400">
+                                    {remaining > 0 ? (
+                                        <span>Nog <strong className="text-indigo-500">{formatCurrency(remaining)}</strong> te gaan</span>
+                                    ) : (
+                                        <span className="text-emerald-500 font-bold uppercase tracking-widest"><Icons.CheckCircle className="w-3"/> Doel Behaald!</span>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            );
+        };
+
+        // --- MIJN DOELEN MODAL (BEHEER & GESCHIEDENIS) ---
+        const CustomGoalsModal = ({ isOpen, onClose, customGoals, updateCustomGoals, formatCurrency }) => {
+            const [tab, setTab] = useState('active'); // 'active' of 'history'
+            const [input, setInput] = useState({ name: '', amount: '', startDate: '', endDate: '' });
+
+            if (!isOpen) return null;
+
+            const handleSave = () => {
+                if(!input.name || !input.amount || !input.startDate || !input.endDate) {
+                    return alert("Vul a.u.b. alle velden in!");
+                }
+                const newGoal = { 
+                    id: Date.now().toString(), 
+                    name: input.name,
+                    amount: Number(input.amount),
+                    startDate: input.startDate,
+                    endDate: input.endDate,
+                    createdAt: Date.now()
+                };
+                updateCustomGoals([...(customGoals || []), newGoal]);
+                setInput({ name: '', amount: '', startDate: '', endDate: '' });
+                setTab('active');
+            };
+
+            const handleDelete = (id) => {
+                if(confirm("Weet je zeker dat je dit doel wilt verwijderen?")) {
+                    updateCustomGoals(customGoals.filter(g => g.id !== id));
+                }
+            };
+
+            const today = new Date();
+            today.setHours(0,0,0,0);
+
+            const activeGoalsList = (customGoals || []).filter(g => new Date(g.endDate) >= today).sort((a,b) => new Date(a.endDate) - new Date(b.endDate));
+            const historyGoalsList = (customGoals || []).filter(g => new Date(g.endDate) < today).sort((a,b) => new Date(b.endDate) - new Date(a.endDate));
+
+            return (
+                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
+                    <div className="bg-white dark:bg-dark-card rounded-2xl shadow-xl w-full max-w-lg overflow-hidden modal-content flex flex-col max-h-[90vh]" onClick={e=>e.stopPropagation()}>
+                        
+                        {/* Header */}
+                        <div className="p-4 border-b dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex justify-between items-center shrink-0">
+                            <h3 className="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                                <Icons.Target className="text-indigo-500"/> Mijn Doelen Beheren
+                            </h3>
+                            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><Icons.X/></button>
+                        </div>
+
+                        {/* Content Area */}
+                        <div className="overflow-y-auto p-4 custom-scroll space-y-6">
+                            
+                            {/* Nieuw Doel Toevoegen Formulier */}
+                            <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-xl border border-indigo-100 dark:border-indigo-800">
+                                <h4 className="font-bold text-indigo-800 dark:text-indigo-300 text-sm mb-3 flex items-center gap-2"><Icons.Plus className="w-3"/> Nieuw Doel Instellen</h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                                    <div className="sm:col-span-2">
+                                        <label className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block mb-1">Naam van doel (bijv. Zomertrip)</label>
+                                        <input type="text" value={input.name} onChange={e=>setInput({...input, name:e.target.value})} className="w-full p-2 text-sm rounded border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-800 dark:text-white outline-none focus:border-indigo-500"/>
+                                    </div>
+                                    <div className="sm:col-span-2">
+                                        <label className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block mb-1">Doelbedrag (€)</label>
+                                        <input type="number" value={input.amount} onChange={e=>setInput({...input, amount:e.target.value})} className="w-full p-2 text-sm rounded border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-800 dark:text-white outline-none focus:border-indigo-500" placeholder="0"/>
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block mb-1">Startdatum</label>
+                                        <input type="date" value={input.startDate} onChange={e=>setInput({...input, startDate:e.target.value})} className="w-full p-2 text-sm rounded border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-800 dark:text-white outline-none focus:border-indigo-500"/>
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block mb-1">Einddatum</label>
+                                        <input type="date" value={input.endDate} onChange={e=>setInput({...input, endDate:e.target.value})} className="w-full p-2 text-sm rounded border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-800 dark:text-white outline-none focus:border-indigo-500"/>
+                                    </div>
+                                </div>
+                                <button onClick={handleSave} className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded shadow-sm">Toevoegen</button>
+                            </div>
+
+                            {/* Tabs (Actief vs Geschiedenis) */}
+                            <div>
+                                <div className="flex border-b border-slate-200 dark:border-slate-700 mb-3">
+                                    <button onClick={()=>setTab('active')} className={`pb-2 px-4 text-sm font-bold transition-all ${tab==='active' ? 'border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600'}`}>Actieve Doelen ({activeGoalsList.length})</button>
+                                    <button onClick={()=>setTab('history')} className={`pb-2 px-4 text-sm font-bold transition-all ${tab==='history' ? 'border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600'}`}>Geschiedenis ({historyGoalsList.length})</button>
+                                </div>
+
+                                <div className="space-y-3">
+                                    {tab === 'active' && activeGoalsList.length === 0 && <p className="text-center text-slate-400 text-sm py-4 italic">Je hebt momenteel geen actieve doelen.</p>}
+                                    {tab === 'history' && historyGoalsList.length === 0 && <p className="text-center text-slate-400 text-sm py-4 italic">Geen oude doelen gevonden.</p>}
+
+                                    {(tab === 'active' ? activeGoalsList : historyGoalsList).map(goal => (
+                                        <div key={goal.id} className={`p-3 rounded-lg border flex items-center justify-between shadow-sm ${tab === 'active' ? 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700/50 opacity-80'}`}>
+                                            <div>
+                                                <div className="font-bold text-slate-800 dark:text-slate-200 text-sm">{goal.name}</div>
+                                                <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                                    Doel: <strong className="text-slate-600 dark:text-slate-300">{formatCurrency(goal.amount)}</strong>
+                                                </div>
+                                                <div className="text-[10px] text-slate-400 mt-0.5">
+                                                    {new Date(goal.startDate).toLocaleDateString('nl-NL')} - {new Date(goal.endDate).toLocaleDateString('nl-NL')}
+                                                </div>
+                                            </div>
+                                            <button onClick={()=>handleDelete(goal.id)} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors">
+                                                <Icons.Trash className="w-3"/>
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         // --- RECEPTEN MODULE ---
         const RecipesTab = ({ targetUid }) => {
             const [recipes, setRecipes] = useState([]);
@@ -425,7 +609,6 @@
 
             const printRecipe = (recipe) => {
                 const printWindow = window.open('', '_blank');
-                // De backslash voor script is CRUCIAAL hieronder om de browser parser niet te breken
                 printWindow.document.write(`
                     <html>
                     <head>
@@ -575,7 +758,7 @@
             const [filterCategory, setFilterCategory] = useState('Alles');
             const [filterStatus, setFilterStatus] = useState('Alles');
             const [filterLocation, setFilterLocation] = useState('Alles');
-            const [filterVintedOnly, setFilterVintedOnly] = useState(false); // NIEUWE FILTER
+            const [filterVintedOnly, setFilterVintedOnly] = useState(false); 
             const [sortBy, setSortBy] = useState('name');
             const [currentPage, setCurrentPage] = useState(1);
             const [itemsPerPage, setItemsPerPage] = useState(10); 
@@ -673,15 +856,15 @@
                        (filterCategory === 'Alles' || item.category === filterCategory) &&
                        (filterStatus === 'Alles' || item.status === filterStatus) &&
                        (filterLocation === 'Alles' || item.location === filterLocation) &&
-                       (!filterVintedOnly || (item.vinted && Number(item.vinted) > 0)); // Filter specifiek op Vinted > 0
+                       (!filterVintedOnly || (item.vinted && Number(item.vinted) > 0)); 
             }).sort((a,b) => {
                 if(sortBy==='name') return a.name.localeCompare(b.name);
                 if(sortBy==='price-desc') return b.price - a.price;
                 if(sortBy==='price-asc') return a.price - b.price;
                 if(sortBy==='qty-desc') return b.quantity - a.quantity;
                 if(sortBy==='qty-asc') return a.quantity - b.quantity;
-                if(sortBy==='vinted-desc') return (Number(b.vinted)||0) - (Number(a.vinted)||0); // Veiligere sortering
-                if(sortBy==='vinted-asc') return (Number(a.vinted)||0) - (Number(b.vinted)||0); // Veiligere sortering
+                if(sortBy==='vinted-desc') return (Number(b.vinted)||0) - (Number(a.vinted)||0); 
+                if(sortBy==='vinted-asc') return (Number(a.vinted)||0) - (Number(b.vinted)||0); 
                 return 0;
             });
 
@@ -1423,6 +1606,8 @@
             // UI State
             const [activeTab, setActiveTab] = useState('overview');
             const [showAdminModal, setShowAdminModal] = useState(false);
+            const [showCustomGoalsModal, setShowCustomGoalsModal] = useState(false); // Nieuwe state voor modal
+            const [customGoals, setCustomGoals] = useState([]); // Nieuwe state voor custom doelen
             const [viewingUser, setViewingUser] = useState(null); 
             const [showProfileMenu, setShowProfileMenu] = useState(false);
             const [darkMode, setDarkMode] = useState(localStorage.getItem('theme') === 'dark');
@@ -1464,7 +1649,14 @@
                         else setUserPermissions({ showStock: true, showRequests: true, showCustomers: true, showRecipes: true, showClub: true }); 
                     });
 
-                return () => { unsubData(); unsubPerms(); };
+                // 3. Haal custom doelen op
+                const unsubGoals = window.db.collection('users').doc(targetUid).collection('settings').doc('custom_goals')
+                    .onSnapshot(doc => {
+                        if (doc.exists) setCustomGoals(doc.data().list || []);
+                        else setCustomGoals([]);
+                    });
+
+                return () => { unsubData(); unsubPerms(); unsubGoals(); };
             }, [targetUid, selectedYear]);
 
             const updateMonthData = async (month, field, value) => {
@@ -1472,6 +1664,11 @@
                 await window.db.collection('users').doc(targetUid).collection('years').doc(String(selectedYear)).collection('months').doc(month).set({
                     [field]: value, userId: targetUid, userName: viewingUser ? viewingUser.name : user.displayName, yearId: selectedYear, monthId: month
                 }, { merge: true });
+            };
+
+            const updateCustomGoals = async (newGoalsList) => {
+                if(!targetUid) return;
+                await window.db.collection('users').doc(targetUid).collection('settings').doc('custom_goals').set({ list: newGoalsList }, { merge: true });
             };
 
             const formatCurrency = (val) => new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(val || 0);
@@ -1512,9 +1709,14 @@
                                                     <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform shadow-sm ${darkMode ? 'translate-x-5' : ''}`}></div>
                                                 </button>
                                             </div>
+                                            
+                                            {/* MIJN DOELEN KNOP */}
+                                            <button onClick={()=>{setShowCustomGoalsModal(true);setShowProfileMenu(false)}} className="w-full text-left px-4 py-2 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-bold flex gap-2 items-center border-b dark:border-slate-700">
+                                                <Icons.Target/> Mijn Doelen
+                                            </button>
 
                                             {isAdmin && <button onClick={()=>{setShowAdminModal(true);setShowProfileMenu(false)}} className="w-full text-left px-4 py-2 hover:bg-amber-50 dark:hover:bg-amber-900/30 text-amber-600 dark:text-amber-400 font-bold flex gap-2 items-center"><Icons.Users/> Beheer Gebruikers</button>}
-                                            <button onClick={()=>window.auth.signOut()} className="w-full text-left px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 flex gap-2 items-center"><Icons.LogOut/> Uitloggen</button>
+                                            <button onClick={()=>window.auth.signOut()} className="w-full text-left px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 flex gap-2 items-center rounded-b-xl"><Icons.LogOut/> Uitloggen</button>
                                         </div>
                                     </React.Fragment>
                                 )}
@@ -1610,6 +1812,9 @@
                                     <ClubTab targetUid={targetUid} monthlyData={monthlyData} selectedYear={selectedYear} formatCurrency={formatCurrency} />
                                 )}
 
+                                {/* MIJN DOELEN WEERGAVE ONDER CLUB GOLD */}
+                                <CustomGoalsDisplay customGoals={customGoals} monthlyData={monthlyData} selectedYear={selectedYear} formatCurrency={formatCurrency} />
+
                                 {/* MAANDEN TABEL */}
                                 <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-emerald-100 dark:border-emerald-900 overflow-hidden">
                                     <table className="w-full text-left">
@@ -1636,6 +1841,7 @@
                     </div>
 
                     <AdminUserModal isOpen={showAdminModal} onClose={()=>setShowAdminModal(false)} selectedYear={selectedYear} onSelectUser={(u)=>{setViewingUser(u);setShowAdminModal(false)}}/>
+                    <CustomGoalsModal isOpen={showCustomGoalsModal} onClose={()=>setShowCustomGoalsModal(false)} customGoals={customGoals} updateCustomGoals={updateCustomGoals} formatCurrency={formatCurrency} />
                 </div>
             );
         }
