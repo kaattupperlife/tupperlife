@@ -114,8 +114,20 @@
         
         // --- CONFIGURATIE ---
         const ADMIN_EMAILS = ['jaiderjannis@gmail.com', 'kaat.tupperware@gmail.com']; 
-        const MONTHS = ['Januari', 'Februari', 'Maart', 'April', 'Mei', 'Juni', 'Juli', 'Augustus', 'September', 'Oktober', 'November', 'December'];
+        // Juli en Augustus zijn nu samengevoegd.
+        const MONTHS = ['Januari', 'Februari', 'Maart', 'April', 'Mei', 'Juni', 'Juli & Augustus', 'September', 'Oktober', 'November', 'December'];
         
+        // Helper om de correcte datum ranges per maand te bepalen, 
+        // vooral belangrijk omdat we Juli en Augustus samenvoegen.
+        const getRealMonthRange = (monthName, index) => {
+            if (monthName === 'Juli & Augustus') return { start: 6, end: 7 }; // Juli (6) t/m Augustus (7)
+            if (monthName === 'September') return { start: 8, end: 8 };
+            if (monthName === 'Oktober') return { start: 9, end: 9 };
+            if (monthName === 'November') return { start: 10, end: 10 };
+            if (monthName === 'December') return { start: 11, end: 11 };
+            return { start: index, end: index };
+        };
+
         // --- REACT COMPONENTEN VOOR ICONEN ---
         const Icons = {
             Loader: ({className}) => <i className={`fa-solid fa-spinner fa-spin ${className||''}`}></i>,
@@ -284,7 +296,7 @@
             const totalSales = MONTHS.reduce((acc, m) => {
                 let t = 0;
                 const d = monthlyData[m] || {};
-                for (let i = 1; i <= 6; i++) t += Number(d[`week${i}`]) || 0;
+                for (let i = 1; i <= 10; i++) t += Number(d[`week${i}`]) || 0; // Tot 10 weken voor de gecombineerde maand
                 return acc + t;
             }, 0);
 
@@ -400,13 +412,14 @@
                         // die binnen de start- en einddatum van dit doel vallen.
                         let totalSales = 0;
                         MONTHS.forEach((m, index) => {
-                            const monthStart = new Date(selectedYear, index, 1);
-                            const monthEnd = new Date(selectedYear, index + 1, 0); // Laatste dag van de maand
+                            const range = getRealMonthRange(m, index);
+                            const monthStart = new Date(selectedYear, range.start, 1);
+                            const monthEnd = new Date(selectedYear, range.end + 1, 0); // Laatste dag van de maand
 
                             // Controleer of de maand gedeeltelijk of helemaal in de periode valt
                             if (monthStart <= goalEnd && monthEnd >= goalStart) {
                                 const d = monthlyData[m] || {};
-                                for (let i = 1; i <= 6; i++) {
+                                for (let i = 1; i <= 10; i++) { // Max 10 weken ondersteund
                                     totalSales += Number(d[`week${i}`]) || 0;
                                 }
                             }
@@ -1416,10 +1429,11 @@
             const useCalendar = monthIndex >= 3;
 
             // KALENDER FUNCTIE
-            const getMonthWeeks = (y, m) => {
+            const getMonthWeeks = (y, mName, mIdx) => {
+                const range = getRealMonthRange(mName, mIdx);
                 const weeks = [];
-                let currentDate = new Date(y, m, 1);
-                const lastDate = new Date(y, m + 1, 0);
+                let currentDate = new Date(y, range.start, 1);
+                const lastDate = new Date(y, range.end + 1, 0);
 
                 while (currentDate <= lastDate) {
                     let start = new Date(currentDate);
@@ -1446,13 +1460,13 @@
                 return weeks;
             };
 
-            const calendarWeeks = useCalendar ? getMonthWeeks(year, monthIndex) : [];
+            const calendarWeeks = useCalendar ? getMonthWeeks(year, month, monthIndex) : [];
             const manualWeeks = data.weeks || 4;
             const psLevels = data.psLevels || [];
             
-            // Tel altijd op tot en met 6 weken voor de zekerheid
+            // Tel altijd op tot en met 10 weken voor de zekerheid (omdat Juli & Augustus langer duurt)
             let total = 0; 
-            for(let i=1; i<=6; i++) total += Number(data[`week${i}`])||0;
+            for(let i=1; i<=10; i++) total += Number(data[`week${i}`])||0;
             const profit = total * 0.29184;
             const earnedLevels = psLevels.filter(l => total >= (Number(l.amount)||0)).length;
 
@@ -1825,8 +1839,8 @@
                                         <tfoot className="bg-emerald-600 dark:bg-emerald-800 text-white font-bold">
                                             <tr>
                                                 <td className="p-2 sm:p-4">Totaal</td>
-                                                <td className="p-2 sm:p-4 text-sm sm:text-lg">{formatCurrency(MONTHS.reduce((acc,m)=>{let t=0;for(let i=1;i<=6;i++)t+=Number((monthlyData[m]||{})[`week${i}`])||0;return acc+t},0))}</td>
-                                                <td className="p-2 sm:p-4 text-sm sm:text-lg text-right">{formatCurrency(MONTHS.reduce((acc,m)=>{let t=0;for(let i=1;i<=6;i++)t+=Number((monthlyData[m]||{})[`week${i}`])||0;return acc+(t*0.29184)},0))}</td>
+                                                <td className="p-2 sm:p-4 text-sm sm:text-lg">{formatCurrency(MONTHS.reduce((acc,m)=>{let t=0;for(let i=1;i<=10;i++)t+=Number((monthlyData[m]||{})[`week${i}`])||0;return acc+t},0))}</td>
+                                                <td className="p-2 sm:p-4 text-sm sm:text-lg text-right">{formatCurrency(MONTHS.reduce((acc,m)=>{let t=0;for(let i=1;i<=10;i++)t+=Number((monthlyData[m]||{})[`week${i}`])||0;return acc+(t*0.29184)},0))}</td>
                                             </tr>
                                         </tfoot>
                                     </table>
