@@ -407,10 +407,11 @@
                     {activeGoals.map(goal => {
                         const goalStart = new Date(goal.startDate);
                         const goalEnd = new Date(goal.endDate);
+                        const isActivity = goal.type === 'activity';
 
                         // Berekening: Tel totalen op van maanden (in het geselecteerde jaar) 
                         // die binnen de start- en einddatum van dit doel vallen.
-                        let totalSales = 0;
+                        let currentProgress = 0;
                         MONTHS.forEach((m, index) => {
                             const range = getRealMonthRange(m, index);
                             const monthStart = new Date(selectedYear, range.start, 1);
@@ -420,20 +421,25 @@
                             if (monthStart <= goalEnd && monthEnd >= goalStart) {
                                 const d = monthlyData[m] || {};
                                 for (let i = 1; i <= 10; i++) { // Max 10 weken ondersteund
-                                    totalSales += Number(d[`week${i}`]) || 0;
+                                    const weekVal = Number(d[`week${i}`]) || 0;
+                                    if (isActivity) {
+                                        if (weekVal >= 1) currentProgress += 1;
+                                    } else {
+                                        currentProgress += weekVal;
+                                    }
                                 }
                             }
                         });
 
-                        const progressPercent = goal.amount > 0 ? Math.min(100, (totalSales / goal.amount) * 100) : 0;
-                        const remaining = Math.max(0, goal.amount - totalSales);
+                        const progressPercent = goal.amount > 0 ? Math.min(100, (currentProgress / goal.amount) * 100) : 0;
+                        const remaining = Math.max(0, goal.amount - currentProgress);
 
                         return (
                             <div key={goal.id} className="bg-white dark:bg-dark-card rounded-xl border border-indigo-100 dark:border-indigo-900/50 shadow-sm p-4 relative overflow-hidden">
                                 <div className="flex justify-between items-start mb-3">
                                     <div className="flex items-center gap-2">
                                         <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
-                                            <Icons.Target className="w-4 h-4"/>
+                                            {isActivity ? <Icons.Calendar className="w-4 h-4"/> : <Icons.Target className="w-4 h-4"/>}
                                         </div>
                                         <div>
                                             <h4 className="font-bold text-slate-800 dark:text-slate-100">{goal.name}</h4>
@@ -443,8 +449,12 @@
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <div className="text-indigo-600 dark:text-indigo-400 font-bold leading-none">{formatCurrency(totalSales)}</div>
-                                        <div className="text-[10px] text-slate-400 mt-1 font-medium">/ {formatCurrency(goal.amount)}</div>
+                                        <div className="text-indigo-600 dark:text-indigo-400 font-bold leading-none">
+                                            {isActivity ? `${currentProgress} wkn` : formatCurrency(currentProgress)}
+                                        </div>
+                                        <div className="text-[10px] text-slate-400 mt-1 font-medium">
+                                            / {isActivity ? `${goal.amount} wkn` : formatCurrency(goal.amount)}
+                                        </div>
                                     </div>
                                 </div>
 
@@ -454,7 +464,7 @@
                                 
                                 <div className="mt-2 text-[11px] font-medium text-center text-slate-500 dark:text-slate-400">
                                     {remaining > 0 ? (
-                                        <span>Nog <strong className="text-indigo-500">{formatCurrency(remaining)}</strong> te gaan</span>
+                                        <span>Nog <strong className="text-indigo-500">{isActivity ? `${remaining} weken` : formatCurrency(remaining)}</strong> te gaan</span>
                                     ) : (
                                         <span className="text-emerald-500 font-bold uppercase tracking-widest"><Icons.CheckCircle className="w-3"/> Doel Behaald!</span>
                                     )}
@@ -469,7 +479,8 @@
         // --- MIJN DOELEN MODAL (BEHEER & GESCHIEDENIS) ---
         const CustomGoalsModal = ({ isOpen, onClose, customGoals, updateCustomGoals, formatCurrency }) => {
             const [tab, setTab] = useState('active'); // 'active' of 'history'
-            const [input, setInput] = useState({ name: '', amount: '', startDate: '', endDate: '' });
+            const [editingId, setEditingId] = useState(null);
+            const [input, setInput] = useState({ name: '', amount: '', startDate: '', endDate: '', type: 'sales' });
 
             if (!isOpen) return null;
 
@@ -477,17 +488,49 @@
                 if(!input.name || !input.amount || !input.startDate || !input.endDate) {
                     return alert("Vul a.u.b. alle velden in!");
                 }
-                const newGoal = { 
-                    id: Date.now().toString(), 
-                    name: input.name,
-                    amount: Number(input.amount),
-                    startDate: input.startDate,
-                    endDate: input.endDate,
-                    createdAt: Date.now()
-                };
-                updateCustomGoals([...(customGoals || []), newGoal]);
-                setInput({ name: '', amount: '', startDate: '', endDate: '' });
+                
+                if (editingId) {
+                    const updatedGoals = customGoals.map(g => g.id === editingId ? {
+                        ...g,
+                        name: input.name,
+                        amount: Number(input.amount),
+                        startDate: input.startDate,
+                        endDate: input.endDate,
+                        type: input.type || 'sales'
+                    } : g);
+                    updateCustomGoals(updatedGoals);
+                    setEditingId(null);
+                } else {
+                    const newGoal = { 
+                        id: Date.now().toString(), 
+                        name: input.name,
+                        amount: Number(input.amount),
+                        startDate: input.startDate,
+                        endDate: input.endDate,
+                        type: input.type || 'sales',
+                        createdAt: Date.now()
+                    };
+                    updateCustomGoals([...(customGoals || []), newGoal]);
+                }
+                setInput({ name: '', amount: '', startDate: '', endDate: '', type: 'sales' });
                 setTab('active');
+            };
+
+            const handleEdit = (goal) => {
+                setInput({
+                    name: goal.name,
+                    amount: goal.amount,
+                    startDate: goal.startDate,
+                    endDate: goal.endDate,
+                    type: goal.type || 'sales'
+                });
+                setEditingId(goal.id);
+                setTab('active');
+            };
+
+            const cancelEdit = () => {
+                setEditingId(null);
+                setInput({ name: '', amount: '', startDate: '', endDate: '', type: 'sales' });
             };
 
             const handleDelete = (id) => {
@@ -519,14 +562,41 @@
                             
                             {/* Nieuw Doel Toevoegen Formulier */}
                             <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-xl border border-indigo-100 dark:border-indigo-800">
-                                <h4 className="font-bold text-indigo-800 dark:text-indigo-300 text-sm mb-3 flex items-center gap-2"><Icons.Plus className="w-3"/> Nieuw Doel Instellen</h4>
+                                <div className="flex justify-between items-center mb-3">
+                                    <h4 className="font-bold text-indigo-800 dark:text-indigo-300 text-sm flex items-center gap-2">
+                                        {editingId ? <Icons.Edit className="w-3"/> : <Icons.Plus className="w-3"/>} 
+                                        {editingId ? 'Doel Wijzigen' : 'Nieuw Doel Instellen'}
+                                    </h4>
+                                    {editingId && (
+                                        <button onClick={cancelEdit} className="text-xs font-bold text-indigo-500 hover:text-indigo-700">Annuleren</button>
+                                    )}
+                                </div>
+
+                                {/* Type Selector */}
+                                <div className="flex gap-2 mb-3">
+                                    <button 
+                                        onClick={() => setInput({...input, type: 'sales'})} 
+                                        className={`flex-1 py-1.5 text-xs font-bold rounded-lg border transition-colors ${input.type !== 'activity' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-600'}`}
+                                    >
+                                        💶 Omzet
+                                    </button>
+                                    <button 
+                                        onClick={() => setInput({...input, type: 'activity'})} 
+                                        className={`flex-1 py-1.5 text-xs font-bold rounded-lg border transition-colors ${input.type === 'activity' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-600'}`}
+                                    >
+                                        📅 Activiteit
+                                    </button>
+                                </div>
+
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                                     <div className="sm:col-span-2">
                                         <label className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block mb-1">Naam van doel (bijv. Zomertrip)</label>
                                         <input type="text" value={input.name} onChange={e=>setInput({...input, name:e.target.value})} className="w-full p-2 text-sm rounded border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-800 dark:text-white outline-none focus:border-indigo-500"/>
                                     </div>
                                     <div className="sm:col-span-2">
-                                        <label className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block mb-1">Doelbedrag (€)</label>
+                                        <label className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block mb-1">
+                                            {input.type === 'activity' ? 'Doel (aantal actieve weken)' : 'Doelbedrag (€)'}
+                                        </label>
                                         <input type="number" value={input.amount} onChange={e=>setInput({...input, amount:e.target.value})} className="w-full p-2 text-sm rounded border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-800 dark:text-white outline-none focus:border-indigo-500" placeholder="0"/>
                                     </div>
                                     <div>
@@ -538,7 +608,9 @@
                                         <input type="date" value={input.endDate} onChange={e=>setInput({...input, endDate:e.target.value})} className="w-full p-2 text-sm rounded border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-800 dark:text-white outline-none focus:border-indigo-500"/>
                                     </div>
                                 </div>
-                                <button onClick={handleSave} className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded shadow-sm">Toevoegen</button>
+                                <button onClick={handleSave} className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded shadow-sm">
+                                    {editingId ? 'Wijzigingen Opslaan' : 'Toevoegen'}
+                                </button>
                             </div>
 
                             {/* Tabs (Actief vs Geschiedenis) */}
@@ -555,17 +627,27 @@
                                     {(tab === 'active' ? activeGoalsList : historyGoalsList).map(goal => (
                                         <div key={goal.id} className={`p-3 rounded-lg border flex items-center justify-between shadow-sm ${tab === 'active' ? 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700/50 opacity-80'}`}>
                                             <div>
-                                                <div className="font-bold text-slate-800 dark:text-slate-200 text-sm">{goal.name}</div>
+                                                <div className="font-bold text-slate-800 dark:text-slate-200 text-sm flex items-center gap-2">
+                                                    {goal.type === 'activity' ? <Icons.Calendar className="text-indigo-400 w-3 h-3"/> : <Icons.Target className="text-indigo-400 w-3 h-3"/>}
+                                                    {goal.name}
+                                                </div>
                                                 <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                                                    Doel: <strong className="text-slate-600 dark:text-slate-300">{formatCurrency(goal.amount)}</strong>
+                                                    Doel: <strong className="text-slate-600 dark:text-slate-300">
+                                                        {goal.type === 'activity' ? `${goal.amount} weken` : formatCurrency(goal.amount)}
+                                                    </strong>
                                                 </div>
                                                 <div className="text-[10px] text-slate-400 mt-0.5">
                                                     {new Date(goal.startDate).toLocaleDateString('nl-NL')} - {new Date(goal.endDate).toLocaleDateString('nl-NL')}
                                                 </div>
                                             </div>
-                                            <button onClick={()=>handleDelete(goal.id)} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors">
-                                                <Icons.Trash className="w-3"/>
-                                            </button>
+                                            <div className="flex gap-2">
+                                                <button onClick={()=>handleEdit(goal)} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-colors">
+                                                    <Icons.Edit className="w-3"/>
+                                                </button>
+                                                <button onClick={()=>handleDelete(goal.id)} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors">
+                                                    <Icons.Trash className="w-3"/>
+                                                </button>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
