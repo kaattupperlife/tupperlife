@@ -7,7 +7,7 @@
     
     <!-- PWA & Favicon Settings -->
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#059669">
+    <meta name="theme-color" content="#059669"> 
     
     <!-- Standaard Favicons -->
     <link rel="icon" type="image/x-icon" href="favicon.ico">
@@ -158,6 +158,42 @@
                 currentDate.setDate(currentDate.getDate() + 1);
             }
             return weeks;
+        };
+
+        // NIEUW: Helper om alle beschikbare weken van een jaar op te bouwen voor de doelen
+        const buildAvailableWeeks = (year, mData) => {
+            let list = [];
+            MONTHS.forEach((m, index) => {
+                const range = getRealMonthRange(m, index);
+                const useCalendar = index >= 3;
+                const calWeeks = useCalendar ? getMonthWeeks(year, m, index) : [];
+                const numWeeks = useCalendar ? calWeeks.length : (mData[m]?.weeks || 4);
+
+                for (let i = 1; i <= numWeeks; i++) {
+                    let label = `${m} - Week ${i}`;
+                    let endDate = new Date(year, range.end + 1, 0); 
+                    
+                    if (useCalendar && calWeeks[i-1]) {
+                        label = `${m} - W${i} (${calWeeks[i-1].label})`;
+                        endDate = calWeeks[i-1].end;
+                    } else {
+                        // Schatting van einddatum voor de maanden zonder strikte kalender
+                        const monthDays = new Date(year, range.end + 1, 0).getDate();
+                        const chunk = monthDays / numWeeks;
+                        endDate = new Date(year, range.start, Math.round(chunk * i));
+                    }
+
+                    list.push({
+                        id: `${m}-w${i}`,
+                        month: m,
+                        week: i,
+                        label: label,
+                        absoluteIndex: list.length,
+                        endDate: endDate.toISOString()
+                    });
+                }
+            });
+            return list;
         };
 
         // --- REACT COMPONENTEN VOOR ICONEN ---
@@ -425,49 +461,41 @@
         };
 
         // --- MIJN DOELEN WEERGAVE (OP HET OVERZICHT) ---
-        const CustomGoalsDisplay = ({ customGoals, monthlyData, selectedYear, formatCurrency }) => {
+        const CustomGoalsDisplay = ({ customGoals, monthlyData, selectedYear, formatCurrency, availableWeeks }) => {
             // Filter alleen doelen die op DIT moment niet verlopen zijn.
             const today = new Date();
             today.setHours(0,0,0,0);
             
-            const activeGoals = customGoals.filter(g => new Date(g.endDate) >= today);
+            const activeGoals = customGoals.filter(g => g.endDate ? new Date(g.endDate) >= today : true);
 
             if (activeGoals.length === 0) return null;
 
             return (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     {activeGoals.map(goal => {
-                        const goalStart = new Date(goal.startDate);
-                        const goalEnd = new Date(goal.endDate);
                         const isActivity = goal.type === 'activity';
-
-                        // Berekening: Tel totalen op van maanden (in het geselecteerde jaar) 
-                        // die binnen de start- en einddatum van dit doel vallen.
                         let currentProgress = 0;
                         let activityWeeks = [];
 
-                        MONTHS.forEach((m, index) => {
-                            const range = getRealMonthRange(m, index);
-                            const monthStart = new Date(selectedYear, range.start, 1);
-                            const monthEnd = new Date(selectedYear, range.end + 1, 0); // Laatste dag van de maand
+                        // Bepaal de start- en eindindex van de geselecteerde weken in het huidige jaar
+                        const startIdx = availableWeeks.findIndex(w => w.id === goal.startWeekId);
+                        const endIdx = availableWeeks.findIndex(w => w.id === goal.endWeekId);
+                        const validRange = startIdx !== -1 && endIdx !== -1;
 
-                            // Controleer of de maand gedeeltelijk of helemaal in de periode valt
-                            if (monthStart <= goalEnd && monthEnd >= goalStart) {
-                                const d = monthlyData[m] || {};
-                                const useCalendar = index >= 3;
-                                const calWeeks = useCalendar ? getMonthWeeks(selectedYear, m, index) : [];
-                                const numWeeks = useCalendar ? calWeeks.length : (d.weeks || 4);
-
-                                for (let i = 1; i <= numWeeks; i++) {
-                                    const weekVal = Number(d[`week${i}`]) || 0;
+                        if (validRange) {
+                            availableWeeks.forEach(aw => {
+                                // Controleer of de week binnen de gekozen start- en eindweek valt
+                                if (aw.absoluteIndex >= startIdx && aw.absoluteIndex <= endIdx) {
+                                    const d = monthlyData[aw.month] || {};
+                                    const weekVal = Number(d[`week${aw.week}`]) || 0;
                                     
                                     if (isActivity) {
                                         const isActive = weekVal >= 1;
                                         activityWeeks.push({
-                                            id: `${m}-w${i}`,
-                                            month: m,
-                                            week: i,
-                                            label: useCalendar && calWeeks[i-1] ? calWeeks[i-1].label : `Week ${i}`,
+                                            id: aw.id,
+                                            month: aw.month,
+                                            week: aw.week,
+                                            label: aw.label,
                                             active: isActive
                                         });
                                         if (isActive) currentProgress += 1;
@@ -475,11 +503,14 @@
                                         currentProgress += weekVal;
                                     }
                                 }
-                            }
-                        });
+                            });
+                        }
 
                         const progressPercent = goal.amount > 0 ? Math.min(100, (currentProgress / goal.amount) * 100) : 0;
                         const remaining = Math.max(0, goal.amount - currentProgress);
+                        
+                        const startLabel = validRange ? availableWeeks[startIdx].label.split('(')[0].trim() : 'Onbekend';
+                        const endLabel = validRange ? availableWeeks[endIdx].label.split('(')[0].trim() : 'Onbekend';
 
                         return (
                             <div key={goal.id} className="bg-white dark:bg-dark-card rounded-xl border border-indigo-100 dark:border-indigo-900/50 shadow-sm p-4 relative overflow-hidden flex flex-col">
@@ -491,7 +522,7 @@
                                         <div>
                                             <h4 className="font-bold text-slate-800 dark:text-slate-100">{goal.name}</h4>
                                             <div className="text-[10px] text-slate-400 font-medium">
-                                                {goalStart.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })} t/m {goalEnd.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                {startLabel} t/m {endLabel}
                                             </div>
                                         </div>
                                     </div>
@@ -525,7 +556,7 @@
                                             {activityWeeks.map(aw => (
                                                 <div 
                                                     key={aw.id} 
-                                                    title={`${aw.month} - ${aw.label}`}
+                                                    title={aw.label}
                                                     className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded border font-bold cursor-help transition-colors ${aw.active ? 'bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-900/40 dark:text-emerald-400 dark:border-emerald-700' : 'bg-slate-50 text-slate-400 border-slate-200 dark:bg-slate-800/50 dark:border-slate-700 dark:text-slate-500'}`}
                                                 >
                                                     {aw.active ? <Icons.Check className="w-2 h-2"/> : <Icons.X className="w-2 h-2 opacity-50"/>}
@@ -543,25 +574,28 @@
         };
 
         // --- MIJN DOELEN MODAL (BEHEER & GESCHIEDENIS) ---
-        const CustomGoalsModal = ({ isOpen, onClose, customGoals, updateCustomGoals, formatCurrency }) => {
+        const CustomGoalsModal = ({ isOpen, onClose, customGoals, updateCustomGoals, formatCurrency, availableWeeks }) => {
             const [tab, setTab] = useState('active'); // 'active' of 'history'
             const [editingId, setEditingId] = useState(null);
-            const [input, setInput] = useState({ name: '', amount: '', startDate: '', endDate: '', type: 'sales' });
+            const [input, setInput] = useState({ name: '', amount: '', startWeekId: '', endWeekId: '', type: 'sales' });
 
             if (!isOpen) return null;
 
             const handleSave = () => {
-                if(!input.name || !input.amount || !input.startDate || !input.endDate) {
+                if(!input.name || !input.amount || !input.startWeekId || !input.endWeekId) {
                     return alert("Vul a.u.b. alle velden in!");
                 }
                 
+                const endWeek = availableWeeks.find(w => w.id === input.endWeekId);
+
                 if (editingId) {
                     const updatedGoals = customGoals.map(g => g.id === editingId ? {
                         ...g,
                         name: input.name,
                         amount: Number(input.amount),
-                        startDate: input.startDate,
-                        endDate: input.endDate,
+                        startWeekId: input.startWeekId,
+                        endWeekId: input.endWeekId,
+                        endDate: endWeek ? endWeek.endDate : g.endDate, // Bewaar voor geschiedenis logica
                         type: input.type || 'sales'
                     } : g);
                     updateCustomGoals(updatedGoals);
@@ -571,14 +605,15 @@
                         id: Date.now().toString(), 
                         name: input.name,
                         amount: Number(input.amount),
-                        startDate: input.startDate,
-                        endDate: input.endDate,
+                        startWeekId: input.startWeekId,
+                        endWeekId: input.endWeekId,
+                        endDate: endWeek ? endWeek.endDate : new Date().toISOString(),
                         type: input.type || 'sales',
                         createdAt: Date.now()
                     };
                     updateCustomGoals([...(customGoals || []), newGoal]);
                 }
-                setInput({ name: '', amount: '', startDate: '', endDate: '', type: 'sales' });
+                setInput({ name: '', amount: '', startWeekId: '', endWeekId: '', type: 'sales' });
                 setTab('active');
             };
 
@@ -586,8 +621,8 @@
                 setInput({
                     name: goal.name,
                     amount: goal.amount,
-                    startDate: goal.startDate,
-                    endDate: goal.endDate,
+                    startWeekId: goal.startWeekId || '',
+                    endWeekId: goal.endWeekId || '',
                     type: goal.type || 'sales'
                 });
                 setEditingId(goal.id);
@@ -596,7 +631,7 @@
 
             const cancelEdit = () => {
                 setEditingId(null);
-                setInput({ name: '', amount: '', startDate: '', endDate: '', type: 'sales' });
+                setInput({ name: '', amount: '', startWeekId: '', endWeekId: '', type: 'sales' });
             };
 
             const handleDelete = (id) => {
@@ -608,8 +643,8 @@
             const today = new Date();
             today.setHours(0,0,0,0);
 
-            const activeGoalsList = (customGoals || []).filter(g => new Date(g.endDate) >= today).sort((a,b) => new Date(a.endDate) - new Date(b.endDate));
-            const historyGoalsList = (customGoals || []).filter(g => new Date(g.endDate) < today).sort((a,b) => new Date(b.endDate) - new Date(a.endDate));
+            const activeGoalsList = (customGoals || []).filter(g => g.endDate ? new Date(g.endDate) >= today : true).sort((a,b) => new Date(a.endDate) - new Date(b.endDate));
+            const historyGoalsList = (customGoals || []).filter(g => g.endDate ? new Date(g.endDate) < today : false).sort((a,b) => new Date(b.endDate) - new Date(a.endDate));
 
             return (
                 <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
@@ -666,12 +701,18 @@
                                         <input type="number" value={input.amount} onChange={e=>setInput({...input, amount:e.target.value})} className="w-full p-2 text-sm rounded border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-800 dark:text-white outline-none focus:border-indigo-500" placeholder="0"/>
                                     </div>
                                     <div>
-                                        <label className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block mb-1">Startdatum</label>
-                                        <input type="date" value={input.startDate} onChange={e=>setInput({...input, startDate:e.target.value})} className="w-full p-2 text-sm rounded border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-800 dark:text-white outline-none focus:border-indigo-500"/>
+                                        <label className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block mb-1">Start Week</label>
+                                        <select value={input.startWeekId} onChange={e=>setInput({...input, startWeekId:e.target.value})} className="w-full p-2 text-sm rounded border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-800 dark:text-white outline-none focus:border-indigo-500">
+                                            <option value="">Kies week...</option>
+                                            {availableWeeks.map(w => <option key={w.id} value={w.id}>{w.label}</option>)}
+                                        </select>
                                     </div>
                                     <div>
-                                        <label className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block mb-1">Einddatum</label>
-                                        <input type="date" value={input.endDate} onChange={e=>setInput({...input, endDate:e.target.value})} className="w-full p-2 text-sm rounded border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-800 dark:text-white outline-none focus:border-indigo-500"/>
+                                        <label className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block mb-1">Eind Week</label>
+                                        <select value={input.endWeekId} onChange={e=>setInput({...input, endWeekId:e.target.value})} className="w-full p-2 text-sm rounded border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-800 dark:text-white outline-none focus:border-indigo-500">
+                                            <option value="">Kies week...</option>
+                                            {availableWeeks.map(w => <option key={w.id} value={w.id}>{w.label}</option>)}
+                                        </select>
                                     </div>
                                 </div>
                                 <button onClick={handleSave} className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded shadow-sm">
@@ -690,32 +731,37 @@
                                     {tab === 'active' && activeGoalsList.length === 0 && <p className="text-center text-slate-400 text-sm py-4 italic">Je hebt momenteel geen actieve doelen.</p>}
                                     {tab === 'history' && historyGoalsList.length === 0 && <p className="text-center text-slate-400 text-sm py-4 italic">Geen oude doelen gevonden.</p>}
 
-                                    {(tab === 'active' ? activeGoalsList : historyGoalsList).map(goal => (
-                                        <div key={goal.id} className={`p-3 rounded-lg border flex items-center justify-between shadow-sm ${tab === 'active' ? 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700/50 opacity-80'}`}>
-                                            <div>
-                                                <div className="font-bold text-slate-800 dark:text-slate-200 text-sm flex items-center gap-2">
-                                                    {goal.type === 'activity' ? <Icons.Calendar className="text-indigo-400 w-3 h-3"/> : <Icons.Target className="text-indigo-400 w-3 h-3"/>}
-                                                    {goal.name}
+                                    {(tab === 'active' ? activeGoalsList : historyGoalsList).map(goal => {
+                                        const startWeekLabel = availableWeeks.find(w => w.id === goal.startWeekId)?.label.split('(')[0].trim() || 'Onbekend';
+                                        const endWeekLabel = availableWeeks.find(w => w.id === goal.endWeekId)?.label.split('(')[0].trim() || 'Onbekend';
+                                        
+                                        return (
+                                            <div key={goal.id} className={`p-3 rounded-lg border flex items-center justify-between shadow-sm ${tab === 'active' ? 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700/50 opacity-80'}`}>
+                                                <div>
+                                                    <div className="font-bold text-slate-800 dark:text-slate-200 text-sm flex items-center gap-2">
+                                                        {goal.type === 'activity' ? <Icons.Calendar className="text-indigo-400 w-3 h-3"/> : <Icons.Target className="text-indigo-400 w-3 h-3"/>}
+                                                        {goal.name}
+                                                    </div>
+                                                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                                        Doel: <strong className="text-slate-600 dark:text-slate-300">
+                                                            {goal.type === 'activity' ? `${goal.amount} weken` : formatCurrency(goal.amount)}
+                                                        </strong>
+                                                    </div>
+                                                    <div className="text-[10px] text-slate-400 mt-0.5">
+                                                        {startWeekLabel} t/m {endWeekLabel}
+                                                    </div>
                                                 </div>
-                                                <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                                                    Doel: <strong className="text-slate-600 dark:text-slate-300">
-                                                        {goal.type === 'activity' ? `${goal.amount} weken` : formatCurrency(goal.amount)}
-                                                    </strong>
-                                                </div>
-                                                <div className="text-[10px] text-slate-400 mt-0.5">
-                                                    {new Date(goal.startDate).toLocaleDateString('nl-NL')} - {new Date(goal.endDate).toLocaleDateString('nl-NL')}
+                                                <div className="flex gap-2">
+                                                    <button onClick={()=>handleEdit(goal)} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-colors">
+                                                        <Icons.Edit className="w-3"/>
+                                                    </button>
+                                                    <button onClick={()=>handleDelete(goal.id)} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors">
+                                                        <Icons.Trash className="w-3"/>
+                                                    </button>
                                                 </div>
                                             </div>
-                                            <div className="flex gap-2">
-                                                <button onClick={()=>handleEdit(goal)} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-colors">
-                                                    <Icons.Edit className="w-3"/>
-                                                </button>
-                                                <button onClick={()=>handleDelete(goal.id)} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors">
-                                                    <Icons.Trash className="w-3"/>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        )
+                                    })}
                                 </div>
                             </div>
                         </div>
@@ -1790,6 +1836,9 @@
                 return () => { unsubData(); unsubPerms(); unsubGoals(); };
             }, [targetUid, selectedYear]);
 
+            // NIEUW: Genereer de lijst van alle weken voor het geselecteerde jaar
+            const availableWeeks = React.useMemo(() => buildAvailableWeeks(selectedYear, monthlyData), [selectedYear, monthlyData]);
+
             const updateMonthData = async (month, field, value) => {
                 if(!targetUid) return;
                 await window.db.collection('users').doc(targetUid).collection('years').doc(String(selectedYear)).collection('months').doc(month).set({
@@ -1944,7 +1993,7 @@
                                 )}
 
                                 {/* MIJN DOELEN WEERGAVE ONDER CLUB GOLD */}
-                                <CustomGoalsDisplay customGoals={customGoals} monthlyData={monthlyData} selectedYear={selectedYear} formatCurrency={formatCurrency} />
+                                <CustomGoalsDisplay customGoals={customGoals} monthlyData={monthlyData} selectedYear={selectedYear} formatCurrency={formatCurrency} availableWeeks={availableWeeks} />
 
                                 {/* MAANDEN TABEL */}
                                 <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-emerald-100 dark:border-emerald-900 overflow-hidden">
@@ -1972,7 +2021,7 @@
                     </div>
 
                     <AdminUserModal isOpen={showAdminModal} onClose={()=>setShowAdminModal(false)} selectedYear={selectedYear} onSelectUser={(u)=>{setViewingUser(u);setShowAdminModal(false)}}/>
-                    <CustomGoalsModal isOpen={showCustomGoalsModal} onClose={()=>setShowCustomGoalsModal(false)} customGoals={customGoals} updateCustomGoals={updateCustomGoals} formatCurrency={formatCurrency} />
+                    <CustomGoalsModal isOpen={showCustomGoalsModal} onClose={()=>setShowCustomGoalsModal(false)} customGoals={customGoals} updateCustomGoals={updateCustomGoals} formatCurrency={formatCurrency} availableWeeks={availableWeeks} />
                 </div>
             );
         }
