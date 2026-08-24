@@ -1766,40 +1766,40 @@
                                         </div>
                                     </div>
 
-                                    {/* RECHTER KOLOM: PS BELONINGEN */}
-                                    <div className="space-y-4">
-                                        <div className="flex justify-between items-center pb-2 border-b border-emerald-200/50 dark:border-emerald-700/50">
-                                            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">PS Beloningen</span>
-                                            <button onClick={(e)=>{e.stopPropagation();setIsModalOpen(true)}} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300 hover:bg-emerald-200 rounded-lg font-medium"><Icons.Settings className="w-3"/> Eigen Beloningen Toevoegen</button>
-                                        </div>
-                                        <div className="space-y-3">
-                                            {allPs.length === 0 ? <div className="text-center py-8 text-slate-400 dark:text-slate-500 border-2 border-dashed dark:border-slate-700 rounded-xl"><p>Nog geen beloningen ingesteld.</p></div> : 
-                                                allPs.map((level, index) => {
-                                                    const amt = Number(level.amount)||0; const unlocked = total >= amt && amt > 0;
-                                                    return (
-                                                        <div key={level.id} className={`bg-white dark:bg-slate-800 rounded-xl border overflow-hidden ${unlocked ? 'border-emerald-500 shadow-md ring-1 ring-emerald-500' : 'border-emerald-100 dark:border-slate-700 shadow-sm'} ${level.isGlobal ? 'border-l-4 border-l-blue-500' : ''}`}>
-                                                            <div className={`h-1.5 w-full ${unlocked ? 'bg-emerald-500' : 'bg-slate-100 dark:bg-slate-700'}`}>{!unlocked && amt > 0 && <div className="h-full bg-emerald-400" style={{ width: `${Math.min(100, (total/amt)*100)}%` }}></div>}</div>
-                                                            <div className="p-3 flex gap-3 items-center">
-                                                                <div className="w-16 h-16 shrink-0 rounded-lg bg-slate-50 dark:bg-slate-700 border flex items-center justify-center overflow-hidden relative">
-                                                                    {level.image ? <img src={level.image} className="w-full h-full object-cover"/> : <Icons.Image className="text-2xl text-slate-300"/>}
-                                                                </div>
-                                                                <div className="flex-grow min-w-0">
-                                                                    <div className="flex flex-col mb-1">
-                                                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1">
-                                                                            {level.label || `PS ${index+1}`}
-                                                                            {level.isGlobal && <span className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 px-1 py-0.5 rounded text-[8px]"><Icons.Gift className="w-2"/> GLOBAAL</span>}
-                                                                        </span>
-                                                                        <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm truncate">{level.name||'Naamloos'}</h4>
-                                                                    </div>
-                                                                    <div className="text-xs mt-1">{unlocked ? (<div className="flex items-center gap-2">{level.received ? (<span className="flex items-center gap-1 text-blue-600 dark:text-blue-300 font-bold bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded-md cursor-pointer border border-blue-100 dark:border-blue-800" onClick={(e) => {e.stopPropagation(); toggleReceived(level.id, level.isGlobal);}}><Icons.Check className="w-3"/> ONTVANGEN!</span>) : (<><span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold animate-pulse"><Icons.CheckCircle className="w-3"/> BEHAALD!</span><button onClick={(e) => { e.stopPropagation(); toggleReceived(level.id, level.isGlobal); }} className="bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded text-[10px] transition-colors">Ontvangen?</button></>)}</div>) : <span className="text-slate-400">Nog <span className="font-medium text-slate-600 dark:text-slate-400">{formatCurrency(Math.max(0, amt-total))}</span></span>}</div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })
-                                            }
-                                        </div>
-                                    </div>
+{/* RECHTER KOLOM: PS BELONINGEN */}
+<div className="space-y-4">
+    <div className="flex justify-between items-center pb-2 border-b border-emerald-200/50 dark:border-emerald-700/50">
+        <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">PS Beloningen</span>
+        <button onClick={(e)=>{e.stopPropagation();setIsModalOpen(true)}} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300 hover:bg-emerald-200 rounded-lg font-medium"><Icons.Settings className="w-3"/> Instellen</button>
+    </div>
+    <div className="space-y-3">
+        {psLevels.length === 0 ? <div className="text-center py-8 text-slate-400 dark:text-slate-500 border-2 border-dashed dark:border-slate-700 rounded-xl"><p>Nog geen beloningen ingesteld.</p></div> : 
+            [...psLevels].sort((a,b)=>(Number(a.amount)||0)-(Number(b.amount)||0)).map((level, index) => {
+                const amt = Number(level.amount)||0; const unlocked = total >= amt && amt > 0;
+                return (
+                    <div key={level.id} className={`bg-white dark:bg-slate-800 rounded-xl border overflow-hidden ${unlocked ? 'border-emerald-500 shadow-md ring-1 ring-emerald-500' : 'border-emerald-100 dark:border-slate-700 shadow-sm'}`}>
+                        <div className={`h-1.5 w-full ${unlocked ? 'bg-emerald-500' : 'bg-slate-100 dark:bg-slate-700'}`}>{!unlocked && amt > 0 && <div className="h-full bg-emerald-400" style={{ width: `${Math.min(100, (total/amt)*100)}%` }}></div>}</div>
+                        <div className="p-3 flex gap-3 items-center">
+                            <div className="w-16 h-16 shrink-0 rounded-lg bg-slate-50 dark:bg-slate-700 border flex items-center justify-center overflow-hidden relative">
+                                {level.image ? <img src={level.image} className="w-full h-full object-cover"/> : <Icons.Image className="text-2xl text-slate-300"/>}
+                            </div>
+                            <div className="flex-grow min-w-0">
+                                <div className="flex flex-col mb-1">
+                                    {/* HIER ZIJN DE GLOBAAL BADGES WEGGEHAALD */}
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">
+                                        {level.label || `PS ${index+1}`}
+                                    </span>
+                                    <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm truncate">{level.name||'Naamloos'}</h4>
+                                </div>
+                                <div className="text-xs mt-1">{unlocked ? (<div className="flex items-center gap-2">{level.received ? (<span className="flex items-center gap-1 text-blue-600 dark:text-blue-300 font-bold bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded-md cursor-pointer border border-blue-100 dark:border-blue-800" onClick={(e) => {e.stopPropagation(); toggleReceived(level.id);}}><Icons.Check className="w-3"/> ONTVANGEN!</span>) : (<><span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold animate-pulse"><Icons.CheckCircle className="w-3"/> BEHAALD!</span><button onClick={(e) => { e.stopPropagation(); toggleReceived(level.id); }} className="bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded text-[10px] transition-colors">Ontvangen?</button></>)}</div>) : <span className="text-slate-400">Nog <span className="font-medium text-slate-600 dark:text-slate-400">{formatCurrency(Math.max(0, amt-total))}</span></span>}</div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })
+        }
+    </div>
+</div>
                                 </div>
                             </td>
                         </tr>
