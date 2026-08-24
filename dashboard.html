@@ -128,32 +128,51 @@
             return { start: index, end: index };
         };
 
+        // Helper om het ISO weeknummer van een datum te berekenen
+        const getWeekNumber = (d) => {
+            const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+            const dayNum = date.getUTCDay() || 7;
+            date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+            const yearStart = new Date(Date.UTC(date.getUTCFullYear(),0,1));
+            return Math.ceil((((date - yearStart) / 86400000) + 1)/7);
+        };
+
         // Helper om kalenderweken te genereren (gebruikt voor het overzicht per maand én doelen)
         const getMonthWeeks = (y, mName, mIdx) => {
             const range = getRealMonthRange(mName, mIdx);
             const weeks = [];
             let currentDate = new Date(y, range.start, 1);
+            
+            // Als de maand niet op een maandag begint, zoek de dichtstbijzijnde maandag ERVOOR
+            // Zodat we de volledige eerste week hebben.
+            const firstDay = currentDate.getDay();
+            if (firstDay !== 1) {
+                const offset = firstDay === 0 ? -6 : 1 - firstDay;
+                currentDate.setDate(currentDate.getDate() + offset);
+            }
+
+            // Einddatum is de laatste dag van de geselecteerde maand(en)
             const lastDate = new Date(y, range.end + 1, 0);
 
             while (currentDate <= lastDate) {
                 let start = new Date(currentDate);
                 let end = new Date(currentDate);
                 
-                let daysUntilSunday = end.getDay() === 0 ? 0 : 7 - end.getDay();
-                end.setDate(end.getDate() + daysUntilSunday);
-
-                if (end > lastDate) {
-                    end = new Date(lastDate);
-                }
+                // Schuif einde naar zondag
+                end.setDate(end.getDate() + 6);
 
                 const formatShortDate = (d) => `${d.getDate()} ${['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'][d.getMonth()]}`;
+                
+                const weekNum = getWeekNumber(start);
 
                 weeks.push({
                     start: new Date(start),
                     end: new Date(end),
-                    label: `${formatShortDate(start)} - ${formatShortDate(end)}`
+                    weekNumber: weekNum,
+                    label: `W${weekNum} (${formatShortDate(start)} - ${formatShortDate(end)})`
                 });
 
+                // Ga naar volgende maandag
                 currentDate = new Date(end);
                 currentDate.setDate(currentDate.getDate() + 1);
             }
@@ -174,7 +193,8 @@
                     let endDate = new Date(year, range.end + 1, 0); 
                     
                     if (useCalendar && calWeeks[i-1]) {
-                        label = `${m} - W${i} (${calWeeks[i-1].label})`;
+                        // Gebruik de officiële W-notatie voor de dropdown
+                        label = `${calWeeks[i-1].label}`;
                         endDate = calWeeks[i-1].end;
                     } else {
                         // Schatting van einddatum voor de maanden zonder strikte kalender
@@ -189,7 +209,9 @@
                         week: i,
                         label: label,
                         absoluteIndex: list.length,
-                        endDate: endDate.toISOString()
+                        endDate: endDate.toISOString(),
+                        isCalendar: useCalendar,
+                        weekNumber: (useCalendar && calWeeks[i-1]) ? calWeeks[i-1].weekNumber : null
                     });
                 }
             });
@@ -553,16 +575,22 @@
                                     <div className="mt-auto pt-3 border-t border-slate-100 dark:border-slate-700/50">
                                         <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Status per week:</div>
                                         <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto custom-scroll pr-1">
-                                            {activityWeeks.map(aw => (
-                                                <div 
-                                                    key={aw.id} 
-                                                    title={aw.label}
-                                                    className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded border font-bold cursor-help transition-colors ${aw.active ? 'bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-900/40 dark:text-emerald-400 dark:border-emerald-700' : 'bg-slate-50 text-slate-400 border-slate-200 dark:bg-slate-800/50 dark:border-slate-700 dark:text-slate-500'}`}
-                                                >
-                                                    {aw.active ? <Icons.Check className="w-2 h-2"/> : <Icons.X className="w-2 h-2 opacity-50"/>}
-                                                    {aw.month.substring(0,3)} W{aw.week}
-                                                </div>
-                                            ))}
+                                            {activityWeeks.map(aw => {
+                                                // Haal het W-nummer uit het label als het bestaat, anders m-w
+                                                const wMatch = aw.label.match(/^W(\d+)/);
+                                                const shortLabel = wMatch ? wMatch[0] : `${aw.month.substring(0,3)} W${aw.week}`;
+
+                                                return (
+                                                    <div 
+                                                        key={aw.id} 
+                                                        title={aw.label}
+                                                        className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded border font-bold cursor-help transition-colors ${aw.active ? 'bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-900/40 dark:text-emerald-400 dark:border-emerald-700' : 'bg-slate-50 text-slate-400 border-slate-200 dark:bg-slate-800/50 dark:border-slate-700 dark:text-slate-500'}`}
+                                                    >
+                                                        {aw.active ? <Icons.Check className="w-2 h-2"/> : <Icons.X className="w-2 h-2 opacity-50"/>}
+                                                        {shortLabel}
+                                                    </div>
+                                                )
+                                            })}
                                         </div>
                                     </div>
                                 )}
@@ -1674,14 +1702,18 @@
                                                     const w = index + 1;
                                                     const weekVal = Number(data[`week${w}`]) || 0;
                                                     const weekProfit = weekVal * 0.29184;
+                                                    
+                                                    // Trek de datumreeks uit het label voor weergave in de grijze box
+                                                    const dateRange = weekInfo.label.split('(')[1].replace(')', '');
+
                                                     return (
                                                         <div key={w} className="flex flex-col gap-1.5 bg-white dark:bg-slate-800 p-3 rounded-lg border border-emerald-50 dark:border-slate-700 shadow-sm transition-all hover:border-emerald-200 dark:hover:border-slate-600">
                                                             <div className="flex justify-between items-center text-[10px] text-slate-400 dark:text-slate-500">
-                                                                <span className="font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Week {w}</span>
-                                                                <span className="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded font-medium">{weekInfo.label}</span>
+                                                                <span className="font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Week {weekInfo.weekNumber}</span>
+                                                                <span className="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded font-medium">{dateRange}</span>
                                                             </div>
                                                             <div className="flex items-center gap-3">
-                                                                <div className="bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 w-10 h-10 rounded-full flex justify-center items-center text-base font-bold shadow-sm shrink-0">{w}</div>
+                                                                <div className="bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 w-10 h-10 rounded-full flex justify-center items-center text-sm font-bold shadow-sm shrink-0">W{weekInfo.weekNumber}</div>
                                                                 <div className="flex-grow">
                                                                     <input 
                                                                         type="text" 
