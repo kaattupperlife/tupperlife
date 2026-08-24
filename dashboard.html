@@ -114,7 +114,7 @@
         
         // --- CONFIGURATIE ---
         const ADMIN_EMAILS = ['jaiderjannis@gmail.com', 'kaat.tupperware@gmail.com']; 
-        // Juli en Augustus zijn nu samengevoegd.
+        // Juli en Augustus zijn samengevoegd
         const MONTHS = ['Januari', 'Februari', 'Maart', 'April', 'Mei', 'Juni', 'Juli & Augustus', 'September', 'Oktober', 'November', 'December'];
         
         // Helper om de correcte datum ranges per maand te bepalen, 
@@ -534,16 +534,12 @@
                             startLabel = goalStart.toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit' });
                             endLabel = goalEnd.toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit' });
 
-                            // We itereren over alle mogelijke weken en schatten het bedrag
-                            // dat binnen de doel-datums valt, door te kijken naar de overlap.
                             availableWeeks.forEach(aw => {
                                 if (aw.isCalendar) {
                                     const d = monthlyData[aw.month] || {};
                                     const weekVal = Number(d[`week${aw.week}`]) || 0;
                                     
                                     if (weekVal > 0) {
-                                        // Zoek de daadwerkelijke datumreeks van deze week op basis van het label.
-                                        // Het label is in formaat: "W18 (28 apr - 4 mei)"
                                         const match = aw.label.match(/\((\d+)\s([a-z]+)\s-\s(\d+)\s([a-z]+)\)/);
                                         if (match) {
                                             const mNames = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
@@ -552,7 +548,6 @@
                                             const wEndDay = parseInt(match[3]);
                                             const wEndMonth = mNames.indexOf(match[4]);
                                             
-                                            // Behandel jaarovergangen rond oud & nieuw
                                             let wStartYear = selectedYear;
                                             let wEndYear = selectedYear;
                                             if (wStartMonth === 11 && wEndMonth === 0) { wEndYear = selectedYear + 1; }
@@ -561,31 +556,23 @@
                                             const weekStart = new Date(wStartYear, wStartMonth, wStartDay);
                                             const weekEnd = new Date(wEndYear, wEndMonth, wEndDay);
                                             
-                                            // Bereken overlap dagen tussen de week en het doel
                                             const overlapStart = new Date(Math.max(weekStart, goalStart));
                                             const overlapEnd = new Date(Math.min(weekEnd, goalEnd));
                                             
                                             if (overlapStart <= overlapEnd) {
                                                 const overlapDays = Math.round((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24)) + 1;
                                                 const weekDays = 7;
-                                                // Voeg het proportionele deel van de omzet toe
                                                 currentProgress += weekVal * (overlapDays / weekDays);
                                             }
                                         }
                                     }
                                 } else {
-                                    // Voor de maanden (Jan, Feb, Mrt) die (nog) geen kalender hebben, tellen we ruw per maand.
                                     const monthIndex = MONTHS.indexOf(aw.month);
                                     if (monthIndex !== -1) {
                                         const monthStart = new Date(selectedYear, monthIndex, 1);
                                         const monthEnd = new Date(selectedYear, monthIndex + 1, 0);
-                                        
                                         if (monthStart <= goalEnd && monthEnd >= goalStart) {
                                             const d = monthlyData[aw.month] || {};
-                                            // Voeg het toe als de week geheel of gedeeltelijk in de geselecteerde maand valt.
-                                            // (Een echte proportionele berekening hier is te ingewikkeld zonder exacte datums, 
-                                            // dus we tellen de hele maand op als deze gedeeltelijk overlapt, dit kan iets onnauwkeurig zijn voor Q1).
-                                            // Omdat er al door Weken wordt geïtereerd, tellen we hier gewoon de specifieke week op.
                                             currentProgress += Number(d[`week${aw.week}`]) || 0;
                                         }
                                     }
@@ -632,13 +619,12 @@
                                     )}
                                 </div>
                                 
-                                {/* NIEUW: Activiteit per week badges weergave */}
+                                {/* Activiteit per week badges weergave */}
                                 {isActivity && activityWeeks.length > 0 && (
                                     <div className="mt-auto pt-3 border-t border-slate-100 dark:border-slate-700/50">
                                         <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Status per week:</div>
                                         <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto custom-scroll pr-1">
                                             {activityWeeks.map(aw => {
-                                                // Haal het W-nummer uit het label als het bestaat, anders m-w
                                                 const wMatch = aw.label.match(/^W(\d+)/);
                                                 const shortLabel = wMatch ? wMatch[0] : `${aw.month.substring(0,3)} W${aw.week}`;
 
@@ -675,13 +661,12 @@
                 let finalAmount = Number(input.amount);
                 let finalEndDate = new Date().toISOString();
                 
-                // Auto-berekening voor activiteit op basis van gekozen weken
                 if (input.type === 'activity') {
                     if (input.startWeekId && input.endWeekId) {
                         const s = availableWeeks.findIndex(w=>w.id===input.startWeekId);
                         const e = availableWeeks.findIndex(w=>w.id===input.endWeekId);
                         if (s !== -1 && e !== -1 && e >= s) {
-                            finalAmount = (e - s) + 1; // Start- en eindweek inclusief (bijv. index 2 t/m 4 = 3 weken)
+                            finalAmount = (e - s) + 1; 
                             const endWeek = availableWeeks.find(w => w.id === input.endWeekId);
                             if (endWeek) finalEndDate = endWeek.endDate;
                         } else {
@@ -691,7 +676,6 @@
                         return alert("Selecteer een start- en eindweek.");
                     }
                 } else {
-                    // Validatie voor Omzet
                     if (!input.startDate || !input.endDate) {
                         return alert("Selecteer een start- en einddatum voor dit omzetdoel.");
                     }
@@ -779,7 +763,6 @@
                 <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
                     <div className="bg-white dark:bg-dark-card rounded-2xl shadow-xl w-full max-w-lg overflow-hidden modal-content flex flex-col max-h-[90vh]" onClick={e=>e.stopPropagation()}>
                         
-                        {/* Header */}
                         <div className="p-4 border-b dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex justify-between items-center shrink-0">
                             <h3 className="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
                                 <Icons.Target className="text-indigo-500"/> Mijn Doelen Beheren
@@ -787,10 +770,7 @@
                             <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><Icons.X/></button>
                         </div>
 
-                        {/* Content Area */}
                         <div className="overflow-y-auto p-4 custom-scroll space-y-6">
-                            
-                            {/* Nieuw Doel Toevoegen Formulier */}
                             <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-xl border border-indigo-100 dark:border-indigo-800">
                                 <div className="flex justify-between items-center mb-3">
                                     <h4 className="font-bold text-indigo-800 dark:text-indigo-300 text-sm flex items-center gap-2">
@@ -802,7 +782,6 @@
                                     )}
                                 </div>
 
-                                {/* Type Selector */}
                                 <div className="flex gap-2 mb-3">
                                     <button 
                                         onClick={() => setInput({...input, type: 'sales'})} 
@@ -824,9 +803,8 @@
                                         <input type="text" value={input.name} onChange={e=>setInput({...input, name:e.target.value})} className="w-full p-2 text-sm rounded border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-800 dark:text-white outline-none focus:border-indigo-500"/>
                                     </div>
                                     
-                                    {/* DYNAMISCH DOEL VELD */}
                                     {input.type === 'activity' ? (
-                                        <>
+                                        <React.Fragment>
                                             <div className="sm:col-span-2">
                                                 <label className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block mb-1">
                                                     Doel (aantal actieve weken)
@@ -856,9 +834,9 @@
                                                     {availableWeeks.map(w => <option key={w.id} value={w.id}>{w.label}</option>)}
                                                 </select>
                                             </div>
-                                        </>
+                                        </React.Fragment>
                                     ) : (
-                                        <>
+                                        <React.Fragment>
                                             <div className="sm:col-span-2">
                                                 <label className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block mb-1">
                                                     Doelbedrag (€)
@@ -873,7 +851,7 @@
                                                 <label className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block mb-1">Einddatum</label>
                                                 <input type="date" value={input.endDate} onChange={e=>setInput({...input, endDate:e.target.value})} className="w-full p-2 text-sm rounded border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-800 dark:text-white outline-none focus:border-indigo-500"/>
                                             </div>
-                                        </>
+                                        </React.Fragment>
                                     )}
                                 </div>
                                 <button onClick={handleSave} className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded shadow-sm">
@@ -881,7 +859,6 @@
                                 </button>
                             </div>
 
-                            {/* Tabs (Actief vs Geschiedenis) */}
                             <div>
                                 <div className="flex border-b border-slate-200 dark:border-slate-700 mb-3">
                                     <button onClick={()=>setTab('active')} className={`pb-2 px-4 text-sm font-bold transition-all ${tab==='active' ? 'border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600'}`}>Actieve Doelen ({activeGoalsList.length})</button>
@@ -1650,7 +1627,7 @@
         };
 
         // --- SUB-COMPONENT: MAAND RIJ (NU MET KALENDER LOGICA) ---
-        const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurrency, user }) => {
+        const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurrency, user, globalPs }) => {
             const [expanded, setExpanded] = useState(false);
             const [isModalOpen, setIsModalOpen] = useState(false);
             
@@ -1660,17 +1637,31 @@
             // KALENDER FUNCTIE komt nu van de algemene getMonthWeeks helper
             const calendarWeeks = useCalendar ? getMonthWeeks(year, month, monthIndex) : [];
             const manualWeeks = data.weeks || 4;
-            const psLevels = data.psLevels || [];
+            
+            const localPs = data.psLevels || [];
+            const receivedGlobalPs = data.receivedGlobalPs || [];
+            
+            // Combineer Lokale en Globale PS Beloningen
+            const allPs = [
+                ...localPs.map(l => ({ ...l, isGlobal: false, received: !!l.received })),
+                ...(globalPs || []).map(l => ({ ...l, isGlobal: true, received: receivedGlobalPs.includes(l.id) }))
+            ].sort((a, b) => (Number(a.amount)||0) - (Number(b.amount)||0));
             
             // Tel altijd op tot en met 10 weken voor de zekerheid (omdat Juli & Augustus langer duurt)
             let total = 0; 
             for(let i=1; i<=10; i++) total += Number(data[`week${i}`])||0;
             const profit = total * 0.29184;
-            const earnedLevels = psLevels.filter(l => total >= (Number(l.amount)||0)).length;
+            const earnedLevels = allPs.filter(l => total >= (Number(l.amount)||0)).length;
 
-            const toggleReceived = (id) => { 
-                const newLevels = psLevels.map(l => l.id === id ? { ...l, received: !l.received } : l); 
-                updateMonthData(month, 'psLevels', newLevels); 
+            const toggleReceived = (id, isGlobal) => { 
+                if (isGlobal) {
+                    const currentArr = data.receivedGlobalPs || [];
+                    const newArr = currentArr.includes(id) ? currentArr.filter(x => x !== id) : [...currentArr, id];
+                    updateMonthData(month, 'receivedGlobalPs', newArr);
+                } else {
+                    const newLevels = localPs.map(l => l.id === id ? { ...l, received: !l.received } : l); 
+                    updateMonthData(month, 'psLevels', newLevels); 
+                }
             };
 
             return (
@@ -1779,51 +1770,28 @@
                                     <div className="space-y-4">
                                         <div className="flex justify-between items-center pb-2 border-b border-emerald-200/50 dark:border-emerald-700/50">
                                             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">PS Beloningen</span>
+                                            <button onClick={(e)=>{e.stopPropagation();setIsModalOpen(true)}} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300 hover:bg-emerald-200 rounded-lg font-medium"><Icons.Settings className="w-3"/> Eigen Beloningen Toevoegen</button>
                                         </div>
                                         <div className="space-y-3">
-                                            {psLevels.length === 0 ? <div className="text-center py-8 text-slate-400 dark:text-slate-500 border-2 border-dashed dark:border-slate-700 rounded-xl"><p>Nog geen beloningen ingesteld.</p></div> : 
-                                                psLevels.sort((a,b)=>(Number(a.amount)||0)-(Number(b.amount)||0)).map((level, index) => {
+                                            {allPs.length === 0 ? <div className="text-center py-8 text-slate-400 dark:text-slate-500 border-2 border-dashed dark:border-slate-700 rounded-xl"><p>Nog geen beloningen ingesteld.</p></div> : 
+                                                allPs.map((level, index) => {
                                                     const amt = Number(level.amount)||0; const unlocked = total >= amt && amt > 0;
-                                                    const isReceived = receivedPs.includes(level.id);
                                                     return (
-                                                        <div key={level.id} className={`bg-white dark:bg-slate-800 rounded-xl border overflow-hidden ${unlocked ? 'border-emerald-500 shadow-md ring-1 ring-emerald-500' : 'border-emerald-100 dark:border-slate-700 shadow-sm'}`}>
+                                                        <div key={level.id} className={`bg-white dark:bg-slate-800 rounded-xl border overflow-hidden ${unlocked ? 'border-emerald-500 shadow-md ring-1 ring-emerald-500' : 'border-emerald-100 dark:border-slate-700 shadow-sm'} ${level.isGlobal ? 'border-l-4 border-l-blue-500' : ''}`}>
                                                             <div className={`h-1.5 w-full ${unlocked ? 'bg-emerald-500' : 'bg-slate-100 dark:bg-slate-700'}`}>{!unlocked && amt > 0 && <div className="h-full bg-emerald-400" style={{ width: `${Math.min(100, (total/amt)*100)}%` }}></div>}</div>
                                                             <div className="p-3 flex gap-3 items-center">
                                                                 <div className="w-16 h-16 shrink-0 rounded-lg bg-slate-50 dark:bg-slate-700 border flex items-center justify-center overflow-hidden relative">
                                                                     {level.image ? <img src={level.image} className="w-full h-full object-cover"/> : <Icons.Image className="text-2xl text-slate-300"/>}
                                                                 </div>
                                                                 <div className="flex-grow min-w-0">
-                                                                    <div className="flex flex-col mb-1"><span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">{level.label || `PS ${index+1}`}</span><h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm truncate">{level.name||'Naamloos'}</h4></div>
-                                                                    <div className="text-xs mt-1">{unlocked ? (<div className="flex items-center gap-2">{isReceived ? (<span className="flex items-center gap-1 text-blue-600 dark:text-blue-300 font-bold bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded-md cursor-pointer border border-blue-100 dark:border-blue-800" onClick={(e) => {e.stopPropagation(); toggleReceived(level.id);}}><Icons.Check className="w-3"/> ONTVANGEN!</span>) : (<><span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold animate-pulse"><Icons.CheckCircle className="w-3"/> BEHAALD!</span><button onClick={(e) => { e.stopPropagation(); toggleReceived(level.id); }} className="bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded text-[10px] transition-colors">Ontvangen?</button></>)}</div>) : <span className="text-slate-400">Nog <span className="font-medium text-slate-600 dark:text-slate-400">{formatCurrency(Math.max(0, amt-total))}</span></span>}</div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* RECHTER KOLOM: PS BELONINGEN */}
-                                    <div className="space-y-4">
-                                        <div className="flex justify-between items-center pb-2 border-b border-emerald-200/50 dark:border-emerald-700/50">
-                                            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">PS Beloningen</span>
-                                            <button onClick={(e)=>{e.stopPropagation();setIsModalOpen(true)}} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300 hover:bg-emerald-200 rounded-lg font-medium"><Icons.Settings className="w-3"/> Instellen</button>
-                                        </div>
-                                        <div className="space-y-3">
-                                            {psLevels.length === 0 ? <div className="text-center py-8 text-slate-400 dark:text-slate-500 border-2 border-dashed dark:border-slate-700 rounded-xl"><p>Nog geen beloningen ingesteld.</p></div> : 
-                                                psLevels.sort((a,b)=>(Number(a.amount)||0)-(Number(b.amount)||0)).map((level, index) => {
-                                                    const amt = Number(level.amount)||0; const unlocked = total >= amt && amt > 0;
-                                                    return (
-                                                        <div key={level.id} className={`bg-white dark:bg-slate-800 rounded-xl border overflow-hidden ${unlocked ? 'border-emerald-500 shadow-md ring-1 ring-emerald-500' : 'border-emerald-100 dark:border-slate-700 shadow-sm'}`}>
-                                                            <div className={`h-1.5 w-full ${unlocked ? 'bg-emerald-500' : 'bg-slate-100 dark:bg-slate-700'}`}>{!unlocked && amt > 0 && <div className="h-full bg-emerald-400" style={{ width: `${Math.min(100, (total/amt)*100)}%` }}></div>}</div>
-                                                            <div className="p-3 flex gap-3 items-center">
-                                                                <div className="w-16 h-16 shrink-0 rounded-lg bg-slate-50 dark:bg-slate-700 border flex items-center justify-center overflow-hidden relative">
-                                                                    {level.image ? <img src={level.image} className="w-full h-full object-cover"/> : <Icons.Image className="text-2xl text-slate-300"/>}
-                                                                </div>
-                                                                <div className="flex-grow min-w-0">
-                                                                    <div className="flex flex-col mb-1"><span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">{level.label || `PS ${index+1}`}</span><h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm truncate">{level.name||'Naamloos'}</h4></div>
-                                                                    <div className="text-xs mt-1">{unlocked ? (<div className="flex items-center gap-2">{level.received ? (<span className="flex items-center gap-1 text-blue-600 dark:text-blue-300 font-bold bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded-md cursor-pointer border border-blue-100 dark:border-blue-800" onClick={(e) => {e.stopPropagation(); toggleReceived(level.id);}}><Icons.Check className="w-3"/> ONTVANGEN!</span>) : (<><span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold animate-pulse"><Icons.CheckCircle className="w-3"/> BEHAALD!</span><button onClick={(e) => { e.stopPropagation(); toggleReceived(level.id); }} className="bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded text-[10px] transition-colors">Ontvangen?</button></>)}</div>) : <span className="text-slate-400">Nog <span className="font-medium text-slate-600 dark:text-slate-400">{formatCurrency(Math.max(0, amt-total))}</span></span>}</div>
+                                                                    <div className="flex flex-col mb-1">
+                                                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1">
+                                                                            {level.label || `PS ${index+1}`}
+                                                                            {level.isGlobal && <span className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 px-1 py-0.5 rounded text-[8px]"><Icons.Gift className="w-2"/> GLOBAAL</span>}
+                                                                        </span>
+                                                                        <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm truncate">{level.name||'Naamloos'}</h4>
+                                                                    </div>
+                                                                    <div className="text-xs mt-1">{unlocked ? (<div className="flex items-center gap-2">{level.received ? (<span className="flex items-center gap-1 text-blue-600 dark:text-blue-300 font-bold bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded-md cursor-pointer border border-blue-100 dark:border-blue-800" onClick={(e) => {e.stopPropagation(); toggleReceived(level.id, level.isGlobal);}}><Icons.Check className="w-3"/> ONTVANGEN!</span>) : (<><span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold animate-pulse"><Icons.CheckCircle className="w-3"/> BEHAALD!</span><button onClick={(e) => { e.stopPropagation(); toggleReceived(level.id, level.isGlobal); }} className="bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded text-[10px] transition-colors">Ontvangen?</button></>)}</div>) : <span className="text-slate-400">Nog <span className="font-medium text-slate-600 dark:text-slate-400">{formatCurrency(Math.max(0, amt-total))}</span></span>}</div>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -1836,9 +1804,66 @@
                             </td>
                         </tr>
                     )}
-                    <PsManagementModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} psLevels={psLevels} updatePsLevels={(newLevels) => updateMonthData(month, 'psLevels', newLevels)} user={user} />
+                    <PsManagementModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} psLevels={localPs} updatePsLevels={(newLevels) => updateMonthData(month, 'psLevels', newLevels)} user={user} />
                 </React.Fragment>
             )
+        };
+
+        // --- GLOBAL PS BEHEER MODAL (ADMIN) ---
+        const GlobalPsAdminModal = ({ isOpen, onClose, selectedYear, globalPsData, updateGlobalPsData }) => {
+            const [selectedMonth, setSelectedMonth] = useState(MONTHS[0]);
+            const [uploadingId, setUploadingId] = useState(null);
+
+            if (!isOpen) return null;
+
+            const psLevels = globalPsData[selectedMonth] || [];
+
+            const addLevel = () => updateGlobalPsData(selectedMonth, [...psLevels, { id: 'g_' + Date.now(), amount: '', name: '', label: '', image: '' }]);
+            const updateLevel = (id, field, value) => updateGlobalPsData(selectedMonth, psLevels.map(l => l.id === id ? { ...l, [field]: value } : l));
+            const deleteLevel = (id) => { if(confirm("Globaal doel verwijderen voor iedereen?")) updateGlobalPsData(selectedMonth, psLevels.filter(l => l.id !== id)); };
+
+            const handleImageUpload = async (e, levelId) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                setUploadingId(levelId);
+                try {
+                    const ref = firebase.storage().ref().child(`global_ps_images/${Date.now()}_${file.name}`);
+                    await ref.put(file);
+                    const url = await ref.getDownloadURL();
+                    updateLevel(levelId, 'image', url);
+                } catch (error) { alert("Upload mislukt: " + error.message); } finally { setUploadingId(null); }
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
+                    <div className="bg-white dark:bg-dark-card rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col modal-content" onClick={e => e.stopPropagation()}>
+                        <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex flex-col gap-3 bg-slate-50 dark:bg-slate-800 rounded-t-2xl">
+                            <div className="flex justify-between items-center">
+                                <h3 className="font-bold text-blue-600 dark:text-blue-400 flex items-center gap-2"><Icons.Settings/> Globale PS Beloningen (Iedereen)</h3>
+                                <button onClick={onClose}><Icons.X className="dark:text-slate-400"/></button>
+                            </div>
+                            <select value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)} className="w-full p-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-bold outline-none focus:border-blue-500">
+                                {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
+                            </select>
+                        </div>
+                        <div className="p-4 overflow-y-auto space-y-4">
+                            {psLevels.length === 0 && <div className="text-center py-8 text-slate-400 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl"><p>Geen globale beloningen voor {selectedMonth}.</p></div>}
+                            {psLevels.sort((a,b)=>(Number(a.amount)||0)-(Number(b.amount)||0)).map((level, index) => (
+                                <div key={level.id} className="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-xl p-3 space-y-3">
+                                    <div className="flex justify-between items-center border-b border-blue-200 dark:border-blue-800 pb-2"><span className="text-xs font-bold text-blue-600 uppercase">{level.label || `PS ${index + 1}`} (Globaal)</span><button onClick={() => deleteLevel(level.id)} className="text-red-500 hover:text-red-700 text-xs flex items-center gap-1 font-medium"><Icons.Trash/> Verwijderen</button></div>
+                                    <div className="grid grid-cols-1 gap-3">
+                                        <div><label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Label</label><input type="text" placeholder={`PS ${index + 1}`} value={level.label} onChange={(e)=>updateLevel(level.id, 'label', e.target.value)} className="w-full px-2 py-2 text-sm font-bold border dark:border-slate-600 dark:bg-slate-700 dark:text-blue-400 rounded outline-none text-blue-700"/></div>
+                                        <div><label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Bedrag (€)</label><input type="number" value={level.amount} onChange={(e)=>updateLevel(level.id, 'amount', e.target.value)} className="w-full px-2 py-2 text-sm font-bold border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded outline-none"/></div>
+                                        <div><label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Naam</label><input type="text" placeholder="Bijv. Braadpan" value={level.name} onChange={(e)=>updateLevel(level.id, 'name', e.target.value)} className="w-full px-2 py-2 text-sm border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded outline-none"/></div>
+                                    </div>
+                                    <div><label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Afbeelding</label><div className="flex gap-2 items-center"><div className="w-20 h-20 rounded border dark:border-slate-600 bg-white dark:bg-slate-700 flex items-center justify-center overflow-hidden shrink-0 relative">{uploadingId === level.id ? <Icons.Loader className="text-blue-600"/> : level.image ? <img src={level.image} className="w-full h-full object-cover"/> : <Icons.Image className="text-2xl text-slate-300"/>}</div><div className="flex-grow flex flex-col gap-2"><label className="flex items-center justify-center gap-2 px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded cursor-pointer hover:bg-blue-50 dark:hover:bg-slate-600 w-full"><input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, level.id)}/><Icons.Upload className="text-slate-500"/><span className="text-xs text-slate-600 dark:text-slate-300 font-medium">Upload Foto</span></label><input type="text" placeholder="Of plak link..." value={level.image} onChange={(e)=>updateLevel(level.id, 'image', e.target.value)} className="w-full px-2 py-1.5 text-xs border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded outline-none"/></div></div></div>
+                                </div>
+                            ))}
+                            <button onClick={addLevel} className="w-full py-3 border-2 border-dashed border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 rounded-xl font-bold hover:bg-blue-50 dark:hover:bg-blue-900/20 flex items-center justify-center gap-2"><Icons.Plus/> Nieuw Niveau Toevoegen</button>
+                        </div>
+                    </div>
+                </div>
+            );
         };
 
         // --- HOOFD DASHBOARD ---
@@ -1847,13 +1872,15 @@
             const [loading, setLoading] = useState(true);
             const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
             const [monthlyData, setMonthlyData] = useState({});
+            const [globalPsData, setGlobalPsData] = useState({});
             
             // UI State
             const [activeTab, setActiveTab] = useState('overview');
             const [showAdminModal, setShowAdminModal] = useState(false);
-            const [showCustomGoalsModal, setShowCustomGoalsModal] = useState(false);
-            const [customGoals, setCustomGoals] = useState([]);
-            const [viewingUser, setViewingUser] = useState(null);
+            const [showGlobalPsModal, setShowGlobalPsModal] = useState(false);
+            const [showCustomGoalsModal, setShowCustomGoalsModal] = useState(false); 
+            const [customGoals, setCustomGoals] = useState([]); 
+            const [viewingUser, setViewingUser] = useState(null); 
             const [showProfileMenu, setShowProfileMenu] = useState(false);
             const [darkMode, setDarkMode] = useState(localStorage.getItem('theme') === 'dark');
             const [showMobileMenu, setShowMobileMenu] = useState(false); 
@@ -1900,11 +1927,17 @@
                         if (doc.exists) setCustomGoals(doc.data().list || []);
                         else setCustomGoals([]);
                     });
+                    
+                // 4. Haal globale PS op
+                const unsubGlobalPs = window.db.collection('settings').doc(`global_ps_${selectedYear}`)
+                    .onSnapshot(doc => {
+                        if (doc.exists) setGlobalPsData(doc.data());
+                        else setGlobalPsData({});
+                    });
 
-                return () => { unsubData(); unsubPerms(); unsubGoals(); };
+                return () => { unsubData(); unsubPerms(); unsubGoals(); unsubGlobalPs(); };
             }, [targetUid, selectedYear]);
 
-            // NIEUW: Helper om alle beschikbare weken van een jaar op te bouwen voor de doelen
             const availableWeeks = React.useMemo(() => buildAvailableWeeks(selectedYear, monthlyData), [selectedYear, monthlyData]);
 
             const updateMonthData = async (month, field, value) => {
@@ -1968,7 +2001,8 @@
                                             <button onClick={()=>{setShowCustomGoalsModal(true);setShowProfileMenu(false)}} className="w-full text-left px-4 py-2 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-bold flex gap-2 items-center border-b dark:border-slate-700">
                                                 <Icons.Target/> Mijn Doelen
                                             </button>
-
+                                            
+                                            {isAdmin && <button onClick={()=>{setShowGlobalPsModal(true);setShowProfileMenu(false)}} className="w-full text-left px-4 py-2 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-bold flex gap-2 items-center border-b dark:border-slate-700"><Icons.Gift/> Globale PS</button>}
                                             {isAdmin && <button onClick={()=>{setShowAdminModal(true);setShowProfileMenu(false)}} className="w-full text-left px-4 py-2 hover:bg-amber-50 dark:hover:bg-amber-900/30 text-amber-600 dark:text-amber-400 font-bold flex gap-2 items-center"><Icons.Users/> Beheer Gebruikers</button>}
                                             <button onClick={()=>window.auth.signOut()} className="w-full text-left px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 flex gap-2 items-center rounded-b-xl"><Icons.LogOut/> Uitloggen</button>
                                         </div>
@@ -2074,7 +2108,7 @@
                                     <table className="w-full text-left">
                                         <thead className="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-900 dark:text-emerald-200 border-b border-emerald-100 dark:border-emerald-900"><tr><th className="p-2 sm:p-4">Maand</th><th className="p-2 sm:p-4">Verkoop</th><th className="p-2 sm:p-4 text-right">Winst</th></tr></thead>
                                         <tbody>
-                                            {MONTHS.map((m, index) => <MonthRow key={m} month={m} monthIndex={index} year={selectedYear} data={monthlyData[m]||{}} updateMonthData={updateMonthData} formatCurrency={formatCurrency} user={user} />)}
+                                            {MONTHS.map((m, index) => <MonthRow key={m} month={m} monthIndex={index} year={selectedYear} data={monthlyData[m]||{}} updateMonthData={updateMonthData} formatCurrency={formatCurrency} user={user} globalPs={globalPsData[m] || []} />)}
                                         </tbody>
                                         <tfoot className="bg-emerald-600 dark:bg-emerald-800 text-white font-bold">
                                             <tr>
@@ -2096,6 +2130,7 @@
 
                     <AdminUserModal isOpen={showAdminModal} onClose={()=>setShowAdminModal(false)} selectedYear={selectedYear} onSelectUser={(u)=>{setViewingUser(u);setShowAdminModal(false)}}/>
                     <CustomGoalsModal isOpen={showCustomGoalsModal} onClose={()=>setShowCustomGoalsModal(false)} customGoals={customGoals} updateCustomGoals={updateCustomGoals} formatCurrency={formatCurrency} availableWeeks={availableWeeks} />
+                    <GlobalPsAdminModal isOpen={showGlobalPsModal} onClose={()=>setShowGlobalPsModal(false)} selectedYear={selectedYear} globalPsData={globalPsData} updateGlobalPsData={updateGlobalPsData} />
                 </div>
             );
         }
