@@ -1622,6 +1622,26 @@
                                     <div key={item.id} className="p-3 rounded-lg border bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800 flex gap-3 items-center">
                                         <div onClick={()=>item.image && setPreviewImage(item.image)} className={`w-12 h-12 rounded shrink-0 overflow-hidden flex items-center justify-center border border-emerald-200 dark:border-emerald-700 ${item.image ? 'cursor-pointer bg-white' : 'bg-white/50 dark:bg-slate-800'}`}>
                                              {item.image ? <img src={item.image} className="w-full h-full object-cover grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all"/> : <Icons.Gift className="text-emerald-300 dark:text-emerald-700 text-xl"/>}
+                                        </div>
+                                        <div className="flex-grow min-w-0">
+                                            <div className="font-bold text-emerald-800 dark:text-emerald-300 line-through truncate">{item.product}</div>
+                                            <div className="text-xs text-emerald-600 dark:text-emerald-400">Gevonden voor: {item.customer}</div>
+                                        </div>
+                                        <div className="flex gap-2 shrink-0">
+                                            <button onClick={()=>toggle(item)} className="w-8 h-8 rounded-full flex items-center justify-center text-emerald-600 dark:text-emerald-400 bg-emerald-200 dark:bg-emerald-800 hover:bg-emerald-300 dark:hover:bg-emerald-700" title="Terugzetten naar te zoeken"><Icons.Check/></button>
+                                            <button onClick={()=>del(item.id)} className="w-8 h-8 rounded-full flex items-center justify-center text-emerald-400 dark:text-emerald-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30"><Icons.Trash/></button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {previewImage && <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={()=>setPreviewImage(null)}><img src={previewImage} className="max-w-full max-h-[80vh] rounded"/></div>}
+                </div>
+            );
+        };
+
         // --- GLOBAL PS BEHEER MODAL (ADMIN) ---
         const GlobalPsAdminModal = ({ isOpen, onClose, selectedYear, globalPsData, updateGlobalPsData, user }) => {
             const [selectedMonth, setSelectedMonth] = useState(MONTHS[0]);
