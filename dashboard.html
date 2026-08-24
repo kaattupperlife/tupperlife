@@ -1504,188 +1504,34 @@
             );
         };
 
-        // --- WENSEN COMPONENT ---
-        const RequestsTab = ({ targetUid }) => {
-            const [list, setList] = useState([]);
-            const [input, setInput] = useState({customer:'', product:'', note:'', image: '', email: '', phone: ''});
-            const [uploading, setUploading] = useState(false);
-            const [previewImage, setPreviewImage] = useState(null);
-            const [editingId, setEditingId] = useState(null); 
-            
-            useEffect(() => {
-                if(!targetUid) return;
-                const unsub = window.db.collection('users').doc(targetUid).collection('requests').orderBy('createdAt','desc').onSnapshot(s => setList(s.docs.map(d=>({id:d.id,...d.data()}))));
-                return () => unsub();
-            }, [targetUid]);
-
-            const handleSave = async () => { 
-                if(input.customer && input.product) { 
-                    if(editingId) {
-                        await window.db.collection('users').doc(targetUid).collection('requests').doc(editingId).update(input);
-                        setEditingId(null);
-                    } else {
-                        await window.db.collection('users').doc(targetUid).collection('requests').add({...input, completed:false, createdAt:Date.now()}); 
-                    }
-                    setInput({customer:'',product:'',note:'', image: '', email: '', phone: ''}); 
-                }
-            };
-            
-            const handleEdit = (item) => {
-                setInput({ customer: item.customer, product: item.product, note: item.note || '', image: item.image || '', email: item.email || '', phone: item.phone || '' });
-                setEditingId(item.id);
-                window.scrollTo({top:0, behavior:'smooth'});
-            };
-
-            const handleImageUpload = async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                setUploading(true);
-                try {
-                    const ref = firebase.storage().ref().child(`users/${targetUid}/requests/${Date.now()}_${file.name}`);
-                    await ref.put(file);
-                    const url = await ref.getDownloadURL();
-                    setInput({...input, image: url});
-                } catch (error) { alert("Upload fout: " + error.message); } finally { setUploading(false); }
-            };
-
-            const toggle = async (item) => window.db.collection('users').doc(targetUid).collection('requests').doc(item.id).update({completed:!item.completed});
-            const del = async (id) => { if(confirm("Verwijderen?")) window.db.collection('users').doc(targetUid).collection('requests').doc(id).delete(); };
-
-            const activeRequests = list.filter(item => !item.completed);
-            const completedRequests = list.filter(item => item.completed);
-
-            return (
-                <div className="space-y-6">
-                    {/* INVULFORMULIER */}
-                    <div className={`p-4 rounded-xl border shadow-sm transition-colors ${editingId ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700' : 'bg-white dark:bg-dark-card border-emerald-100 dark:border-dark-border'}`}>
-                        <h3 className={`font-bold mb-2 flex items-center gap-2 ${editingId ? 'text-amber-800 dark:text-amber-400' : 'text-emerald-800 dark:text-emerald-400'}`}>
-                            {editingId ? <Icons.Edit/> : <Icons.Plus/>} {editingId ? 'Wens Wijzigen' : 'Nieuwe Wens'}
-                        </h3>
-                        <div className="flex flex-col gap-2">
-                            <div className="flex gap-2">
-                                <label className="w-20 h-20 border dark:border-slate-600 rounded bg-slate-50 dark:bg-slate-700 flex items-center justify-center cursor-pointer hover:bg-emerald-50 dark:hover:bg-slate-600 shrink-0 relative overflow-hidden">
-                                    <input type="file" className="hidden" onChange={handleImageUpload}/>
-                                    {uploading ? <Icons.Loader className="text-emerald-600"/> : (input.image ? <img src={input.image} className="w-full h-full object-cover"/> : <div className="text-center text-slate-400 text-[10px]"><Icons.Image className="text-xl mb-1"/><br/>Foto</div>)}
-                                </label>
-                                <div className="flex flex-col gap-2 flex-grow">
-                                    <input value={input.customer} onChange={e=>setInput({...input, customer:e.target.value})} placeholder="Klant naam" className="border dark:border-slate-600 dark:bg-dark-input dark:text-white p-2 rounded text-sm w-full outline-none"/>
-                                    <input value={input.product} onChange={e=>setInput({...input, product:e.target.value})} placeholder="Product" className="border dark:border-slate-600 dark:bg-dark-input dark:text-white p-2 rounded text-sm w-full outline-none"/>
-                                    <div className="flex gap-2">
-                                        <input value={input.email} onChange={e=>setInput({...input, email:e.target.value})} placeholder="Email (optioneel)" className="border dark:border-slate-600 dark:bg-dark-input dark:text-white p-2 rounded text-sm w-full outline-none"/>
-                                        <input value={input.phone} onChange={e=>setInput({...input, phone:e.target.value})} placeholder="Telefoon (optioneel)" className="border dark:border-slate-600 dark:bg-dark-input dark:text-white p-2 rounded text-sm w-full outline-none"/>
-                                    </div>
-                                </div>
-                            </div>
-                            <input value={input.image} onChange={e=>setInput({...input, image:e.target.value})} placeholder="Of plak afbeeldingslink..." className="border dark:border-slate-600 dark:bg-dark-input dark:text-slate-300 p-1.5 rounded text-xs w-full text-slate-500 outline-none"/>
-                            <input value={input.note} onChange={e=>setInput({...input, note:e.target.value})} placeholder="Notitie (optioneel)" className="border dark:border-slate-600 dark:bg-dark-input dark:text-white p-2 rounded text-sm w-full outline-none"/>
-                        </div>
-                        <button onClick={handleSave} className={`w-full mt-2 text-white py-2 rounded font-bold shadow-sm ${editingId ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
-                            {editingId ? 'Wijziging Opslaan' : 'Toevoegen'}
-                        </button>
-                    </div>
-
-                    {/* NOG TE ZOEKEN LIJST */}
-                    <div>
-                        <h4 className="font-bold text-slate-600 dark:text-slate-300 mb-2 flex items-center gap-2 text-sm uppercase tracking-wide"><Icons.Search/> Nog te zoeken</h4>
-                        <div className="space-y-2">
-                            {activeRequests.length===0 && <p className="text-center text-slate-400 py-4 italic text-sm border-2 border-dashed dark:border-slate-700 rounded-lg">Geen openstaande wensen.</p>}
-                            {activeRequests.map(item => (
-                                <div key={item.id} className="p-3 rounded-lg border bg-white dark:bg-dark-card border-slate-200 dark:border-slate-700 flex gap-3 items-center shadow-sm">
-                                    <div onClick={()=>item.image && setPreviewImage(item.image)} className={`w-12 h-12 rounded shrink-0 overflow-hidden flex items-center justify-center border border-slate-200 dark:border-slate-600 ${item.image ? 'cursor-pointer bg-white' : 'bg-slate-50 dark:bg-slate-800'}`}>
-                                         {item.image ? <img src={item.image} className="w-full h-full object-cover"/> : <Icons.Gift className="text-slate-300 dark:text-slate-500 text-xl"/>}
-                                    </div>
-                                    <div className="flex-grow min-w-0">
-                                        <div className="font-bold text-slate-800 dark:text-slate-100 truncate">{item.product}</div>
-                                        <div className="text-xs text-slate-500 dark:text-slate-400 flex flex-wrap gap-x-2 items-center">
-                                            <span>Voor: <span className="font-semibold">{item.customer}</span></span>
-                                            {item.email && <span className="flex items-center gap-1"><Icons.Envelope className="text-[10px]"/> {item.email}</span>}
-                                            {item.phone && <span className="flex items-center gap-1"><Icons.Phone className="text-[10px]"/> {item.phone}</span>}
-                                            {item.note && <span className="italic">({item.note})</span>}
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-2 shrink-0">
-                                        <button onClick={()=>handleEdit(item)} className="w-8 h-8 rounded-full flex items-center justify-center text-slate-300 dark:text-slate-500 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30"><Icons.Edit/></button>
-                                        <button onClick={()=>toggle(item)} className="w-8 h-8 rounded-full flex items-center justify-center text-slate-300 dark:text-slate-500 bg-slate-100 dark:bg-slate-700 hover:text-emerald-500 hover:bg-emerald-100 dark:hover:bg-emerald-900/30"><Icons.Check/></button>
-                                        <button onClick={()=>del(item.id)} className="w-8 h-8 rounded-full flex items-center justify-center text-slate-300 dark:text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30"><Icons.Trash/></button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* GEVONDEN LIJST */}
-                    {completedRequests.length > 0 && (
-                        <div>
-                            <h4 className="font-bold text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-2 text-sm uppercase tracking-wide mt-6"><Icons.CheckCircle/> Reeds gevonden</h4>
-                            <div className="space-y-2 opacity-75">
-                                {completedRequests.map(item => (
-                                    <div key={item.id} className="p-3 rounded-lg border bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800 flex gap-3 items-center">
-                                        <div onClick={()=>item.image && setPreviewImage(item.image)} className={`w-12 h-12 rounded shrink-0 overflow-hidden flex items-center justify-center border border-emerald-200 dark:border-emerald-700 ${item.image ? 'cursor-pointer bg-white' : 'bg-white/50 dark:bg-slate-800'}`}>
-                                             {item.image ? <img src={item.image} className="w-full h-full object-cover grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all"/> : <Icons.Gift className="text-emerald-300 dark:text-emerald-700 text-xl"/>}
-                                        </div>
-                                        <div className="flex-grow min-w-0">
-                                            <div className="font-bold text-emerald-800 dark:text-emerald-300 line-through truncate">{item.product}</div>
-                                            <div className="text-xs text-emerald-600 dark:text-emerald-400">Gevonden voor: {item.customer}</div>
-                                        </div>
-                                        <div className="flex gap-2 shrink-0">
-                                            <button onClick={()=>toggle(item)} className="w-8 h-8 rounded-full flex items-center justify-center text-emerald-600 dark:text-emerald-400 bg-emerald-200 dark:bg-emerald-800 hover:bg-emerald-300 dark:hover:bg-emerald-700" title="Terugzetten naar te zoeken"><Icons.Check/></button>
-                                            <button onClick={()=>del(item.id)} className="w-8 h-8 rounded-full flex items-center justify-center text-emerald-400 dark:text-emerald-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30"><Icons.Trash/></button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {previewImage && <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={()=>setPreviewImage(null)}><img src={previewImage} className="max-w-full max-h-[80vh] rounded"/></div>}
-                </div>
-            );
-        };
-
-        // --- GLOBAL PS BEHEER MODAL (ADMIN) ---
-        const GlobalPsAdminModal = ({ isOpen, onClose, selectedYear, globalPsData, updateGlobalPsData, user }) => {
-            const [selectedMonth, setSelectedMonth] = useState(MONTHS[0]);
+        // --- PS BEHEER MODAL (PER GEBRUIKER) ---
+        const PsManagementModal = ({ isOpen, onClose, psLevels, updatePsLevels, user }) => {
             const [uploadingId, setUploadingId] = useState(null);
-
+            
             if (!isOpen) return null;
-
-            const psLevels = globalPsData[selectedMonth] || [];
-
-            const addLevel = () => updateGlobalPsData(selectedMonth, [...psLevels, { id: Date.now(), amount: '', name: '', label: '', image: '' }]);
-            const updateLevel = (id, field, value) => updateGlobalPsData(selectedMonth, psLevels.map(l => l.id === id ? { ...l, [field]: value } : l));
-            const deleteLevel = (id) => { if(confirm("Verwijderen?")) updateGlobalPsData(selectedMonth, psLevels.filter(l => l.id !== id)); };
-
+            
+            const addLevel = () => updatePsLevels([...(psLevels||[]), { id: Date.now(), amount: '', name: '', label: '', image: '' }]);
+            const updateLevel = (id, field, value) => updatePsLevels(psLevels.map(l => l.id === id ? { ...l, [field]: value } : l));
+            const deleteLevel = (id) => { if(confirm("Verwijderen?")) updatePsLevels(psLevels.filter(l => l.id !== id)); };
+            
             const handleImageUpload = async (e, levelId) => {
                 const file = e.target.files[0];
                 if (!file) return;
                 setUploadingId(levelId);
                 try {
-                    const ref = firebase.storage().ref().child(`global_ps_images/${selectedYear}/${selectedMonth}/${Date.now()}_${file.name}`);
+                    const ref = firebase.storage().ref().child(`users/${user.uid}/ps_images/${Date.now()}_${file.name}`);
                     await ref.put(file);
                     const url = await ref.getDownloadURL();
                     updateLevel(levelId, 'image', url);
                 } catch (error) { alert("Upload mislukt: " + error.message); } finally { setUploadingId(null); }
             };
-
+            
             return (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
                     <div className="bg-white dark:bg-dark-card rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col modal-content" onClick={e => e.stopPropagation()}>
-                        <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800 rounded-t-2xl">
-                            <h3 className="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
-                                <Icons.Gift className="text-emerald-600 dark:text-emerald-400"/> Algemene PS Beloningen ({selectedYear})
-                            </h3>
-                            <button onClick={onClose}><Icons.X className="dark:text-slate-400"/></button>
-                        </div>
-                        
-                        <div className="p-4 border-b border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Stel in voor maand</label>
-                            <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="w-full p-2 text-sm font-bold rounded border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 dark:text-white outline-none focus:border-emerald-500">
-                                {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
-                            </select>
-                        </div>
-
-                        <div className="p-4 overflow-y-auto space-y-4 custom-scroll">
-                            {(!psLevels || psLevels.length === 0) && <div className="text-center py-8 text-slate-400 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl"><p>Nog geen beloningen voor {selectedMonth}.</p></div>}
+                        <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800 rounded-t-2xl"><h3 className="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2"><Icons.Settings className="text-emerald-600 dark:text-emerald-400"/> Beloningen Beheren</h3><button onClick={onClose}><Icons.X className="dark:text-slate-400"/></button></div>
+                        <div className="p-4 overflow-y-auto space-y-4">
+                            {(!psLevels || psLevels.length === 0) && <div className="text-center py-8 text-slate-400 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl"><p>Nog geen beloningen ingesteld.</p></div>}
                             {(psLevels||[]).sort((a,b)=>(Number(a.amount)||0)-(Number(b.amount)||0)).map((level, index) => (
                                 <div key={level.id} className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 space-y-3">
                                     <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-2"><span className="text-xs font-bold text-slate-500 uppercase">{level.label || `PS ${index + 1}`}</span><button onClick={() => deleteLevel(level.id)} className="text-red-500 hover:text-red-700 text-xs flex items-center gap-1 font-medium"><Icons.Trash/> Verwijderen</button></div>
@@ -1804,8 +1650,9 @@
         };
 
         // --- SUB-COMPONENT: MAAND RIJ (NU MET KALENDER LOGICA) ---
-        const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurrency, user, globalPsLevels }) => {
+        const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurrency, user }) => {
             const [expanded, setExpanded] = useState(false);
+            const [isModalOpen, setIsModalOpen] = useState(false);
             
             // CHECK OF WE DE KALENDER MOETEN GEBRUIKEN (Vanaf april = index 3)
             const useCalendar = monthIndex >= 3;
@@ -1813,8 +1660,7 @@
             // KALENDER FUNCTIE komt nu van de algemene getMonthWeeks helper
             const calendarWeeks = useCalendar ? getMonthWeeks(year, month, monthIndex) : [];
             const manualWeeks = data.weeks || 4;
-            const psLevels = globalPsLevels || [];
-            const receivedPs = data.receivedPs || [];
+            const psLevels = data.psLevels || [];
             
             // Tel altijd op tot en met 10 weken voor de zekerheid (omdat Juli & Augustus langer duurt)
             let total = 0; 
@@ -1823,8 +1669,8 @@
             const earnedLevels = psLevels.filter(l => total >= (Number(l.amount)||0)).length;
 
             const toggleReceived = (id) => { 
-                const newReceived = receivedPs.includes(id) ? receivedPs.filter(x => x !== id) : [...receivedPs, id];
-                updateMonthData(month, 'receivedPs', newReceived); 
+                const newLevels = psLevels.map(l => l.id === id ? { ...l, received: !l.received } : l); 
+                updateMonthData(month, 'psLevels', newLevels); 
             };
 
             return (
@@ -1954,6 +1800,35 @@
                                                         </div>
                                                     );
                                                 })
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* RECHTER KOLOM: PS BELONINGEN */}
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center pb-2 border-b border-emerald-200/50 dark:border-emerald-700/50">
+                                            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">PS Beloningen</span>
+                                            <button onClick={(e)=>{e.stopPropagation();setIsModalOpen(true)}} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300 hover:bg-emerald-200 rounded-lg font-medium"><Icons.Settings className="w-3"/> Instellen</button>
+                                        </div>
+                                        <div className="space-y-3">
+                                            {psLevels.length === 0 ? <div className="text-center py-8 text-slate-400 dark:text-slate-500 border-2 border-dashed dark:border-slate-700 rounded-xl"><p>Nog geen beloningen ingesteld.</p></div> : 
+                                                psLevels.sort((a,b)=>(Number(a.amount)||0)-(Number(b.amount)||0)).map((level, index) => {
+                                                    const amt = Number(level.amount)||0; const unlocked = total >= amt && amt > 0;
+                                                    return (
+                                                        <div key={level.id} className={`bg-white dark:bg-slate-800 rounded-xl border overflow-hidden ${unlocked ? 'border-emerald-500 shadow-md ring-1 ring-emerald-500' : 'border-emerald-100 dark:border-slate-700 shadow-sm'}`}>
+                                                            <div className={`h-1.5 w-full ${unlocked ? 'bg-emerald-500' : 'bg-slate-100 dark:bg-slate-700'}`}>{!unlocked && amt > 0 && <div className="h-full bg-emerald-400" style={{ width: `${Math.min(100, (total/amt)*100)}%` }}></div>}</div>
+                                                            <div className="p-3 flex gap-3 items-center">
+                                                                <div className="w-16 h-16 shrink-0 rounded-lg bg-slate-50 dark:bg-slate-700 border flex items-center justify-center overflow-hidden relative">
+                                                                    {level.image ? <img src={level.image} className="w-full h-full object-cover"/> : <Icons.Image className="text-2xl text-slate-300"/>}
+                                                                </div>
+                                                                <div className="flex-grow min-w-0">
+                                                                    <div className="flex flex-col mb-1"><span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">{level.label || `PS ${index+1}`}</span><h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm truncate">{level.name||'Naamloos'}</h4></div>
+                                                                    <div className="text-xs mt-1">{unlocked ? (<div className="flex items-center gap-2">{level.received ? (<span className="flex items-center gap-1 text-blue-600 dark:text-blue-300 font-bold bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded-md cursor-pointer border border-blue-100 dark:border-blue-800" onClick={(e) => {e.stopPropagation(); toggleReceived(level.id);}}><Icons.Check className="w-3"/> ONTVANGEN!</span>) : (<><span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold animate-pulse"><Icons.CheckCircle className="w-3"/> BEHAALD!</span><button onClick={(e) => { e.stopPropagation(); toggleReceived(level.id); }} className="bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded text-[10px] transition-colors">Ontvangen?</button></>)}</div>) : <span className="text-slate-400">Nog <span className="font-medium text-slate-600 dark:text-slate-400">{formatCurrency(Math.max(0, amt-total))}</span></span>}</div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })
                                             }
                                         </div>
                                     </div>
@@ -1961,6 +1836,7 @@
                             </td>
                         </tr>
                     )}
+                    <PsManagementModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} psLevels={psLevels} updatePsLevels={(newLevels) => updateMonthData(month, 'psLevels', newLevels)} user={user} />
                 </React.Fragment>
             )
         };
@@ -1971,12 +1847,10 @@
             const [loading, setLoading] = useState(true);
             const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
             const [monthlyData, setMonthlyData] = useState({});
-            const [globalPsData, setGlobalPsData] = useState({}); 
             
             // UI State
             const [activeTab, setActiveTab] = useState('overview');
             const [showAdminModal, setShowAdminModal] = useState(false);
-            const [showGlobalPsModal, setShowGlobalPsModal] = useState(false); 
             const [showCustomGoalsModal, setShowCustomGoalsModal] = useState(false);
             const [customGoals, setCustomGoals] = useState([]);
             const [viewingUser, setViewingUser] = useState(null);
@@ -2029,17 +1903,6 @@
 
                 return () => { unsubData(); unsubPerms(); unsubGoals(); };
             }, [targetUid, selectedYear]);
-
-            // Haal Globale PS data op (onafhankelijk van targetUid)
-            useEffect(() => {
-                if (!window.db) return;
-                const unsubGlobalPs = window.db.collection('settings').doc(`global_ps_${selectedYear}`)
-                    .onSnapshot(doc => {
-                        if (doc.exists) setGlobalPsData(doc.data());
-                        else setGlobalPsData({});
-                    });
-                return () => unsubGlobalPs();
-            }, [selectedYear]);
 
             // NIEUW: Helper om alle beschikbare weken van een jaar op te bouwen voor de doelen
             const availableWeeks = React.useMemo(() => buildAvailableWeeks(selectedYear, monthlyData), [selectedYear, monthlyData]);
@@ -2106,7 +1969,6 @@
                                                 <Icons.Target/> Mijn Doelen
                                             </button>
 
-                                            {isAdmin && <button onClick={()=>{setShowGlobalPsModal(true);setShowProfileMenu(false)}} className="w-full text-left px-4 py-2 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 font-bold flex gap-2 items-center"><Icons.Gift/> Beheer PS Beloningen</button>}
                                             {isAdmin && <button onClick={()=>{setShowAdminModal(true);setShowProfileMenu(false)}} className="w-full text-left px-4 py-2 hover:bg-amber-50 dark:hover:bg-amber-900/30 text-amber-600 dark:text-amber-400 font-bold flex gap-2 items-center"><Icons.Users/> Beheer Gebruikers</button>}
                                             <button onClick={()=>window.auth.signOut()} className="w-full text-left px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 flex gap-2 items-center rounded-b-xl"><Icons.LogOut/> Uitloggen</button>
                                         </div>
@@ -2212,7 +2074,7 @@
                                     <table className="w-full text-left">
                                         <thead className="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-900 dark:text-emerald-200 border-b border-emerald-100 dark:border-emerald-900"><tr><th className="p-2 sm:p-4">Maand</th><th className="p-2 sm:p-4">Verkoop</th><th className="p-2 sm:p-4 text-right">Winst</th></tr></thead>
                                         <tbody>
-                                            {MONTHS.map((m, index) => <MonthRow key={m} month={m} monthIndex={index} year={selectedYear} data={monthlyData[m]||{}} updateMonthData={updateMonthData} formatCurrency={formatCurrency} user={user} globalPsLevels={globalPsData[m] || []} />)}
+                                            {MONTHS.map((m, index) => <MonthRow key={m} month={m} monthIndex={index} year={selectedYear} data={monthlyData[m]||{}} updateMonthData={updateMonthData} formatCurrency={formatCurrency} user={user} />)}
                                         </tbody>
                                         <tfoot className="bg-emerald-600 dark:bg-emerald-800 text-white font-bold">
                                             <tr>
@@ -2234,7 +2096,6 @@
 
                     <AdminUserModal isOpen={showAdminModal} onClose={()=>setShowAdminModal(false)} selectedYear={selectedYear} onSelectUser={(u)=>{setViewingUser(u);setShowAdminModal(false)}}/>
                     <CustomGoalsModal isOpen={showCustomGoalsModal} onClose={()=>setShowCustomGoalsModal(false)} customGoals={customGoals} updateCustomGoals={updateCustomGoals} formatCurrency={formatCurrency} availableWeeks={availableWeeks} />
-                    <GlobalPsAdminModal isOpen={showGlobalPsModal} onClose={()=>setShowGlobalPsModal(false)} selectedYear={selectedYear} globalPsData={globalPsData} updateGlobalPsData={updateGlobalPsData} user={user} />
                 </div>
             );
         }
