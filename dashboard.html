@@ -498,20 +498,21 @@
                         const isActivity = goal.type === 'activity';
                         let currentProgress = 0;
                         let activityWeeks = [];
+                        let startLabel = 'Onbekend';
+                        let endLabel = 'Onbekend';
 
-                        // Bepaal de start- en eindindex van de geselecteerde weken in het huidige jaar
-                        const startIdx = availableWeeks.findIndex(w => w.id === goal.startWeekId);
-                        const endIdx = availableWeeks.findIndex(w => w.id === goal.endWeekId);
-                        const validRange = startIdx !== -1 && endIdx !== -1;
+                        if (isActivity) {
+                            // --- BEREKENING VOOR ACTIVITEIT (WEKEN) ---
+                            const startIdx = availableWeeks.findIndex(w => w.id === goal.startWeekId);
+                            const endIdx = availableWeeks.findIndex(w => w.id === goal.endWeekId);
+                            const validRange = startIdx !== -1 && endIdx !== -1;
 
-                        if (validRange) {
-                            availableWeeks.forEach(aw => {
-                                // Controleer of de week binnen de gekozen start- en eindweek valt
-                                if (aw.absoluteIndex >= startIdx && aw.absoluteIndex <= endIdx) {
-                                    const d = monthlyData[aw.month] || {};
-                                    const weekVal = Number(d[`week${aw.week}`]) || 0;
-                                    
-                                    if (isActivity) {
+                            if (validRange) {
+                                availableWeeks.forEach(aw => {
+                                    if (aw.absoluteIndex >= startIdx && aw.absoluteIndex <= endIdx) {
+                                        const d = monthlyData[aw.month] || {};
+                                        const weekVal = Number(d[`week${aw.week}`]) || 0;
+                                        
                                         const isActive = weekVal >= 1;
                                         activityWeeks.push({
                                             id: aw.id,
@@ -521,8 +522,72 @@
                                             active: isActive
                                         });
                                         if (isActive) currentProgress += 1;
-                                    } else {
-                                        currentProgress += weekVal;
+                                    }
+                                });
+                                startLabel = availableWeeks[startIdx].label.split('(')[0].trim();
+                                endLabel = availableWeeks[endIdx].label.split('(')[0].trim();
+                            }
+                        } else {
+                            // --- BEREKENING VOOR OMZET (DATUMS) ---
+                            const goalStart = new Date(goal.startDate);
+                            const goalEnd = new Date(goal.endDate);
+                            startLabel = goalStart.toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit' });
+                            endLabel = goalEnd.toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit' });
+
+                            // We itereren over alle mogelijke weken en schatten het bedrag
+                            // dat binnen de doel-datums valt, door te kijken naar de overlap.
+                            availableWeeks.forEach(aw => {
+                                if (aw.isCalendar) {
+                                    const d = monthlyData[aw.month] || {};
+                                    const weekVal = Number(d[`week${aw.week}`]) || 0;
+                                    
+                                    if (weekVal > 0) {
+                                        // Zoek de daadwerkelijke datumreeks van deze week op basis van het label.
+                                        // Het label is in formaat: "W18 (28 apr - 4 mei)"
+                                        const match = aw.label.match(/\((\d+)\s([a-z]+)\s-\s(\d+)\s([a-z]+)\)/);
+                                        if (match) {
+                                            const mNames = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+                                            const wStartDay = parseInt(match[1]);
+                                            const wStartMonth = mNames.indexOf(match[2]);
+                                            const wEndDay = parseInt(match[3]);
+                                            const wEndMonth = mNames.indexOf(match[4]);
+                                            
+                                            // Behandel jaarovergangen rond oud & nieuw
+                                            let wStartYear = selectedYear;
+                                            let wEndYear = selectedYear;
+                                            if (wStartMonth === 11 && wEndMonth === 0) { wEndYear = selectedYear + 1; }
+                                            if (wStartMonth === 0 && wEndMonth === 11) { wStartYear = selectedYear - 1; }
+                                            
+                                            const weekStart = new Date(wStartYear, wStartMonth, wStartDay);
+                                            const weekEnd = new Date(wEndYear, wEndMonth, wEndDay);
+                                            
+                                            // Bereken overlap dagen tussen de week en het doel
+                                            const overlapStart = new Date(Math.max(weekStart, goalStart));
+                                            const overlapEnd = new Date(Math.min(weekEnd, goalEnd));
+                                            
+                                            if (overlapStart <= overlapEnd) {
+                                                const overlapDays = Math.round((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24)) + 1;
+                                                const weekDays = 7;
+                                                // Voeg het proportionele deel van de omzet toe
+                                                currentProgress += weekVal * (overlapDays / weekDays);
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    // Voor de maanden (Jan, Feb, Mrt) die (nog) geen kalender hebben, tellen we ruw per maand.
+                                    const monthIndex = MONTHS.indexOf(aw.month);
+                                    if (monthIndex !== -1) {
+                                        const monthStart = new Date(selectedYear, monthIndex, 1);
+                                        const monthEnd = new Date(selectedYear, monthIndex + 1, 0);
+                                        
+                                        if (monthStart <= goalEnd && monthEnd >= goalStart) {
+                                            const d = monthlyData[aw.month] || {};
+                                            // Voeg het toe als de week geheel of gedeeltelijk in de geselecteerde maand valt.
+                                            // (Een echte proportionele berekening hier is te ingewikkeld zonder exacte datums, 
+                                            // dus we tellen de hele maand op als deze gedeeltelijk overlapt, dit kan iets onnauwkeurig zijn voor Q1).
+                                            // Omdat er al door Weken wordt geïtereerd, tellen we hier gewoon de specifieke week op.
+                                            currentProgress += Number(d[`week${aw.week}`]) || 0;
+                                        }
                                     }
                                 }
                             });
@@ -531,9 +596,6 @@
                         const progressPercent = goal.amount > 0 ? Math.min(100, (currentProgress / goal.amount) * 100) : 0;
                         const remaining = Math.max(0, goal.amount - currentProgress);
                         
-                        const startLabel = validRange ? availableWeeks[startIdx].label.split('(')[0].trim() : 'Onbekend';
-                        const endLabel = validRange ? availableWeeks[endIdx].label.split('(')[0].trim() : 'Onbekend';
-
                         return (
                             <div key={goal.id} className="bg-white dark:bg-dark-card rounded-xl border border-indigo-100 dark:border-indigo-900/50 shadow-sm p-4 relative overflow-hidden flex flex-col">
                                 <div className="flex justify-between items-start mb-3">
@@ -605,38 +667,53 @@
         const CustomGoalsModal = ({ isOpen, onClose, customGoals, updateCustomGoals, formatCurrency, availableWeeks }) => {
             const [tab, setTab] = useState('active'); // 'active' of 'history'
             const [editingId, setEditingId] = useState(null);
-            const [input, setInput] = useState({ name: '', amount: '', startWeekId: '', endWeekId: '', type: 'sales' });
+            const [input, setInput] = useState({ name: '', amount: '', startWeekId: '', endWeekId: '', startDate: '', endDate: '', type: 'sales' });
 
             if (!isOpen) return null;
 
             const handleSave = () => {
                 let finalAmount = Number(input.amount);
+                let finalEndDate = new Date().toISOString();
                 
                 // Auto-berekening voor activiteit op basis van gekozen weken
-                if (input.type === 'activity' && input.startWeekId && input.endWeekId) {
-                    const s = availableWeeks.findIndex(w=>w.id===input.startWeekId);
-                    const e = availableWeeks.findIndex(w=>w.id===input.endWeekId);
-                    if (s !== -1 && e !== -1 && e >= s) {
-                        finalAmount = (e - s) + 1; // Start- en eindweek inclusief (bijv. index 2 t/m 4 = 3 weken)
+                if (input.type === 'activity') {
+                    if (input.startWeekId && input.endWeekId) {
+                        const s = availableWeeks.findIndex(w=>w.id===input.startWeekId);
+                        const e = availableWeeks.findIndex(w=>w.id===input.endWeekId);
+                        if (s !== -1 && e !== -1 && e >= s) {
+                            finalAmount = (e - s) + 1; // Start- en eindweek inclusief (bijv. index 2 t/m 4 = 3 weken)
+                            const endWeek = availableWeeks.find(w => w.id === input.endWeekId);
+                            if (endWeek) finalEndDate = endWeek.endDate;
+                        } else {
+                            return alert("Zorg ervoor dat de eindweek na of op de startweek valt.");
+                        }
                     } else {
-                        return alert("Zorg ervoor dat de eindweek na of op de startweek valt.");
+                        return alert("Selecteer een start- en eindweek.");
                     }
+                } else {
+                    // Validatie voor Omzet
+                    if (!input.startDate || !input.endDate) {
+                        return alert("Selecteer een start- en einddatum voor dit omzetdoel.");
+                    }
+                    if (new Date(input.startDate) > new Date(input.endDate)) {
+                        return alert("De einddatum moet na de startdatum liggen.");
+                    }
+                    finalEndDate = new Date(input.endDate).toISOString();
                 }
 
-                if(!input.name || (!finalAmount && finalAmount !== 0) || !input.startWeekId || !input.endWeekId) {
-                    return alert("Vul a.u.b. alle velden correct in!");
+                if(!input.name || (!finalAmount && finalAmount !== 0)) {
+                    return alert("Vul a.u.b. de naam in!");
                 }
-                
-                const endWeek = availableWeeks.find(w => w.id === input.endWeekId);
 
                 if (editingId) {
                     const updatedGoals = customGoals.map(g => g.id === editingId ? {
                         ...g,
                         name: input.name,
                         amount: finalAmount,
-                        startWeekId: input.startWeekId,
-                        endWeekId: input.endWeekId,
-                        endDate: endWeek ? endWeek.endDate : g.endDate, // Bewaar voor geschiedenis logica
+                        startWeekId: input.type === 'activity' ? input.startWeekId : null,
+                        endWeekId: input.type === 'activity' ? input.endWeekId : null,
+                        startDate: input.type === 'sales' ? new Date(input.startDate).toISOString() : null,
+                        endDate: finalEndDate,
                         type: input.type || 'sales'
                     } : g);
                     updateCustomGoals(updatedGoals);
@@ -646,24 +723,35 @@
                         id: Date.now().toString(), 
                         name: input.name,
                         amount: finalAmount,
-                        startWeekId: input.startWeekId,
-                        endWeekId: input.endWeekId,
-                        endDate: endWeek ? endWeek.endDate : new Date().toISOString(),
+                        startWeekId: input.type === 'activity' ? input.startWeekId : null,
+                        endWeekId: input.type === 'activity' ? input.endWeekId : null,
+                        startDate: input.type === 'sales' ? new Date(input.startDate).toISOString() : null,
+                        endDate: finalEndDate,
                         type: input.type || 'sales',
                         createdAt: Date.now()
                     };
                     updateCustomGoals([...(customGoals || []), newGoal]);
                 }
-                setInput({ name: '', amount: '', startWeekId: '', endWeekId: '', type: 'sales' });
+                setInput({ name: '', amount: '', startWeekId: '', endWeekId: '', startDate: '', endDate: '', type: 'sales' });
                 setTab('active');
             };
 
             const handleEdit = (goal) => {
+                let formattedStart = '';
+                let formattedEnd = '';
+                
+                if (goal.type === 'sales') {
+                     formattedStart = goal.startDate ? new Date(goal.startDate).toISOString().split('T')[0] : '';
+                     formattedEnd = goal.endDate ? new Date(goal.endDate).toISOString().split('T')[0] : '';
+                }
+
                 setInput({
                     name: goal.name,
                     amount: goal.amount,
                     startWeekId: goal.startWeekId || '',
                     endWeekId: goal.endWeekId || '',
+                    startDate: formattedStart,
+                    endDate: formattedEnd,
                     type: goal.type || 'sales'
                 });
                 setEditingId(goal.id);
@@ -672,7 +760,7 @@
 
             const cancelEdit = () => {
                 setEditingId(null);
-                setInput({ name: '', amount: '', startWeekId: '', endWeekId: '', type: 'sales' });
+                setInput({ name: '', amount: '', startWeekId: '', endWeekId: '', startDate: '', endDate: '', type: 'sales' });
             };
 
             const handleDelete = (id) => {
@@ -736,46 +824,57 @@
                                         <input type="text" value={input.name} onChange={e=>setInput({...input, name:e.target.value})} className="w-full p-2 text-sm rounded border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-800 dark:text-white outline-none focus:border-indigo-500"/>
                                     </div>
                                     
-                                    {/* DYNAMISCH DOEL VELD: Verbergt input en toont automatische berekening bij 'activity' */}
+                                    {/* DYNAMISCH DOEL VELD */}
                                     {input.type === 'activity' ? (
-                                        <div className="sm:col-span-2">
-                                            <label className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block mb-1">
-                                                Doel (aantal actieve weken)
-                                            </label>
-                                            <div className="w-full p-2 text-sm rounded border border-indigo-200 dark:border-indigo-700 bg-indigo-50/50 dark:bg-slate-800/50 text-indigo-800 dark:text-indigo-300 font-bold">
-                                                {input.startWeekId && input.endWeekId ? (
-                                                    (() => {
-                                                        const s = availableWeeks.findIndex(w=>w.id===input.startWeekId);
-                                                        const e = availableWeeks.findIndex(w=>w.id===input.endWeekId);
-                                                        if(s !== -1 && e !== -1 && e >= s) return `${(e - s) + 1} weken (automatisch berekend)`;
-                                                        return 'Let op: Eindweek moet na of op startweek vallen';
-                                                    })()
-                                                ) : 'Kies eerst een start- en eindweek...'}
+                                        <>
+                                            <div className="sm:col-span-2">
+                                                <label className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block mb-1">
+                                                    Doel (aantal actieve weken)
+                                                </label>
+                                                <div className="w-full p-2 text-sm rounded border border-indigo-200 dark:border-indigo-700 bg-indigo-50/50 dark:bg-slate-800/50 text-indigo-800 dark:text-indigo-300 font-bold">
+                                                    {input.startWeekId && input.endWeekId ? (
+                                                        (() => {
+                                                            const s = availableWeeks.findIndex(w=>w.id===input.startWeekId);
+                                                            const e = availableWeeks.findIndex(w=>w.id===input.endWeekId);
+                                                            if(s !== -1 && e !== -1 && e >= s) return `${(e - s) + 1} weken (automatisch berekend)`;
+                                                            return 'Let op: Eindweek moet na of op startweek vallen';
+                                                        })()
+                                                    ) : 'Kies eerst een start- en eindweek...'}
+                                                </div>
                                             </div>
-                                        </div>
+                                            <div>
+                                                <label className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block mb-1">Start Week</label>
+                                                <select value={input.startWeekId} onChange={e=>setInput({...input, startWeekId:e.target.value})} className="w-full p-2 text-sm rounded border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-800 dark:text-white outline-none focus:border-indigo-500">
+                                                    <option value="">Kies week...</option>
+                                                    {availableWeeks.map(w => <option key={w.id} value={w.id}>{w.label}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block mb-1">Eind Week</label>
+                                                <select value={input.endWeekId} onChange={e=>setInput({...input, endWeekId:e.target.value})} className="w-full p-2 text-sm rounded border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-800 dark:text-white outline-none focus:border-indigo-500">
+                                                    <option value="">Kies week...</option>
+                                                    {availableWeeks.map(w => <option key={w.id} value={w.id}>{w.label}</option>)}
+                                                </select>
+                                            </div>
+                                        </>
                                     ) : (
-                                        <div className="sm:col-span-2">
-                                            <label className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block mb-1">
-                                                Doelbedrag (€)
-                                            </label>
-                                            <input type="number" value={input.amount} onChange={e=>setInput({...input, amount:e.target.value})} className="w-full p-2 text-sm rounded border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-800 dark:text-white outline-none focus:border-indigo-500" placeholder="0"/>
-                                        </div>
+                                        <>
+                                            <div className="sm:col-span-2">
+                                                <label className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block mb-1">
+                                                    Doelbedrag (€)
+                                                </label>
+                                                <input type="number" value={input.amount} onChange={e=>setInput({...input, amount:e.target.value})} className="w-full p-2 text-sm rounded border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-800 dark:text-white outline-none focus:border-indigo-500" placeholder="0"/>
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block mb-1">Startdatum</label>
+                                                <input type="date" value={input.startDate} onChange={e=>setInput({...input, startDate:e.target.value})} className="w-full p-2 text-sm rounded border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-800 dark:text-white outline-none focus:border-indigo-500"/>
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block mb-1">Einddatum</label>
+                                                <input type="date" value={input.endDate} onChange={e=>setInput({...input, endDate:e.target.value})} className="w-full p-2 text-sm rounded border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-800 dark:text-white outline-none focus:border-indigo-500"/>
+                                            </div>
+                                        </>
                                     )}
-
-                                    <div>
-                                        <label className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block mb-1">Start Week</label>
-                                        <select value={input.startWeekId} onChange={e=>setInput({...input, startWeekId:e.target.value})} className="w-full p-2 text-sm rounded border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-800 dark:text-white outline-none focus:border-indigo-500">
-                                            <option value="">Kies week...</option>
-                                            {availableWeeks.map(w => <option key={w.id} value={w.id}>{w.label}</option>)}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block mb-1">Eind Week</label>
-                                        <select value={input.endWeekId} onChange={e=>setInput({...input, endWeekId:e.target.value})} className="w-full p-2 text-sm rounded border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-800 dark:text-white outline-none focus:border-indigo-500">
-                                            <option value="">Kies week...</option>
-                                            {availableWeeks.map(w => <option key={w.id} value={w.id}>{w.label}</option>)}
-                                        </select>
-                                    </div>
                                 </div>
                                 <button onClick={handleSave} className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded shadow-sm">
                                     {editingId ? 'Wijzigingen Opslaan' : 'Toevoegen'}
@@ -794,8 +893,16 @@
                                     {tab === 'history' && historyGoalsList.length === 0 && <p className="text-center text-slate-400 text-sm py-4 italic">Geen oude doelen gevonden.</p>}
 
                                     {(tab === 'active' ? activeGoalsList : historyGoalsList).map(goal => {
-                                        const startWeekLabel = availableWeeks.find(w => w.id === goal.startWeekId)?.label.split('(')[0].trim() || 'Onbekend';
-                                        const endWeekLabel = availableWeeks.find(w => w.id === goal.endWeekId)?.label.split('(')[0].trim() || 'Onbekend';
+                                        let startLabel = '';
+                                        let endLabel = '';
+
+                                        if (goal.type === 'activity') {
+                                            startLabel = availableWeeks.find(w => w.id === goal.startWeekId)?.label.split('(')[0].trim() || 'Onbekend';
+                                            endLabel = availableWeeks.find(w => w.id === goal.endWeekId)?.label.split('(')[0].trim() || 'Onbekend';
+                                        } else {
+                                            startLabel = goal.startDate ? new Date(goal.startDate).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit' }) : '';
+                                            endLabel = goal.endDate ? new Date(goal.endDate).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit' }) : '';
+                                        }
                                         
                                         return (
                                             <div key={goal.id} className={`p-3 rounded-lg border flex items-center justify-between shadow-sm ${tab === 'active' ? 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700/50 opacity-80'}`}>
@@ -810,7 +917,7 @@
                                                         </strong>
                                                     </div>
                                                     <div className="text-[10px] text-slate-400 mt-0.5">
-                                                        {startWeekLabel} t/m {endWeekLabel}
+                                                        {startLabel} t/m {endLabel}
                                                     </div>
                                                 </div>
                                                 <div className="flex gap-2">
