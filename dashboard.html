@@ -95,7 +95,9 @@
         .dark .custom-scroll::-webkit-scrollbar-thumb:hover { background: #64748b; }
     </style>
 </head>
-<body class="bg-slate-50 dark:bg-dark-bg font-sans text-slate-800 dark:text-dark-text transition-colors duration-300">
+<comment-tag id="1"><body class="bg-slate-50 dark:bg-dark-bg font-sans text-slate-800 dark:text-dark-text transition-colors duration-300"></comment-tag id="1" text="<body class=&quot;bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-slate-50 via-slate-100 to-emerald-50 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950 font-sans text-slate-800 dark:text-dark-text transition-colors duration-500&quot;>
+
+Door de achtergrond te veranderen van een effen kleur naar een subtiele radiale gradiënt, creëer je direct meer diepte in de applicatie. Dit oogt luxer, zowel in lichte als donkere modus." type="suggestion">
 
     <div id="debug-console" class="debug-box">
         <h3 style="margin-top: 0; font-weight: bold;">⚠️ Er is een fout opgetreden:</h3>
@@ -1247,7 +1249,9 @@
             return (
                 <div className="space-y-6">
                     {/* INPUT CARD */}
-                    <div className={`p-5 rounded-xl shadow-sm border transition-colors ${editingId ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700' : 'bg-white dark:bg-dark-card border-emerald-100 dark:border-dark-border'}`}>
+                    <comment-tag id="2"><div className={`p-5 rounded-xl shadow-sm border transition-colors ${editingId ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700' : 'bg-white dark:bg-dark-card border-emerald-100 dark:border-dark-border'}`}></comment-tag id="2" text="<div className={`p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(255,255,255,0.02)] border transition-colors ${editingId ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700' : 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-white/40 dark:border-slate-700'}`}>
+
+Door het formulier 'rounded-3xl' te maken (zachtere hoeken), iets meer padding te geven en de harde randen te vervangen door een glas-achtige (backdrop-blur) achtergrond, krijgt de invoer direct een premium, app-achtige look." type="suggestion">
                         <div className="flex justify-between items-center mb-4">
                             <h3 className={`font-bold flex items-center gap-2 ${editingId ? 'text-amber-800 dark:text-amber-400' : 'text-emerald-900 dark:text-emerald-400'}`}>
                                 {editingId ? <Icons.Edit/> : <Icons.Package/>} {editingId ? 'Wijzigen' : 'Nieuw Product'}
@@ -1323,7 +1327,9 @@
                             </div>
                         )}
 
-                        <button onClick={handleSaveItem} className={`w-full mt-3 py-2 text-white font-bold rounded shadow-sm ${editingId?'bg-amber-600 hover:bg-amber-700':'bg-emerald-600 hover:bg-emerald-700'}`}>{editingId ? 'Opslaan' : 'Toevoegen'}</button>
+                        <comment-tag id="3"><button onClick={handleSaveItem} className={`w-full mt-3 py-2 text-white font-bold rounded shadow-sm ${editingId?'bg-amber-600 hover:bg-amber-700':'bg-emerald-600 hover:bg-emerald-700'}`}>{editingId ? 'Opslaan' : 'Toevoegen'}</button></comment-tag id="3" text="<button onClick={handleSaveItem} className={`w-full mt-4 py-3 text-white font-extrabold rounded-xl shadow-lg transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 ${editingId?'bg-gradient-to-r from-amber-500 to-amber-600 hover:shadow-amber-500/30':'bg-gradient-to-r from-emerald-500 to-teal-600 hover:shadow-emerald-500/30'}`}>{editingId ? 'Wijziging Opslaan' : 'Product Toevoegen'}</button>
+
+Een belangrijke Call-To-Action knop zoals 'Toevoegen' mag best opvallen. Met een subtiele overgangskleur (gradient), rondere hoeken ('rounded-xl') en een lift-effect bij 'hover' maak je de knop veel aantrekkelijker om op te klikken." type="suggestion">
                     </div>
 
                     {/* LIJST */}
@@ -1405,7 +1411,9 @@
                                     const locColor = getLocationColor(item.location);
                                     
                                     return (
-                                        <div key={item.id} className="border dark:border-slate-700 rounded-lg p-3 flex gap-3 relative hover:border-emerald-300 dark:hover:border-emerald-700 bg-white dark:bg-dark-card">
+                                        <comment-tag id="4"><div key={item.id} className="border dark:border-slate-700 rounded-lg p-3 flex gap-3 relative hover:border-emerald-300 dark:hover:border-emerald-700 bg-white dark:bg-dark-card"></comment-tag id="4" text="<div key={item.id} className=&quot;border border-slate-100 dark:border-slate-700/50 rounded-2xl p-4 flex gap-4 relative hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:hover:shadow-[0_8px_30px_rgba(16,185,129,0.05)] hover:-translate-y-1 transition-all duration-300 bg-white dark:bg-[#1e293b]/80 backdrop-blur-sm&quot;>
+
+Door de kaartjes voor producten en items sterk af te ronden (rounded-2xl) en een 'zwevend' effect te geven bij hoveren (hover:-translate-y-1 en lichte schaduw), voelt de lijst veel dynamischer en minder als een statisch Excel-bestand." type="suggestion">
                                             <div onClick={()=>setPreviewImage(item.image)} className="w-16 h-16 bg-slate-50 dark:bg-slate-700 rounded flex items-center justify-center overflow-hidden cursor-pointer border dark:border-slate-600 shrink-0">
                                                 {item.image ? <img src={item.image} className="w-full h-full object-cover"/> : <Icons.Package className="text-slate-300 dark:text-slate-500 text-2xl"/>}
                                             </div>
@@ -2152,9 +2160,11 @@
             if (loading) return <div className="h-screen flex items-center justify-center text-emerald-600 bg-slate-50 dark:bg-dark-bg"><Icons.Loader className="text-4xl"/></div>;
 
             return (
-                <div className={`min-h-screen pb-20 transition-colors ${viewingUser ? 'bg-amber-50 dark:bg-amber-950' : 'bg-slate-50 dark:bg-dark-bg'}`}>
+                <div className={`min-h-screen pb-20 transition-colors ${viewingUser ? 'bg-amber-50 dark:bg-amber-950' : 'bg-transparent'}`}>
                     {/* Header */}
-                    <header className={`${viewingUser ? 'bg-amber-600 dark:bg-amber-800' : 'bg-emerald-600 dark:bg-emerald-800'} text-white shadow-md sticky top-0 z-30 transition-colors`}>
+                    <comment-tag id="5"><header className={`${viewingUser ? 'bg-amber-600 dark:bg-amber-800' : 'bg-emerald-600 dark:bg-emerald-800'} text-white shadow-md sticky top-0 z-30 transition-colors`}></comment-tag id="5" text="<header className={`${viewingUser ? 'bg-amber-500/90 dark:bg-amber-900/90 border-amber-600' : 'bg-white/70 dark:bg-slate-900/70 border-slate-200 dark:border-slate-800'} backdrop-blur-lg border-b text-slate-800 dark:text-white shadow-[0_4px_30px_rgba(0,0,0,0.05)] sticky top-0 z-30 transition-all duration-300`}>
+
+De header is nu 'Glassmorphic' (wazig en licht transparant). Dit is een enorm populaire designtrend. Let wel op: hierdoor wordt de tekstkleur in de header ook donkergrijs in plaats van wit (om goed leesbaar te blijven op de lichte glazen achtergrond)." type="suggestion">
                         <div className="max-w-4xl mx-auto px-4 py-3 relative flex items-center justify-between">
                             {/* HAMBURGER MENU VOOR MOBIEL */}
                             <button onClick={() => setShowMobileMenu(!showMobileMenu)} className="sm:hidden text-white text-xl">
