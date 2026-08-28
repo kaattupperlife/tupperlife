@@ -58,6 +58,13 @@
     <script src="firebase-setup.js"></script>
 
     <style>
+        /* VOEG DIT TOE VOOR MOBIELE SCHERMEN - Verkleint tekst en paddings proportioneel */
+        @media (max-width: 640px) {
+            html {
+                font-size: 13px; 
+            }
+        }
+
         body { font-family: 'Inter', sans-serif; }
         .loading-text { text-align: center; margin-top: 50px; color: #666; }
         .debug-box { display:none; position: fixed; top: 0; left: 0; right: 0; background: #fff0f0; border-bottom: 2px solid red; color: #d8000c; padding: 20px; z-index: 9999; max-height: 50vh; overflow: auto; font-family: monospace; }
