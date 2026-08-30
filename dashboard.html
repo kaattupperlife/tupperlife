@@ -1950,19 +1950,21 @@
             return (
                 <React.Fragment>
                     <tr onClick={()=>setExpanded(!expanded)} className={`cursor-pointer border-b border-emerald-100/50 dark:border-slate-800 transition-colors duration-300 ${expanded?'bg-emerald-50/50 dark:bg-emerald-900/10 hover:bg-emerald-50 dark:hover:bg-emerald-900/20':'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}>
-                        <td className="px-3 py-4 sm:p-5 font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2 sm:gap-3">
-                            <div className={`w-6 h-6 sm:w-8 sm:h-8 shrink-0 rounded-full flex items-center justify-center transition-colors ${expanded ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400' : 'bg-slate-100 text-slate-400 dark:bg-slate-800'}`}>
-                                {expanded ? <Icons.ChevronUp className="text-[10px] sm:text-base"/> : <Icons.ChevronDown className="text-[10px] sm:text-base"/>}
-                            </div>
-                            <div className="flex-grow min-w-0">
-                                <div className="text-sm sm:text-lg flex items-center gap-2 truncate">
-                                    {month}
+                        <td className="px-2 sm:px-4 py-3 sm:py-5 font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap">
+                            <div className="flex items-center gap-2 sm:gap-3">
+                                <div className={`w-6 h-6 sm:w-8 sm:h-8 shrink-0 rounded-full flex items-center justify-center transition-colors ${expanded ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400' : 'bg-slate-100 text-slate-400 dark:bg-slate-800'}`}>
+                                    {expanded ? <Icons.ChevronUp className="text-[10px] sm:text-base"/> : <Icons.ChevronDown className="text-[10px] sm:text-base"/>}
                                 </div>
-                                {earnedLevels > 0 && <div className="sm:hidden text-[9px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider bg-emerald-100 dark:bg-emerald-900/30 inline-flex items-center gap-1 px-1.5 py-0.5 rounded mt-1"><Icons.Gift className="w-2 h-2"/> {earnedLevels} C.</div>}
+                                <div className="flex-grow min-w-0">
+                                    <div className="text-sm sm:text-lg flex items-center gap-2 truncate">
+                                        {month}
+                                    </div>
+                                    {earnedLevels > 0 && <div className="sm:hidden text-[9px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider bg-emerald-100 dark:bg-emerald-900/30 inline-flex items-center gap-1 px-1.5 py-0.5 rounded mt-1"><Icons.Gift className="w-2 h-2"/> {earnedLevels} C.</div>}
+                                </div>
                             </div>
                         </td>
-                        <td className="px-3 py-4 sm:p-5 font-black text-sm sm:text-2xl text-slate-800 dark:text-white whitespace-nowrap">{formatCurrency(total)}</td>
-                        <td className="px-3 py-4 sm:p-5 font-black text-sm sm:text-2xl text-right text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-600 font-mono whitespace-nowrap">{formatCurrency(profit)}</td>
+                        <td className="px-2 sm:px-4 py-3 sm:py-5 font-black text-sm sm:text-xl text-slate-800 dark:text-white whitespace-nowrap text-right">{formatCurrency(total)}</td>
+                        <td className="px-2 sm:px-4 py-3 sm:py-5 font-black text-sm sm:text-xl text-right text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-600 font-mono whitespace-nowrap">{formatCurrency(profit)}</td>
                     </tr>
                     {expanded && (
                         <tr>
@@ -2301,13 +2303,13 @@
                                 <CustomGoalsDisplay customGoals={customGoals} monthlyData={monthlyData} selectedYear={selectedYear} formatCurrency={formatCurrency} availableWeeks={availableWeeks} />
 
                                 <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-3xl shadow-glass dark:shadow-glass-dark border border-white/40 dark:border-slate-700 overflow-hidden w-full">
-                                    <div className="w-full overflow-x-auto custom-scroll">
+                                    <div className="w-full overflow-x-auto custom-scroll pb-2">
                                         <table className="w-full text-left border-collapse min-w-full">
                                             <thead className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700/50 backdrop-blur-sm">
                                                 <tr>
-                                                    <th className="px-3 py-4 sm:p-5 text-xs sm:text-sm uppercase tracking-widest text-slate-500 dark:text-slate-400 font-black">Maand</th>
-                                                    <th className="px-3 py-4 sm:p-5 text-xs sm:text-sm uppercase tracking-widest text-slate-500 dark:text-slate-400 font-black">Verkoop</th>
-                                                    <th className="px-3 py-4 sm:p-5 text-xs sm:text-sm uppercase tracking-widest text-slate-500 dark:text-slate-400 font-black text-right">Winst</th>
+                                                    <th className="px-2 sm:px-4 py-3 sm:py-5 text-xs sm:text-sm uppercase tracking-widest text-slate-500 dark:text-slate-400 font-black whitespace-nowrap">Maand</th>
+                                                    <th className="px-2 sm:px-4 py-3 sm:py-5 text-xs sm:text-sm uppercase tracking-widest text-slate-500 dark:text-slate-400 font-black whitespace-nowrap text-right">Verkoop</th>
+                                                    <th className="px-2 sm:px-4 py-3 sm:py-5 text-xs sm:text-sm uppercase tracking-widest text-slate-500 dark:text-slate-400 font-black whitespace-nowrap text-right">Winst</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -2315,12 +2317,12 @@
                                             </tbody>
                                             <tfoot className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-[0_-4px_20px_rgba(16,185,129,0.2)]">
                                                 <tr>
-                                                    <td className="px-3 py-4 sm:p-5 font-black text-sm sm:text-lg uppercase tracking-widest">
+                                                    <td className="px-2 sm:px-4 py-3 sm:py-5 font-black text-sm sm:text-lg uppercase tracking-widest whitespace-nowrap">
                                                         <span className="sm:hidden">Totaal</span>
                                                         <span className="hidden sm:inline">Totaal Jaar</span>
                                                     </td>
-                                                    <td className="px-3 py-4 sm:p-5 font-black text-base sm:text-2xl whitespace-nowrap">{formatCurrency(MONTHS.reduce((acc,m)=>{let t=0;for(let i=1;i<=10;i++)t+=Number((monthlyData[m]||{})[`week${i}`])||0;return acc+t},0))}</td>
-                                                    <td className="px-3 py-4 sm:p-5 font-black text-base sm:text-2xl text-right font-mono whitespace-nowrap">{formatCurrency(MONTHS.reduce((acc,m)=>{let t=0;for(let i=1;i<=10;i++)t+=Number((monthlyData[m]||{})[`week${i}`])||0;return acc+(t*0.29184)},0))}</td>
+                                                    <td className="px-2 sm:px-4 py-3 sm:py-5 font-black text-base sm:text-2xl whitespace-nowrap text-right">{formatCurrency(MONTHS.reduce((acc,m)=>{let t=0;for(let i=1;i<=10;i++)t+=Number((monthlyData[m]||{})[`week${i}`])||0;return acc+t},0))}</td>
+                                                    <td className="px-2 sm:px-4 py-3 sm:py-5 font-black text-base sm:text-2xl text-right font-mono whitespace-nowrap">{formatCurrency(MONTHS.reduce((acc,m)=>{let t=0;for(let i=1;i<=10;i++)t+=Number((monthlyData[m]||{})[`week${i}`])||0;return acc+(t*0.29184)},0))}</td>
                                                 </tr>
                                             </tfoot>
                                         </table>
@@ -2331,4 +2333,19 @@
 
                         {activeTab === 'requests' && ((userPermissions.showRequests || isAdmin) ? <RequestsTab targetUid={targetUid}/> : <div className="text-center py-20 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md rounded-3xl border border-white dark:border-slate-700 shadow-glass text-slate-400 font-bold text-lg"><Icons.Lock className="text-4xl mb-3 mx-auto block opacity-50"/> Deze module is uitgeschakeld voor u.</div>)}
                         {activeTab === 'stock' && ((userPermissions.showStock || isAdmin) ? <StockTab targetUid={targetUid} user={user}/> : <div className="text-center py-20 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md rounded-3xl border border-white dark:border-slate-700 shadow-glass text-slate-400 font-bold text-lg"><Icons.Lock className="text-4xl mb-3 mx-auto block opacity-50"/> Deze module is uitgeschakeld voor u.</div>)}
-                        {activeTab === 'recipes' && ((userPermissions.showRecipes || isAdmin) ? <RecipesTab targetUid={targetUid}/> : <div className="text-center py-20 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md rounded-3xl border border-white dark:border-slate-700 shadow-glass text-slate-400 font-bold text-lg"><Icons.Lock
+                        {activeTab === 'recipes' && ((userPermissions.showRecipes || isAdmin) ? <RecipesTab targetUid={targetUid}/> : <div className="text-center py-20 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md rounded-3xl border border-white dark:border-slate-700 shadow-glass text-slate-400 font-bold text-lg"><Icons.Lock className="text-4xl mb-3 mx-auto block opacity-50"/> Deze module is uitgeschakeld voor u.</div>)}
+                        {activeTab === 'customers' && ((userPermissions.showCustomers || isAdmin) ? <CustomersTab targetUid={targetUid}/> : <div className="text-center py-20 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md rounded-3xl border border-white dark:border-slate-700 shadow-glass text-slate-400 font-bold text-lg"><Icons.Lock className="text-4xl mb-3 mx-auto block opacity-50"/> Deze module is uitgeschakeld voor u.</div>)}
+                    </div>
+
+                    <AdminUserModal isOpen={showAdminModal} onClose={()=>setShowAdminModal(false)} selectedYear={selectedYear} onSelectUser={(u)=>{setViewingUser(u);setShowAdminModal(false)}}/>
+                    <CustomGoalsModal isOpen={showCustomGoalsModal} onClose={()=>setShowCustomGoalsModal(false)} customGoals={customGoals} updateCustomGoals={updateCustomGoals} formatCurrency={formatCurrency} availableWeeks={availableWeeks} />
+                    <GlobalPsAdminModal isOpen={showGlobalPsModal} onClose={()=>setShowGlobalPsModal(false)} selectedYear={selectedYear} globalPsData={globalPsData} updateGlobalPsData={updateGlobalPsData} />
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<DashboardPage />);
+    </script>
+</body>
+</html>
