@@ -176,30 +176,48 @@
         const getMonthWeeks = (y, mName, mIdx) => {
             const range = getRealMonthRange(mName, mIdx);
             const weeks = [];
-            let currentDate = new Date(y, range.start, 1);
-            const firstDay = currentDate.getDay();
-            if (firstDay !== 1) {
-                const offset = firstDay === 0 ? -6 : 1 - firstDay;
-                currentDate.setDate(currentDate.getDate() + offset);
-            }
-            const lastDate = new Date(y, range.end + 1, 0);
+            const firstDayOfMonth = new Date(y, range.start, 1);
+            const lastDayOfMonth = new Date(y, range.end + 1, 0);
 
-            while (currentDate <= lastDate) {
-                let start = new Date(currentDate);
-                let end = new Date(currentDate);
-                end.setDate(end.getDate() + 6);
+            // Start with the Monday of the week that contains the first day of the month
+            let currentWeekStart = new Date(firstDayOfMonth);
+            const firstDayDayOfWeek = currentWeekStart.getDay();
+            if (firstDayDayOfWeek !== 1) {
+                const offset = firstDayDayOfWeek === 0 ? -6 : 1 - firstDayDayOfWeek;
+                currentWeekStart.setDate(currentWeekStart.getDate() + offset);
+            }
+
+            while (currentWeekStart <= lastDayOfMonth) {
+                let currentWeekEnd = new Date(currentWeekStart);
+                currentWeekEnd.setDate(currentWeekEnd.getDate() + 6);
+
+                const weekNum = getWeekNumber(currentWeekStart);
+
+                // Determine the visible portion of the week for *this* specific month
+                let visibleStart = new Date(Math.max(currentWeekStart, firstDayOfMonth));
+                let visibleEnd = new Date(Math.min(currentWeekEnd, lastDayOfMonth));
+
                 const formatShortDate = (d) => `${d.getDate()} ${['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'][d.getMonth()]}`;
-                const weekNum = getWeekNumber(start);
+                
+                let labelDateRange;
+                if (visibleStart.getTime() === visibleEnd.getTime()) {
+                    labelDateRange = formatShortDate(visibleStart); // Just one day
+                } else {
+                    labelDateRange = `${formatShortDate(visibleStart)} - ${formatShortDate(visibleEnd)}`;
+                }
 
                 weeks.push({
-                    start: new Date(start),
-                    end: new Date(end),
+                    start: new Date(visibleStart), // Use visible start/end for the object logic
+                    end: new Date(visibleEnd),
+                    actualWeekStart: new Date(currentWeekStart), // Keep track of the real week boundaries
+                    actualWeekEnd: new Date(currentWeekEnd),
                     weekNumber: weekNum,
-                    label: `W${weekNum} (${formatShortDate(start)} - ${formatShortDate(end)})`
+                    label: `W${weekNum} (${labelDateRange})`
                 });
 
-                currentDate = new Date(end);
-                currentDate.setDate(currentDate.getDate() + 1);
+                // Move to next week
+                currentWeekStart = new Date(currentWeekEnd);
+                currentWeekStart.setDate(currentWeekStart.getDate() + 1);
             }
             return weeks;
         };
