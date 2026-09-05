@@ -1201,6 +1201,7 @@
                         }
 
                         let addedCount = 0;
+                        let updatedCount = 0;
                         let skippedCount = 0;
 
                         let newCats = [...categories];
@@ -1209,6 +1210,7 @@
                         let locsChanged = false;
 
                         const addPromises = [];
+                        const updatePromises = [];
 
                         for (const row of data) {
                             const getVal = (possibleKeys) => {
@@ -1226,12 +1228,36 @@
 
                             if (!itemName || String(itemName).trim() === '') continue;
 
-                            // Skip if already exists
-                            if (items.some(item => item.name.toLowerCase() === String(itemName).toLowerCase().trim())) {
-                                skippedCount++;
+                            let imageVal = getVal(['afbeelding', 'foto', 'image', 'plaatje', 'url', 'afbeeldingen', "foto's", 'fotos', 'cover', 'bestanden', 'files']) || '';
+                            let imageStr = String(imageVal).trim();
+                            if (imageStr && imageStr !== 'null' && imageStr !== 'undefined') {
+                                if (imageStr.includes(',')) {
+                                    imageStr = imageStr.split(',')[0].trim();
+                                }
+                            } else {
+                                imageStr = '';
+                            }
+
+                            // Controleer of het product al in je firebase stock zit
+                            const existingItem = items.find(item => item.name.toLowerCase() === String(itemName).toLowerCase().trim());
+                            
+                            if (existingItem) {
+                                // Product bestaat al. Check of de CSV een foto heeft en het bestaande item NIET.
+                                if (imageStr && (!existingItem.image || existingItem.image.trim() === '')) {
+                                    updatePromises.push(
+                                        window.db.collection('users').doc(targetUid).collection('stock').doc(existingItem.id).update({
+                                            image: imageStr,
+                                            updatedAt: Date.now()
+                                        })
+                                    );
+                                    updatedCount++;
+                                } else {
+                                    skippedCount++;
+                                }
                                 continue;
                             }
 
+                            // --- Als het een NIEUW product is ---
                             const rawPrice = getVal(['prijs', 'price', 'verkoopprijs', 'waarde']);
                             const price = rawPrice ? parseFloat(String(rawPrice).replace('€', '').replace(',', '.').trim()) || 0 : 0;
                             
@@ -1244,14 +1270,13 @@
                             let statusVal = getVal(['status', 'staat', 'conditie']) || 'zolder';
                             let status = String(statusVal).toLowerCase().includes('gebruik') ? 'gebruik' : 'zolder';
 
-                            let imageVal = getVal(['afbeelding', 'foto', 'image', 'plaatje', 'url', 'afbeeldingen', "foto's", 'fotos', 'cover', 'bestanden', 'files']) || '';
-                            let imageStr = String(imageVal).trim();
-                            if (imageStr && imageStr !== 'null' && imageStr !== 'undefined') {
-                                if (imageStr.includes(',')) {
-                                    imageStr = imageStr.split(',')[0].trim();
-                                }
-                            } else {
-                                imageStr = '';
+                            if (!newCats.find(c => c.name.toLowerCase() === String(category).toLowerCase().trim())) {
+                                newCats.push({ name: String(category).trim(), color: CATEGORY_COLORS[16] });
+                                catsChanged = true;
+                            }
+                            if (!newLocs.find(l => l.name.toLowerCase() === String(location).toLowerCase().trim())) {
+                                newLocs.push({ name: String(location).trim(), color: CATEGORY_COLORS[16] });
+                                locsChanged = true;
                             }
 
                             const newItemData = {
@@ -1272,12 +1297,13 @@
                         }
 
                         try {
-                            await Promise.all(addPromises);
+                            // Wacht tot nieuwe én bijgewerkte items klaar zijn
+                            await Promise.all([...addPromises, ...updatePromises]);
                             
                             if (catsChanged) await window.db.collection('users').doc(targetUid).collection('settings').doc('categories').set({ list: newCats }, { merge: true });
                             if (locsChanged) await window.db.collection('users').doc(targetUid).collection('settings').doc('locations').set({ list: newLocs }, { merge: true });
 
-                            window.showAlert(`Import succesvol! \n${addedCount} producten toegevoegd.\n${skippedCount} producten overgeslagen (bestaan al).`);
+                            window.showAlert(`Import succesvol afgerond!\n\n🆕 ${addedCount} nieuwe producten toegevoegd.\n🖼️ ${updatedCount} bestaande producten bijgewerkt met een foto.\n⏭️ ${skippedCount} producten overgeslagen.`);
                         } catch (err) {
                             console.error("Fout bij toevoegen producten:", err);
                             window.showAlert("Er ging iets mis tijdens het toevoegen. Check console.");
