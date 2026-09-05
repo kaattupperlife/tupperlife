@@ -1119,7 +1119,7 @@
 
             useEffect(() => { setCurrentPage(1); }, [searchTerm, filterCategory, filterStatus, filterLocation, sortBy, filterVintedOnly]);
 
-            const handleSaveItem = async () => {
+const handleSaveItem = async () => {
                 if(!newItem.name) return window.showAlert("Vul een productnaam in.");
                 const itemData = { ...newItem, price: Number(newItem.price)||0, quantity: Number(newItem.quantity)||0, vinted: Number(newItem.vinted)||0, updatedAt: Date.now() };
                 try {
@@ -1131,8 +1131,11 @@
                     else { 
                         itemData.createdAt = Date.now(); 
                         await window.db.collection('users').doc(targetUid).collection('stock').add(itemData); 
-                        if (keepSettings) setNewItem(prev => ({ ...prev, name: '', quantity: 1, price: 0, image: '', vinted: 0 }));
-                        else setNewItem({ name: '', category: 'Algemeen', location: 'Algemeen', quantity: 1, price: 0, status: 'zolder', image: '', vinted: 0 });
+                        if (keepSettings) {
+                            setNewItem(prev => ({ ...prev, name: '', quantity: 1, price: 0, image: '', vinted: 0 }));
+                        } else {
+                            setNewItem({ name: '', category: 'Algemeen', location: 'Algemeen', quantity: 1, price: 0, status: 'zolder', image: '', vinted: 0 });
+                        }
                     }
                 } catch(err) { window.showAlert("Fout: " + err.message); }
             };
@@ -1156,6 +1159,16 @@
                             return window.showAlert("Het CSV-bestand lijkt leeg te zijn of kon niet worden gelezen.");
                         }
 
+                        // RED DE EERSTE RIJ ALS ER GEEN HEADERS ZIJN
+                        const headers = results.meta.fields;
+                        const isFirstRowData = headers && !headers.some(h => ['naam', 'name', 'titel', 'product', 'aantal', 'prijs', 'categorie', 'locatie'].includes(h.toLowerCase().trim()));
+                        
+                        if (isFirstRowData) {
+                            const firstRowAsData = {};
+                            headers.forEach(h => { firstRowAsData[h] = h; });
+                            data.unshift(firstRowAsData); 
+                        }
+
                         let addedCount = 0;
                         let updatedCount = 0;
                         let skippedCount = 0;
@@ -1175,21 +1188,32 @@
                             };
 
                             let itemName = getVal(['naam', 'name', 'titel', 'title', 'product', 'artikel', 'item']);
-                            if (!itemName) {
-                                const firstKey = Object.keys(row)[0];
-                                itemName = row[firstKey];
-                            }
+                            let imageVal = getVal(['afbeelding', 'foto', 'image', 'plaatje', 'url', 'afbeeldingen', "foto's", 'fotos', 'cover', 'bestanden', 'files']);
+                            let rawPrice = getVal(['prijs', 'price', 'verkoopprijs', 'waarde']);
+                            let rawQuantity = getVal(['aantal', 'quantity', 'aantal in stock', 'stock', 'hoeveelheid', 'stuks', 'aantal stuks', 'totaal']);
+                            let rawVinted = getVal(['stockverkoop', 'vinted', 'op vinted', 'vinted stock', 'aantal vinted']);
+                            let category = getVal(['categorie', 'category', 'soort', 'tags']);
+                            let location = getVal(['locatie', 'location', 'bak', 'doos', 'plaats']);
+                            let statusVal = getVal(['status', 'staat', 'conditie']);
+
+                            // INDEX BASED FALLBACKS (Op basis van jouw CSV structuur)
+                            const keys = Object.keys(row);
+                            if (!itemName) itemName = row[keys[0]]; // Kolom 1 = Naam
+                            if (!rawQuantity && rawQuantity !== 0 && keys.length > 2) rawQuantity = row[keys[2]]; // Kolom 3 = Aantal
+                            if (!location && keys.length > 3) location = row[keys[3]]; // Kolom 4 = Locatie
+                            if (!category && keys.length > 5) category = row[keys[5]]; // Kolom 6 = Categorie
+                            if (!imageVal && keys.length > 6) imageVal = row[keys[6]]; // Kolom 7 = Afbeelding
+                            if (!statusVal && keys.length > 9) statusVal = row[keys[9]]; // Kolom 10 = Status
+                            if (!rawVinted && rawVinted !== 0 && keys.length > 10) rawVinted = row[keys[10]]; // Kolom 11 = Vinted
+                            if (!rawPrice && rawPrice !== 0 && keys.length > 11) rawPrice = row[keys[11]]; // Kolom 12 = Prijs
 
                             if (!itemName || String(itemName).trim() === '') continue;
-
-                            let imageVal = getVal(['afbeelding', 'foto', 'image', 'plaatje', 'url', 'afbeeldingen', "foto's", 'fotos', 'cover', 'bestanden', 'files']) || '';
-                            let imageStr = String(imageVal).trim();
                             
+                            let imageStr = String(imageVal || '').trim();
                             let finalImageUrl = '';
                             if (imageStr && imageStr !== 'null' && imageStr !== 'undefined') {
                                 if (imageStr.includes(',')) imageStr = imageStr.split(',')[0].trim();
                                 
-                                // Super Robuuste match functie die _ en - volledig negeert
                                 const cleanStringForMatch = (str) => {
                                     if(!str) return '';
                                     let filename = str.split('/').pop().split('\\').pop(); 
@@ -1198,7 +1222,6 @@
                                 };
                                 
                                 const cleanCsvImageName = cleanStringForMatch(imageStr);
-
                                 const matchedLink = linksArray.find(link => {
                                     const cleanLinkName = cleanStringForMatch(link);
                                     return cleanLinkName !== '' && cleanLinkName === cleanCsvImageName;
@@ -1213,53 +1236,82 @@
                                 }
                             }
 
-                            const existingItem = items.find(item => item.name.toLowerCase() === String(itemName).toLowerCase().trim());
+                            const parsedQty = parseInt(rawQuantity);
+                            const finalQuantity = isNaN(parsedQty) ? 1 : parsedQty;
+                            const price = rawPrice ? parseFloat(String(rawPrice).replace('€', '').replace(',', '.').trim()) || 0 : 0;
+                            const vinted = parseInt(rawVinted) || 0;
+                            const finalCategory = String(category || 'Algemeen').trim();
+                            const finalLocation = String(location || 'Algemeen').trim();
+                            const status = String(statusVal || '').toLowerCase().includes('gebruik') ? 'gebruik' : 'zolder';
+
+                            const matchingDbItems = items.filter(item => item.name.toLowerCase() === String(itemName).toLowerCase().trim());
                             
-                            if (existingItem) {
-                                const isNewLink = finalImageUrl.startsWith('http');
-                                const currentImageIsNoLink = !existingItem.image || !existingItem.image.startsWith('http');
+                            if (matchingDbItems.length > 0) {
+                                let updatedAny = false;
                                 
-                                if (isNewLink && (currentImageIsNoLink || existingItem.image !== finalImageUrl)) {
-                                    updatePromises.push(
-                                        window.db.collection('users').doc(targetUid).collection('stock').doc(existingItem.id).update({
-                                            image: finalImageUrl,
-                                            updatedAt: Date.now()
-                                        })
-                                    );
-                                    updatedCount++;
-                                } else {
-                                    skippedCount++;
+                                for (const existingItem of matchingDbItems) {
+                                    const updates = { updatedAt: Date.now() };
+                                    let hasChanges = false;
+                                    
+                                    const isNewLink = finalImageUrl.startsWith('http');
+                                    const currentImageIsNoLink = !existingItem.image || !existingItem.image.startsWith('http');
+                                    
+                                    if (isNewLink && (currentImageIsNoLink || existingItem.image !== finalImageUrl)) {
+                                        updates.image = finalImageUrl;
+                                        existingItem.image = finalImageUrl; 
+                                        hasChanges = true;
+                                    }
+
+                                    // FIX: Update ook het aantal, categorie en locatie van BESTAANDE items!
+                                    if (!isNaN(parsedQty) && existingItem.quantity !== finalQuantity) {
+                                        updates.quantity = finalQuantity;
+                                        existingItem.quantity = finalQuantity;
+                                        hasChanges = true;
+                                    }
+                                    if (existingItem.location !== finalLocation) {
+                                        updates.location = finalLocation;
+                                        existingItem.location = finalLocation;
+                                        hasChanges = true;
+                                    }
+                                    if (existingItem.category !== finalCategory) {
+                                        updates.category = finalCategory;
+                                        existingItem.category = finalCategory;
+                                        hasChanges = true;
+                                    }
+                                    if (existingItem.price !== price && price > 0) {
+                                        updates.price = price;
+                                        existingItem.price = price;
+                                        hasChanges = true;
+                                    }
+
+                                    if (hasChanges) {
+                                        updatePromises.push(window.db.collection('users').doc(targetUid).collection('stock').doc(existingItem.id).update(updates));
+                                        updatedAny = true;
+                                    }
                                 }
-                                continue;
+                                
+                                if (updatedAny) updatedCount++;
+                                else skippedCount++;
+                                
+                                continue; 
                             }
 
-                            const rawPrice = getVal(['prijs', 'price', 'verkoopprijs', 'waarde']);
-                            const price = rawPrice ? parseFloat(String(rawPrice).replace('€', '').replace(',', '.').trim()) || 0 : 0;
-                            
-                            const quantity = parseInt(getVal(['aantal', 'quantity', 'aantal in stock', 'stock', 'hoeveelheid'])) || 1;
-                            const vinted = parseInt(getVal(['stockverkoop', 'vinted', 'op vinted', 'vinted stock', 'aantal vinted'])) || 0;
-                            
-                            let category = getVal(['categorie', 'category', 'soort', 'tags']) || 'Algemeen';
-                            let location = getVal(['locatie', 'location', 'bak', 'doos', 'plaats']) || 'Algemeen';
-                            
-                            let statusVal = getVal(['status', 'staat', 'conditie']) || 'zolder';
-                            let status = String(statusVal).toLowerCase().includes('gebruik') ? 'gebruik' : 'zolder';
-
-                            if (!newCats.find(c => c.name.toLowerCase() === String(category).toLowerCase().trim())) {
-                                newCats.push({ name: String(category).trim(), color: CATEGORY_COLORS[16] });
+                            // --- NIEUW PRODUCT ---
+                            if (!newCats.find(c => c.name.toLowerCase() === finalCategory.toLowerCase())) {
+                                newCats.push({ name: finalCategory, color: CATEGORY_COLORS[16] });
                                 catsChanged = true;
                             }
-                            if (!newLocs.find(l => l.name.toLowerCase() === String(location).toLowerCase().trim())) {
-                                newLocs.push({ name: String(location).trim(), color: CATEGORY_COLORS[16] });
+                            if (!newLocs.find(l => l.name.toLowerCase() === finalLocation.toLowerCase())) {
+                                newLocs.push({ name: finalLocation, color: CATEGORY_COLORS[16] });
                                 locsChanged = true;
                             }
 
                             const newItemData = {
                                 name: String(itemName).trim(),
-                                category: String(category).trim(),
-                                location: String(location).trim(),
+                                category: finalCategory,
+                                location: finalLocation,
                                 price: price,
-                                quantity: quantity,
+                                quantity: finalQuantity,
                                 vinted: vinted,
                                 status: status,
                                 image: finalImageUrl,
@@ -1275,7 +1327,7 @@
                             await Promise.all([...addPromises, ...updatePromises]);
                             if (catsChanged) await window.db.collection('users').doc(targetUid).collection('settings').doc('categories').set({ list: newCats }, { merge: true });
                             if (locsChanged) await window.db.collection('users').doc(targetUid).collection('settings').doc('locations').set({ list: newLocs }, { merge: true });
-                            window.showAlert(`Import succesvol afgerond!\n\n🆕 ${addedCount} nieuwe producten.\n🖼️ ${updatedCount} bestaande producten gekoppeld aan foto.\n⏭️ ${skippedCount} overgeslagen.`);
+                            window.showAlert(`Import succesvol afgerond!\n\n🆕 ${addedCount} nieuwe producten.\n🔄 ${updatedCount} bestaande producten bijgewerkt (foto/aantal).\n⏭️ ${skippedCount} ongewijzigd gebleven.`);
                         } catch (err) {
                             console.error("Fout bij toevoegen:", err);
                             window.showAlert("Er ging iets mis tijdens het toevoegen. Check console.");
@@ -1291,7 +1343,7 @@
                 });
             };
 
-            const deleteItem = (id) => { 
+            const deleteItem = (id) => {
                 window.showConfirm("Weet je zeker dat je dit product wilt verwijderen?", async () => {
                     await window.db.collection('users').doc(targetUid).collection('stock').doc(id).delete(); 
                 });
