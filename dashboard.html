@@ -43,7 +43,6 @@
             }
         }
     </script>
-    
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
@@ -64,9 +63,10 @@
 
     <style>
         @media (max-width: 640px) {
-            html { font-size: 13px; }
+            html {
+                font-size: 13px; 
+            }
         }
-
         body { font-family: 'Inter', sans-serif; }
         .loading-text { text-align: center; margin-top: 50px; color: #666; }
         .debug-box { display:none; position: fixed; top: 0; left: 0; right: 0; background: #fff0f0; border-bottom: 2px solid red; color: #d8000c; padding: 20px; z-index: 9999; max-height: 50vh; overflow: auto; font-family: monospace; }
@@ -88,7 +88,6 @@
         input[type=number] { -moz-appearance: textfield; }
     </style>
 </head>
-
 <body class="bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-slate-50 via-slate-100 to-emerald-50 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950 text-slate-800 dark:text-dark-text transition-colors duration-500 min-h-screen">
 
     <div id="debug-console" class="debug-box">
@@ -103,7 +102,9 @@
     </div>
 
     <script type="text/babel">
+        // === VUL HIER JOUW IMGBB API KEY IN ===
         const IMGBB_API_KEY = '2d8cfe2bc06041aea3bb266afde53d66';
+        // ======================================
 
         const { useState, useEffect } = React;
         
@@ -124,14 +125,18 @@
             
             const data = await response.json();
             if (data.success) {
-                return data.data.url;
+                return data.data.url; 
             } else {
                 throw new Error(data.error?.message || "Upload naar ImgBB mislukt.");
             }
         };
 
-        window.showAlert = (msg) => { window.dispatchEvent(new CustomEvent('custom-alert', { detail: msg })); };
-        window.showConfirm = (msg, onConfirm) => { window.dispatchEvent(new CustomEvent('custom-confirm', { detail: { msg, onConfirm } })); };
+        window.showAlert = (msg) => {
+            window.dispatchEvent(new CustomEvent('custom-alert', { detail: msg }));
+        };
+        window.showConfirm = (msg, onConfirm) => {
+            window.dispatchEvent(new CustomEvent('custom-confirm', { detail: { msg, onConfirm } }));
+        };
 
         const GlobalDialogs = () => {
             const [alertData, setAlertData] = useState(null);
@@ -142,7 +147,10 @@
                 const handleConfirm = (e) => setConfirmData(e.detail);
                 window.addEventListener('custom-alert', handleAlert);
                 window.addEventListener('custom-confirm', handleConfirm);
-                return () => { window.removeEventListener('custom-alert', handleAlert); window.removeEventListener('custom-confirm', handleConfirm); };
+                return () => {
+                    window.removeEventListener('custom-alert', handleAlert);
+                    window.removeEventListener('custom-confirm', handleConfirm);
+                };
             }, []);
 
             return (
@@ -220,7 +228,15 @@
                     labelDateRange = `${formatShortDate(visibleStart)} - ${formatShortDate(visibleEnd)}`;
                 }
 
-                weeks.push({ start: new Date(visibleStart), end: new Date(visibleEnd), actualWeekStart: new Date(currentWeekStart), actualWeekEnd: new Date(currentWeekEnd), weekNumber: weekNum, label: `W${weekNum} (${labelDateRange})` });
+                weeks.push({
+                    start: new Date(visibleStart), 
+                    end: new Date(visibleEnd),
+                    actualWeekStart: new Date(currentWeekStart), 
+                    actualWeekEnd: new Date(currentWeekEnd),
+                    weekNumber: weekNum,
+                    label: `W${weekNum} (${labelDateRange})`
+                });
+
                 currentWeekStart = new Date(currentWeekEnd);
                 currentWeekStart.setDate(currentWeekStart.getDate() + 1);
             }
@@ -248,7 +264,11 @@
                         endDate = new Date(year, range.start, Math.round(chunk * i));
                     }
 
-                    list.push({ id: `${m}-w${i}`, month: m, week: i, label: label, absoluteIndex: list.length, endDate: endDate.toISOString(), isCalendar: useCalendar, weekNumber: (useCalendar && calWeeks[i-1]) ? calWeeks[i-1].weekNumber : null });
+                    list.push({
+                        id: `${m}-w${i}`, month: m, week: i, label: label, absoluteIndex: list.length,
+                        endDate: endDate.toISOString(), isCalendar: useCalendar,
+                        weekNumber: (useCalendar && calWeeks[i-1]) ? calWeeks[i-1].weekNumber : null
+                    });
                 }
             });
             return list;
@@ -430,13 +450,21 @@
 
             return (
                 <div className="mb-6">
-                    <div onClick={() => setIsExpanded(!isExpanded)} className="bg-gradient-to-br from-[#1a1a1a] to-[#0f0f0f] p-5 sm:p-8 rounded-3xl border border-amber-500/30 shadow-[0_8px_30px_rgba(245,158,11,0.15)] cursor-pointer transition-all hover:border-amber-400 hover:shadow-[0_8px_40px_rgba(245,158,11,0.25)] relative overflow-hidden group">
+                    <div 
+                        onClick={() => setIsExpanded(!isExpanded)}
+                        className="bg-gradient-to-br from-[#1a1a1a] to-[#0f0f0f] p-5 sm:p-8 rounded-3xl border border-amber-500/30 shadow-[0_8px_30px_rgba(245,158,11,0.15)] cursor-pointer transition-all hover:border-amber-400 hover:shadow-[0_8px_40px_rgba(245,158,11,0.25)] relative overflow-hidden group"
+                    >
                         <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl group-hover:bg-amber-500/20 transition-all pointer-events-none"></div>
+
                         <div className="flex justify-between items-center relative z-10">
                             <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 rounded-2xl bg-amber-500/20 flex items-center justify-center text-amber-400 shrink-0 text-xl border border-amber-500/30"><Icons.Crown /></div>
+                                <div className="w-12 h-12 rounded-2xl bg-amber-500/20 flex items-center justify-center text-amber-400 shrink-0 text-xl border border-amber-500/30">
+                                    <Icons.Crown />
+                                </div>
                                 <div>
-                                    <h3 className="font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-500 text-lg sm:text-2xl uppercase tracking-wider">Club Gold {selectedYear}</h3>
+                                    <h3 className="font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-500 text-lg sm:text-2xl uppercase tracking-wider">
+                                        Club Gold {selectedYear}
+                                    </h3>
                                     {isExpanded && <p className="text-xs sm:text-sm text-amber-200/60 mt-1 font-medium">Jouw voortgang voor de ultieme status.</p>}
                                 </div>
                             </div>
@@ -451,13 +479,20 @@
                                         )}
                                     </div>
                                 )}
-                                <div className="w-10 h-10 rounded-full bg-amber-500/10 hover:bg-amber-500/20 flex items-center justify-center shrink-0 transition-colors"><Icons.ChevronDown className={`text-amber-400 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} /></div>
+                                <div className="w-10 h-10 rounded-full bg-amber-500/10 hover:bg-amber-500/20 flex items-center justify-center shrink-0 transition-colors">
+                                    <Icons.ChevronDown className={`text-amber-400 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
+                                </div>
                             </div>
                         </div>
 
                         {isExpanded && (
                             <div className="mt-8 pt-6 border-t border-amber-500/20 relative z-10 animate-in" onClick={e => e.stopPropagation()}>
-                                <div className="flex justify-end mb-4"><button onClick={() => setIsEditing(!isEditing)} className="px-4 py-2 bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded-xl hover:bg-amber-500/20 transition-colors font-bold text-xs uppercase tracking-wider">{isEditing ? 'Annuleren' : 'Doel Aanpassen'}</button></div>
+                                <div className="flex justify-end mb-4">
+                                    <button onClick={() => setIsEditing(!isEditing)} className="px-4 py-2 bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded-xl hover:bg-amber-500/20 transition-colors font-bold text-xs uppercase tracking-wider">
+                                        {isEditing ? 'Annuleren' : 'Doel Aanpassen'}
+                                    </button>
+                                </div>
+
                                 {isEditing && (
                                     <div className="bg-[#111] p-5 rounded-2xl border border-amber-500/30 mb-8 flex flex-col sm:flex-row gap-4 items-end animate-in">
                                         <div className="w-full">
@@ -467,17 +502,36 @@
                                         <button onClick={saveGoal} className="w-full sm:w-auto px-8 py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black rounded-xl shadow-lg uppercase tracking-wider transition-all duration-300 hover:-translate-y-0.5">Opslaan</button>
                                     </div>
                                 )}
+
                                 <div className="relative">
                                     <div className="flex justify-between items-end mb-4">
-                                        <div><div className="text-[10px] sm:text-xs text-amber-500/80 font-bold uppercase tracking-widest mb-1">Huidige Verkoop</div><div className="text-3xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-amber-200">{formatCurrency(totalSales)}</div></div>
-                                        <div className="text-right"><div className="text-[10px] sm:text-xs text-amber-500/80 font-bold uppercase tracking-widest mb-1">Doel</div><div className="text-xl sm:text-3xl font-bold text-amber-500/80">{formatCurrency(goal.amount)}</div></div>
+                                        <div>
+                                            <div className="text-[10px] sm:text-xs text-amber-500/80 font-bold uppercase tracking-widest mb-1">Huidige Verkoop</div>
+                                            <div className="text-3xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-amber-200">{formatCurrency(totalSales)}</div>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-[10px] sm:text-xs text-amber-500/80 font-bold uppercase tracking-widest mb-1">Doel</div>
+                                            <div className="text-xl sm:text-3xl font-bold text-amber-500/80">{formatCurrency(goal.amount)}</div>
+                                        </div>
                                     </div>
+                                    
                                     <div className="h-6 sm:h-8 w-full bg-[#111] rounded-full overflow-hidden shadow-inner border border-amber-900/50 relative">
-                                        <div className="h-full bg-gradient-to-r from-amber-600 via-amber-400 to-yellow-300 transition-all duration-1000 relative" style={{width: `${progressPercent}%`}}><div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'linear-gradient(45deg,rgba(255,255,255,1) 25%,transparent 25%,transparent 50%,rgba(255,255,255,1) 50%,rgba(255,255,255,1) 75%,transparent 75%,transparent)' , backgroundSize: '2rem 2rem'}}></div></div>
-                                        <div className="absolute inset-0 flex items-center justify-center text-black text-xs sm:text-sm font-black tracking-widest drop-shadow-sm mix-blend-overlay">{Math.round(progressPercent)}%</div>
+                                        <div className="h-full bg-gradient-to-r from-amber-600 via-amber-400 to-yellow-300 transition-all duration-1000 relative" style={{width: `${progressPercent}%`}}>
+                                            <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'linear-gradient(45deg,rgba(255,255,255,1) 25%,transparent 25%,transparent 50%,rgba(255,255,255,1) 50%,rgba(255,255,255,1) 75%,transparent 75%,transparent)' , backgroundSize: '2rem 2rem'}}></div>
+                                        </div>
+                                        <div className="absolute inset-0 flex items-center justify-center text-black text-xs sm:text-sm font-black tracking-widest drop-shadow-sm mix-blend-overlay">
+                                            {Math.round(progressPercent)}%
+                                        </div>
                                     </div>
-                                    {totalSales < goal.amount && <div className="text-xs sm:text-sm text-amber-200/60 text-center mt-6 font-medium tracking-wide">Nog <span className="font-bold text-amber-400">{formatCurrency(goal.amount - totalSales)}</span> te gaan voor Club Gold!</div>}
-                                    {totalSales >= goal.amount && goal.amount > 0 && <div className="text-sm sm:text-base text-amber-400 text-center mt-6 font-black uppercase tracking-widest animate-pulse flex items-center justify-center gap-2"><Icons.Crown className="text-2xl"/> GEFELICITEERD, CLUB GOLD BEHAALD! <Icons.Crown className="text-2xl"/></div>}
+
+                                    {totalSales < goal.amount && (
+                                        <div className="text-xs sm:text-sm text-amber-200/60 text-center mt-6 font-medium tracking-wide">Nog <span className="font-bold text-amber-400">{formatCurrency(goal.amount - totalSales)}</span> te gaan voor Club Gold!</div>
+                                    )}
+                                    {totalSales >= goal.amount && goal.amount > 0 && (
+                                        <div className="text-sm sm:text-base text-amber-400 text-center mt-6 font-black uppercase tracking-widest animate-pulse flex items-center justify-center gap-2">
+                                            <Icons.Crown className="text-2xl"/> GEFELICITEERD, CLUB GOLD BEHAALD! <Icons.Crown className="text-2xl"/>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -586,17 +640,25 @@
                                         </div>
                                         <div>
                                             <h4 className="font-bold text-slate-800 dark:text-slate-100 text-lg leading-tight">{goal.name}</h4>
-                                            <div className="text-[11px] text-slate-500 font-medium mt-0.5">{startLabel} t/m {endLabel}</div>
+                                            <div className="text-[11px] text-slate-500 font-medium mt-0.5">
+                                                {startLabel} t/m {endLabel}
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <div className="text-indigo-600 dark:text-indigo-400 font-black text-xl leading-none">{isActivity ? `${currentProgress} wkn` : formatCurrency(currentProgress)}</div>
-                                        <div className="text-[11px] text-slate-400 mt-1 font-bold">/ {isActivity ? `${goal.amount} wkn` : formatCurrency(goal.amount)}</div>
+                                        <div className="text-indigo-600 dark:text-indigo-400 font-black text-xl leading-none">
+                                            {isActivity ? `${currentProgress} wkn` : formatCurrency(currentProgress)}
+                                        </div>
+                                        <div className="text-[11px] text-slate-400 mt-1 font-bold">
+                                            / {isActivity ? `${goal.amount} wkn` : formatCurrency(goal.amount)}
+                                        </div>
                                     </div>
                                 </div>
+
                                 <div className="h-3 w-full bg-slate-100 dark:bg-slate-800/80 rounded-full overflow-hidden shadow-inner border border-slate-200/50 dark:border-slate-700 relative z-10">
                                     <div className="h-full bg-gradient-to-r from-indigo-400 to-indigo-600 shadow-[0_0_10px_rgba(79,70,229,0.5)] transition-all duration-1000" style={{width: `${progressPercent}%`}}></div>
                                 </div>
+                                
                                 <div className="mt-3 text-xs font-medium text-center text-slate-500 dark:text-slate-400 mb-2 relative z-10">
                                     {remaining > 0 ? (
                                         <span>Nog <strong className="text-indigo-600 dark:text-indigo-400">{isActivity ? `${remaining} weken` : formatCurrency(remaining)}</strong> te gaan</span>
@@ -604,14 +666,20 @@
                                         <span className="text-emerald-500 font-bold uppercase tracking-widest"><Icons.CheckCircle className="w-3"/> Doel Behaald!</span>
                                     )}
                                 </div>
+                                
                                 {isActivity && activityWeeks.length > 0 && (
                                     <div className="mt-auto pt-3 border-t border-slate-100 dark:border-slate-800 relative z-10">
                                         <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto custom-scroll pr-1">
                                             {activityWeeks.map(aw => {
                                                 const wMatch = aw.label.match(/^W(\d+)/);
                                                 const shortLabel = wMatch ? wMatch[0] : `${aw.month.substring(0,3)} W${aw.week}`;
+
                                                 return (
-                                                    <div key={aw.id} title={aw.label} className={`flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border font-bold cursor-help transition-all ${aw.active ? 'bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-900/40 dark:text-emerald-400 dark:border-emerald-700 shadow-sm' : 'bg-slate-50 text-slate-400 border-slate-200 dark:bg-slate-800/50 dark:border-slate-700 dark:text-slate-500'}`}>
+                                                    <div 
+                                                        key={aw.id} 
+                                                        title={aw.label}
+                                                        className={`flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border font-bold cursor-help transition-all ${aw.active ? 'bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-900/40 dark:text-emerald-400 dark:border-emerald-700 shadow-sm' : 'bg-slate-50 text-slate-400 border-slate-200 dark:bg-slate-800/50 dark:border-slate-700 dark:text-slate-500'}`}
+                                                    >
                                                         {aw.active ? <Icons.Check className="w-2.5 h-2.5"/> : <Icons.X className="w-2.5 h-2.5 opacity-50"/>}
                                                         {shortLabel}
                                                     </div>
@@ -667,11 +735,19 @@
                 }
 
                 if (editingId) {
-                    const updatedGoals = customGoals.map(g => g.id === editingId ? { ...g, name: input.name, amount: finalAmount, startWeekId: input.type === 'activity' ? input.startWeekId : null, endWeekId: input.type === 'activity' ? input.endWeekId : null, startDate: input.type === 'sales' ? new Date(input.startDate).toISOString() : null, endDate: finalEndDate, type: input.type || 'sales', colSpan: Number(input.colSpan) || 1 } : g);
+                    const updatedGoals = customGoals.map(g => g.id === editingId ? {
+                        ...g, name: input.name, amount: finalAmount, startWeekId: input.type === 'activity' ? input.startWeekId : null,
+                        endWeekId: input.type === 'activity' ? input.endWeekId : null, startDate: input.type === 'sales' ? new Date(input.startDate).toISOString() : null,
+                        endDate: finalEndDate, type: input.type || 'sales', colSpan: Number(input.colSpan) || 1
+                    } : g);
                     updateCustomGoals(updatedGoals);
                     setEditingId(null);
                 } else {
-                    const newGoal = { id: Date.now().toString(), name: input.name, amount: finalAmount, startWeekId: input.type === 'activity' ? input.startWeekId : null, endWeekId: input.type === 'activity' ? input.endWeekId : null, startDate: input.type === 'sales' ? new Date(input.startDate).toISOString() : null, endDate: finalEndDate, type: input.type || 'sales', createdAt: Date.now(), colSpan: Number(input.colSpan) || 1 };
+                    const newGoal = { 
+                        id: Date.now().toString(), name: input.name, amount: finalAmount, startWeekId: input.type === 'activity' ? input.startWeekId : null,
+                        endWeekId: input.type === 'activity' ? input.endWeekId : null, startDate: input.type === 'sales' ? new Date(input.startDate).toISOString() : null,
+                        endDate: finalEndDate, type: input.type || 'sales', createdAt: Date.now(), colSpan: Number(input.colSpan) || 1
+                    };
                     updateCustomGoals([...(customGoals || []), newGoal]);
                 }
                 setInput({ name: '', amount: '', startWeekId: '', endWeekId: '', startDate: '', endDate: '', type: 'sales', colSpan: 1 });
@@ -696,7 +772,9 @@
             };
 
             const handleDelete = (id) => {
-                window.showConfirm("Weet je zeker dat je dit doel wilt verwijderen?", () => { updateCustomGoals(customGoals.filter(g => g.id !== id)); });
+                window.showConfirm("Weet je zeker dat je dit doel wilt verwijderen?", () => {
+                    updateCustomGoals(customGoals.filter(g => g.id !== id));
+                });
             };
 
             const today = new Date();
@@ -708,25 +786,47 @@
             return (
                 <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
                     <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-3xl shadow-glass border border-white/50 dark:border-slate-700 w-full max-w-lg overflow-hidden modal-content flex flex-col max-h-[90vh]" onClick={e=>e.stopPropagation()}>
+                        
                         <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center shrink-0">
-                            <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 flex items-center gap-2"><Icons.Target className="text-indigo-500"/> Mijn Doelen Beheren</h3>
+                            <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                                <Icons.Target className="text-indigo-500"/> Mijn Doelen Beheren
+                            </h3>
                             <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"><Icons.X/></button>
                         </div>
+
                         <div className="overflow-y-auto p-5 custom-scroll space-y-6">
                             <div className="bg-indigo-50/50 dark:bg-indigo-900/20 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-800/50">
                                 <div className="flex justify-between items-center mb-4">
-                                    <h4 className="font-bold text-indigo-800 dark:text-indigo-300 text-sm flex items-center gap-2">{editingId ? <Icons.Edit className="w-3"/> : <Icons.Plus className="w-3"/>} {editingId ? 'Doel Wijzigen' : 'Nieuw Doel Instellen'}</h4>
-                                    {editingId && <button onClick={cancelEdit} className="text-xs font-bold text-indigo-500 hover:text-indigo-700">Annuleren</button>}
+                                    <h4 className="font-bold text-indigo-800 dark:text-indigo-300 text-sm flex items-center gap-2">
+                                        {editingId ? <Icons.Edit className="w-3"/> : <Icons.Plus className="w-3"/>} 
+                                        {editingId ? 'Doel Wijzigen' : 'Nieuw Doel Instellen'}
+                                    </h4>
+                                    {editingId && (
+                                        <button onClick={cancelEdit} className="text-xs font-bold text-indigo-500 hover:text-indigo-700">Annuleren</button>
+                                    )}
                                 </div>
+
                                 <div className="flex gap-2 mb-4 p-1 bg-slate-100 dark:bg-slate-800/50 rounded-xl">
-                                    <button onClick={() => setInput({...input, type: 'sales'})} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${input.type !== 'activity' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>💶 Omzet</button>
-                                    <button onClick={() => setInput({...input, type: 'activity'})} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${input.type === 'activity' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>📅 Activiteit</button>
+                                    <button 
+                                        onClick={() => setInput({...input, type: 'sales'})} 
+                                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${input.type !== 'activity' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+                                    >
+                                        💶 Omzet
+                                    </button>
+                                    <button 
+                                        onClick={() => setInput({...input, type: 'activity'})} 
+                                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${input.type === 'activity' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+                                    >
+                                        📅 Activiteit
+                                    </button>
                                 </div>
+
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                                     <div className="sm:col-span-2">
                                         <label className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block mb-1.5">Naam van doel (bijv. Zomertrip)</label>
                                         <input type="text" value={input.name} onChange={e=>setInput({...input, name:e.target.value})} className="w-full p-3 text-sm rounded-xl border border-indigo-200/50 dark:border-indigo-700/50 bg-white/80 dark:bg-slate-800/80 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"/>
                                     </div>
+                                    
                                     {input.type === 'activity' ? (
                                         <React.Fragment>
                                             <div className="sm:col-span-2">
@@ -773,13 +873,25 @@
                                             </div>
                                         </React.Fragment>
                                     )}
+
                                     <div className="sm:col-span-2 mt-1">
                                         <label className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block mb-1.5">Weergave Grootte (Op Dashboard)</label>
                                         <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800/50 rounded-xl">
-                                            <button onClick={() => setInput({...input, colSpan: 1})} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${input.colSpan === 1 ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>1 Kolom (Compact)</button>
-                                            <button onClick={() => setInput({...input, colSpan: 2})} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${input.colSpan === 2 ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>2 Kolommen (Breed)</button>
+                                            <button 
+                                                onClick={() => setInput({...input, colSpan: 1})} 
+                                                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${input.colSpan === 1 ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+                                            >
+                                                1 Kolom (Compact)
+                                            </button>
+                                            <button 
+                                                onClick={() => setInput({...input, colSpan: 2})} 
+                                                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${input.colSpan === 2 ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+                                            >
+                                                2 Kolommen (Breed)
+                                            </button>
                                         </div>
                                     </div>
+
                                 </div>
                                 <button onClick={handleSave} className="w-full py-3.5 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/30 transition-all hover:-translate-y-0.5">
                                     {editingId ? 'Wijzigingen Opslaan' : 'Doel Toevoegen'}
@@ -791,6 +903,7 @@
                                     <button onClick={()=>setTab('active')} className={`pb-3 px-5 text-sm font-bold transition-all ${tab==='active' ? 'border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>Actief ({activeGoalsList.length})</button>
                                     <button onClick={()=>setTab('history')} className={`pb-3 px-5 text-sm font-bold transition-all ${tab==='history' ? 'border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>Geschiedenis ({historyGoalsList.length})</button>
                                 </div>
+
                                 <div className="space-y-3">
                                     {tab === 'active' && activeGoalsList.length === 0 && <p className="text-center text-slate-400 text-sm py-6 italic border-2 border-dashed dark:border-slate-700 rounded-xl">Je hebt momenteel geen actieve doelen.</p>}
                                     {tab === 'history' && historyGoalsList.length === 0 && <p className="text-center text-slate-400 text-sm py-6 italic border-2 border-dashed dark:border-slate-700 rounded-xl">Geen oude doelen gevonden.</p>}
@@ -798,6 +911,7 @@
                                     {(tab === 'active' ? activeGoalsList : historyGoalsList).map(goal => {
                                         let startLabel = '';
                                         let endLabel = '';
+
                                         if (goal.type === 'activity') {
                                             startLabel = availableWeeks.find(w => w.id === goal.startWeekId)?.label.split('(')[0].trim() || 'Onbekend';
                                             endLabel = availableWeeks.find(w => w.id === goal.endWeekId)?.label.split('(')[0].trim() || 'Onbekend';
@@ -805,6 +919,7 @@
                                             startLabel = goal.startDate ? new Date(goal.startDate).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit' }) : '';
                                             endLabel = goal.endDate ? new Date(goal.endDate).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit' }) : '';
                                         }
+                                        
                                         return (
                                             <div key={goal.id} className={`p-4 rounded-2xl border flex items-center justify-between transition-all ${tab === 'active' ? 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-sm' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-700/50 opacity-80'}`}>
                                                 <div>
@@ -812,12 +927,22 @@
                                                         {goal.type === 'activity' ? <Icons.Calendar className="text-indigo-400 w-4 h-4"/> : <Icons.Target className="text-indigo-400 w-4 h-4"/>}
                                                         {goal.name}
                                                     </div>
-                                                    <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">Doel: <strong className="text-slate-700 dark:text-slate-300">{goal.type === 'activity' ? `${goal.amount} weken` : formatCurrency(goal.amount)}</strong></div>
-                                                    <div className="text-[11px] text-slate-400 mt-1 font-medium bg-slate-100 dark:bg-slate-700 inline-block px-2 py-0.5 rounded-md">{startLabel} t/m {endLabel}</div>
+                                                    <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                                                        Doel: <strong className="text-slate-700 dark:text-slate-300">
+                                                            {goal.type === 'activity' ? `${goal.amount} weken` : formatCurrency(goal.amount)}
+                                                        </strong>
+                                                    </div>
+                                                    <div className="text-[11px] text-slate-400 mt-1 font-medium bg-slate-100 dark:bg-slate-700 inline-block px-2 py-0.5 rounded-md">
+                                                        {startLabel} t/m {endLabel}
+                                                    </div>
                                                 </div>
                                                 <div className="flex gap-2">
-                                                    <button onClick={()=>handleEdit(goal)} className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-colors"><Icons.Edit className="w-3.5"/></button>
-                                                    <button onClick={()=>handleDelete(goal.id)} className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"><Icons.Trash className="w-3.5"/></button>
+                                                    <button onClick={()=>handleEdit(goal)} className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-colors">
+                                                        <Icons.Edit className="w-3.5"/>
+                                                    </button>
+                                                    <button onClick={()=>handleDelete(goal.id)} className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors">
+                                                        <Icons.Trash className="w-3.5"/>
+                                                    </button>
                                                 </div>
                                             </div>
                                         )
@@ -858,7 +983,9 @@
             };
 
             const handleDelete = (id) => { 
-                window.showConfirm("Recept verwijderen?", async () => { await window.db.collection('users').doc(targetUid).collection('recipes').doc(id).delete(); });
+                window.showConfirm("Recept verwijderen?", async () => {
+                    await window.db.collection('users').doc(targetUid).collection('recipes').doc(id).delete(); 
+                });
             };
 
             const handleImageUpload = async (e) => {
@@ -876,22 +1003,36 @@
             const printRecipe = (recipe) => {
                 const printWindow = window.open('', '_blank');
                 printWindow.document.write(`
-                    <html><head><title>${recipe.name}</title><style>
-                        body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; color: #333; }
-                        img { max-width: 100%; height: auto; max-height: 400px; border-radius: 8px; margin-bottom: 20px; object-fit: cover; }
-                        h1 { color: #059669; border-bottom: 2px solid #059669; padding-bottom: 10px; margin-bottom: 5px; }
-                        .product { color: #666; text-transform: uppercase; font-weight: bold; font-size: 0.9em; margin-bottom: 20px; }
-                        h2 { color: #059669; margin-top: 25px; font-size: 1.2em; border-bottom: 1px solid #eee; padding-bottom: 5px; }
-                        .content { white-space: pre-wrap; line-height: 1.6; }
-                        @media print { body { padding: 0; } h1, h2 { color: black; border-color: black; } }
-                    </style></head><body>
+                    <html>
+                    <head>
+                        <title>${recipe.name}</title>
+                        <style>
+                            body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; color: #333; }
+                            img { max-width: 100%; height: auto; max-height: 400px; border-radius: 8px; margin-bottom: 20px; object-fit: cover; }
+                            h1 { color: #059669; border-bottom: 2px solid #059669; padding-bottom: 10px; margin-bottom: 5px; }
+                            .product { color: #666; text-transform: uppercase; font-weight: bold; font-size: 0.9em; margin-bottom: 20px; }
+                            h2 { color: #059669; margin-top: 25px; font-size: 1.2em; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+                            .content { white-space: pre-wrap; line-height: 1.6; }
+                            @media print {
+                                body { padding: 0; }
+                                h1 { color: black; border-color: black; }
+                                h2 { color: black; }
+                            }
+                        </style>
+                    </head>
+                    <body>
                         <h1>${recipe.name}</h1>
                         <div class="product">${recipe.product || ''}</div>
                         ${recipe.image ? `<img src="${recipe.image}" />` : ''}
-                        <h2>Ingrediënten</h2><div class="content">${recipe.ingredients || '-'}</div>
-                        <h2>Bereiding</h2><div class="content">${recipe.instructions || '-'}</div>
-                        <script>window.onload = function() { window.print(); }<\/script>
-                    </body></html>
+                        <h2>Ingrediënten</h2>
+                        <div class="content">${recipe.ingredients || '-'}</div>
+                        <h2>Bereiding</h2>
+                        <div class="content">${recipe.instructions || '-'}</div>
+                        <script>
+                            window.onload = function() { window.print(); }
+                        <\/script>
+                    </body>
+                    </html>
                 `);
                 printWindow.document.close();
             };
@@ -921,7 +1062,11 @@
                         <input className="w-full mb-6 p-3 bg-slate-50/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-600 dark:text-white rounded-2xl outline-none focus:ring-2 focus:ring-orange-500/30 transition-all" placeholder="Zoek recept..." value={searchTerm} onChange={e=>setSearchTerm(e.target.value)}/>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {filtered.map(r => (
-                                <div key={r.id} onClick={() => setViewingRecipe(r)} className="bg-white dark:bg-[#1e293b]/80 border border-slate-100 dark:border-slate-700/50 rounded-2xl overflow-hidden flex flex-col hover:shadow-xl dark:hover:shadow-orange-500/10 hover:-translate-y-1 relative group cursor-pointer transition-all duration-300">
+                                <div 
+                                    key={r.id} 
+                                    onClick={() => setViewingRecipe(r)}
+                                    className="bg-white dark:bg-[#1e293b]/80 border border-slate-100 dark:border-slate-700/50 rounded-2xl overflow-hidden flex flex-col hover:shadow-xl dark:hover:shadow-orange-500/10 hover:-translate-y-1 relative group cursor-pointer transition-all duration-300"
+                                >
                                     <div className="h-40 bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden border-b border-slate-100 dark:border-slate-700/50 relative">
                                         {r.image ? <img src={r.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"/> : <Icons.Utensils className="text-slate-300 dark:text-slate-600 text-4xl"/>}
                                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -941,6 +1086,7 @@
                         </div>
                     </div>
 
+                    {/* DETAIL MODAL VOOR RECEPT */}
                     {viewingRecipe && (
                         <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-md" onClick={() => setViewingRecipe(null)}>
                             <div className="bg-white dark:bg-slate-900 w-full max-w-2xl max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in border border-white/20 dark:border-slate-700/50" onClick={e => e.stopPropagation()}>
@@ -954,6 +1100,7 @@
                                         <button onClick={() => setViewingRecipe(null)} className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-300 hover:text-red-600 hover:bg-red-50 transition-colors"><Icons.X className="w-5 h-5"/></button>
                                     </div>
                                 </div>
+                                
                                 <div className="overflow-y-auto p-0 custom-scroll">
                                     {viewingRecipe.image && (
                                         <div className="w-full h-64 sm:h-80 bg-slate-100 dark:bg-slate-950 flex items-center justify-center overflow-hidden relative">
@@ -983,17 +1130,19 @@
 
         const StockTab = ({ targetUid, user }) => {
             const [items, setItems] = useState([]);
-            const [categories, setCategories] = useState([{ name: 'Algemeen', color: CATEGORY_COLORS[16] }]); 
-            const [locations, setLocations] = useState([{ name: 'Algemeen', color: CATEGORY_COLORS[16] }]); 
-            const [newItem, setNewItem] = useState({ name: '', category: 'Algemeen', location: 'Algemeen', quantity: 1, price: 0, status: 'zolder', image: '', vinted: 0 });
+            const [categories, setCategories] = useState([]); 
+            const [locations, setLocations] = useState([]); 
+            const [newItem, setNewItem] = useState({ name: '', category: '', location: '', quantity: 1, price: 0, status: 'zolder', image: '', vinted: 0 });
             const [loading, setLoading] = useState(true);
             const [editingId, setEditingId] = useState(null); 
             const [keepSettings, setKeepSettings] = useState(false); 
             const [importing, setImporting] = useState(false);
             
-            const [importLinks, setImportLinks] = useState('');
+            // Lock State
+            const [isLocked, setIsLocked] = useState(true);
             const [showImportModal, setShowImportModal] = useState(false);
-            
+            const [importLinks, setImportLinks] = useState('');
+
             const [showCatManager, setShowCatManager] = useState(false);
             const [showLocManager, setShowLocManager] = useState(false);
             const [editName, setEditName] = useState('');
@@ -1017,15 +1166,21 @@
                 if(!targetUid) return;
                 const unsubStock = window.db.collection('users').doc(targetUid).collection('stock').orderBy('createdAt', 'desc').onSnapshot(snap => { setItems(snap.docs.map(d => ({id: d.id, ...d.data()}))); setLoading(false); });
                 const unsubCats = window.db.collection('users').doc(targetUid).collection('settings').doc('categories').onSnapshot(doc => { 
-                    if(doc.exists && doc.data().list) { setCategories(doc.data().list.map(c => typeof c === 'string' ? {name:c, color: CATEGORY_COLORS[16]} : c)); }
+                    if(doc.exists && doc.data().list) {
+                        setCategories(doc.data().list.map(c => typeof c === 'string' ? {name:c, color: CATEGORY_COLORS[16]} : c)); 
+                    }
                 });
                 const unsubLocs = window.db.collection('users').doc(targetUid).collection('settings').doc('locations').onSnapshot(doc => { 
-                    if(doc.exists && doc.data().list) { setLocations(doc.data().list.map(l => typeof l === 'string' ? {name:l, color: CATEGORY_COLORS[16]} : l)); }
+                    if(doc.exists && doc.data().list) {
+                        setLocations(doc.data().list.map(l => typeof l === 'string' ? {name:l, color: CATEGORY_COLORS[16]} : l)); 
+                    }
                 });
                 return () => { unsubStock(); unsubCats(); unsubLocs(); };
             }, [targetUid]);
 
-            useEffect(() => { setCurrentPage(1); }, [searchTerm, filterCategory, filterStatus, filterLocation, sortBy, filterVintedOnly]);
+            useEffect(() => {
+                setCurrentPage(1);
+            }, [searchTerm, filterCategory, filterStatus, filterLocation, sortBy, filterVintedOnly]);
 
             const handleSaveItem = async () => {
                 if(!newItem.name) return window.showAlert("Vul een productnaam in.");
@@ -1034,13 +1189,17 @@
                     if (editingId) { 
                         await window.db.collection('users').doc(targetUid).collection('stock').doc(editingId).update(itemData); 
                         setEditingId(null); 
-                        setNewItem({ name: '', category: 'Algemeen', location: 'Algemeen', quantity: 1, price: 0, status: 'zolder', image: '', vinted: 0 });
+                        setNewItem({ name: '', category: '', location: '', quantity: 1, price: 0, status: 'zolder', image: '', vinted: 0 });
+                        setIsLocked(true); // Vergendel automatisch weer na bewerken
                     } 
                     else { 
                         itemData.createdAt = Date.now(); 
                         await window.db.collection('users').doc(targetUid).collection('stock').add(itemData); 
-                        if (keepSettings) { setNewItem(prev => ({ ...prev, name: '', quantity: 1, price: 0, image: '', vinted: 0 })); } 
-                        else { setNewItem({ name: '', category: 'Algemeen', location: 'Algemeen', quantity: 1, price: 0, status: 'zolder', image: '', vinted: 0 }); }
+                        if (keepSettings) {
+                            setNewItem(prev => ({ ...prev, name: '', quantity: 1, price: 0, image: '', vinted: 0 }));
+                        } else {
+                            setNewItem({ name: '', category: '', location: '', quantity: 1, price: 0, status: 'zolder', image: '', vinted: 0 });
+                        }
                     }
                 } catch(err) { window.showAlert("Fout: " + err.message); }
             };
@@ -1054,24 +1213,13 @@
                 const linksArray = importLinks.split('\n').map(l => l.trim()).filter(l => l);
 
                 Papa.parse(file, {
-                    header: true,
+                    header: false, // Zet dit op false zodat we met vaste posities werken! (kolom 1, 2, 3 etc.)
                     skipEmptyLines: true,
-                    transformHeader: function(h) { return h.trim(); },
                     complete: async (results) => {
                         const data = results.data;
                         if (!data || data.length === 0) {
                             setImporting(false);
                             return window.showAlert("Het CSV-bestand lijkt leeg te zijn of kon niet worden gelezen.");
-                        }
-
-                        // Als de CSV GEEN headers heeft (bijv jouw voorbeeld data), moeten we de eerste rij als data redden
-                        const headers = results.meta.fields;
-                        const isFirstRowData = headers && !headers.some(h => ['naam', 'name', 'titel', 'product', 'aantal', 'prijs', 'categorie', 'locatie'].includes(h.toLowerCase().trim()));
-                        
-                        if (isFirstRowData) {
-                            const firstRowAsData = {};
-                            headers.forEach(h => { firstRowAsData[h] = h; });
-                            data.unshift(firstRowAsData); 
                         }
 
                         let addedCount = 0;
@@ -1086,42 +1234,52 @@
                         const addPromises = [];
                         const updatePromises = [];
 
+                        // Als de eerste rij het woord "naam" bevat, verwijder deze dan (het zijn headers)
+                        if (data[0] && data[0][0] && String(data[0][0]).toLowerCase().includes('naam')) {
+                            data.shift(); 
+                        }
+
                         for (const row of data) {
-                            // Probeer waarden uit de kolommen te halen (als er wel headers waren)
-                            const getVal = (possibleKeys) => {
-                                const key = Object.keys(row).find(k => possibleKeys.includes(k.toLowerCase().trim()));
-                                return key ? row[key] : null;
-                            };
+                            // JOUW SPECIFIEKE CSV STRUCTUUR:
+                            // 0: Naam
+                            // 1: (leeg)
+                            // 2: Aantal
+                            // 3: Locatie
+                            // 4: (leeg)
+                            // 5: Categorie
+                            // 6: Afbeelding (Schermafbeelding... of 2024-09...)
+                            // 7: (leeg)
+                            // 8: (leeg)
+                            // 9: Status
+                            // 10: Vinted
+                            // 11: Prijs
 
-                            let itemName = getVal(['naam', 'name', 'titel', 'title', 'product', 'artikel', 'item']);
-                            let imageVal = getVal(['afbeelding', 'foto', 'image', 'plaatje', 'url', 'afbeeldingen', "foto's", 'fotos', 'cover', 'bestanden', 'files']);
-                            let rawPrice = getVal(['prijs', 'price', 'verkoopprijs', 'waarde']);
-                            let rawQuantity = getVal(['aantal', 'quantity', 'aantal in stock', 'stock', 'hoeveelheid', 'stuks', 'aantal stuks', 'totaal']);
-                            let rawVinted = getVal(['stockverkoop', 'vinted', 'op vinted', 'vinted stock', 'aantal vinted']);
-                            let category = getVal(['categorie', 'category', 'soort', 'tags']);
-                            let location = getVal(['locatie', 'location', 'bak', 'doos', 'plaats']);
-                            let statusVal = getVal(['status', 'staat', 'conditie']);
-
-                            // VASTE INDEX FALLBACKS VOOR ALS ER GEEN HEADERS ZIJN! (gebaseerd op jouw specifieke export formaat)
-                            const keys = Object.keys(row);
-                            if (!itemName && keys.length > 0) itemName = row[keys[0]]; // Kolom 1 = Naam
-                            if (!rawQuantity && rawQuantity !== 0 && keys.length > 2) rawQuantity = row[keys[2]]; // Kolom 3 = Aantal
-                            if (!location && keys.length > 3) location = row[keys[3]]; // Kolom 4 = Locatie
-                            if (!category && keys.length > 5) category = row[keys[5]]; // Kolom 6 = Categorie
-                            if (!imageVal && keys.length > 6) imageVal = row[keys[6]]; // Kolom 7 = Afbeelding
-                            if (!statusVal && keys.length > 9) statusVal = row[keys[9]]; // Kolom 10 = Status
-                            if (!rawVinted && rawVinted !== 0 && keys.length > 10) rawVinted = row[keys[10]]; // Kolom 11 = Vinted
-                            if (!rawPrice && rawPrice !== 0 && keys.length > 11) rawPrice = row[keys[11]]; // Kolom 12 = Prijs
-
-                            if (!itemName || String(itemName).trim() === '') continue;
+                            let itemName = row[0] ? String(row[0]).trim() : '';
+                            if (!itemName) continue; // Geen naam? Overslaan!
                             
-                            let imageStr = String(imageVal || '').trim();
+                            let rawQuantity = row[2];
+                            let location = row[3] ? String(row[3]).trim() : '';
+                            let category = row[5] ? String(row[5]).trim() : '';
+                            let imageVal = row[6] ? String(row[6]).trim() : '';
+                            let statusVal = row[9] ? String(row[9]).trim() : '';
+                            let rawVinted = row[10];
+                            let rawPrice = row[11];
+
+                            // Verwerking waarden
+                            const parsedQty = parseInt(rawQuantity);
+                            const finalQuantity = isNaN(parsedQty) ? 1 : parsedQty;
+                            const price = rawPrice ? parseFloat(String(rawPrice).replace('€', '').replace(',', '.').trim()) || 0 : 0;
+                            const vinted = parseInt(rawVinted) || 0;
+                            
+                            const finalCategory = category; // Wordt NIET standaard Algemeen als het leeg is
+                            const finalLocation = location; // Wordt NIET standaard Algemeen als het leeg is
+                            const status = statusVal.toLowerCase().includes('gebruik') ? 'gebruik' : 'zolder';
+
+                            // Afbeeldingen koppelen (Negeert leestekens voor perfecte match)
                             let finalImageUrl = '';
-                            
-                            if (imageStr && imageStr !== 'null' && imageStr !== 'undefined') {
-                                if (imageStr.includes(',')) imageStr = imageStr.split(',')[0].trim();
+                            if (imageVal && imageVal !== 'null' && imageVal !== 'undefined') {
+                                if (imageVal.includes(',')) imageVal = imageVal.split(',')[0].trim();
                                 
-                                // DEZE FUNCTIE NEGEERT ALLE STREEPJES (_ EN -) OM FOTO'S TE KOPPELEN
                                 const cleanStringForMatch = (str) => {
                                     if(!str) return '';
                                     let filename = str.split('/').pop().split('\\').pop(); 
@@ -1129,7 +1287,7 @@
                                     return filename.toLowerCase().replace(/[^a-z0-9]/g, '');
                                 };
                                 
-                                const cleanCsvImageName = cleanStringForMatch(imageStr);
+                                const cleanCsvImageName = cleanStringForMatch(imageVal);
                                 const matchedLink = linksArray.find(link => {
                                     const cleanLinkName = cleanStringForMatch(link);
                                     return cleanLinkName !== '' && cleanLinkName === cleanCsvImageName;
@@ -1137,85 +1295,85 @@
 
                                 if (matchedLink) {
                                     finalImageUrl = matchedLink;
-                                } else if (imageStr.startsWith('http://') || imageStr.startsWith('https://') || imageStr.startsWith('data:image')) {
-                                    finalImageUrl = imageStr;
+                                } else if (imageVal.startsWith('http://') || imageVal.startsWith('https://') || imageVal.startsWith('data:image')) {
+                                    finalImageUrl = imageVal;
                                 } else {
-                                    finalImageUrl = imageStr;
+                                    finalImageUrl = imageVal;
                                 }
                             }
 
-                            const parsedQty = parseInt(rawQuantity);
-                            const finalQuantity = isNaN(parsedQty) ? 1 : parsedQty;
-                            const price = rawPrice ? parseFloat(String(rawPrice).replace('€', '').replace(',', '.').trim()) || 0 : 0;
-                            const vinted = parseInt(rawVinted) || 0;
-                            const finalCategory = String(category || 'Algemeen').trim();
-                            const finalLocation = String(location || 'Algemeen').trim();
-                            const status = String(statusVal || '').toLowerCase().includes('gebruik') ? 'gebruik' : 'zolder';
-
-                            // FIX: Zoek ALLE items met exact dezelfde naam en update ze ALLEMAAL
-                            const matchingDbItems = items.filter(item => item.name.toLowerCase() === String(itemName).toLowerCase().trim());
+                            // Bestaande producten zoeken
+                            const nameMatches = items.filter(item => item.name.toLowerCase() === itemName.toLowerCase());
                             
-                            if (matchingDbItems.length > 0) {
-                                let updatedAny = false;
+                            if (nameMatches.length > 0) {
+                                // Zoek het EXACTE product (Zelfde categorie, locatie en status)
+                                let bestMatch = nameMatches.find(item => 
+                                    item.status === status && 
+                                    (item.category || '') === finalCategory && 
+                                    (item.location || '') === finalLocation
+                                );
+
+                                // Als die niet bestaat, pak dan gewoon degene met dezelfde status (bijv. als hij alleen van bak veranderd is)
+                                if (!bestMatch) bestMatch = nameMatches.find(item => item.status === status);
                                 
-                                for (const existingItem of matchingDbItems) {
-                                    const updates = { updatedAt: Date.now() };
+                                // Als ook dat niet bestaat, pak gewoon degene met dezelfde naam
+                                if (!bestMatch && nameMatches.length === 1) bestMatch = nameMatches[0];
+
+                                if (bestMatch) {
                                     let hasChanges = false;
+                                    const updates = { updatedAt: Date.now() };
+
+                                    // Update de eigenschappen van DIT specifieke product
+                                    if (bestMatch.quantity !== finalQuantity) { updates.quantity = finalQuantity; hasChanges = true; }
+                                    if ((bestMatch.location || '') !== finalLocation) { updates.location = finalLocation; hasChanges = true; }
+                                    if ((bestMatch.category || '') !== finalCategory) { updates.category = finalCategory; hasChanges = true; }
+                                    if (bestMatch.price !== price && price > 0) { updates.price = price; hasChanges = true; }
                                     
                                     const isNewLink = finalImageUrl.startsWith('http');
-                                    const currentImageIsNoLink = !existingItem.image || !existingItem.image.startsWith('http');
+                                    const currentImageIsNoLink = !bestMatch.image || !bestMatch.image.startsWith('http');
                                     
-                                    if (isNewLink && (currentImageIsNoLink || existingItem.image !== finalImageUrl)) {
+                                    if (isNewLink && (currentImageIsNoLink || bestMatch.image !== finalImageUrl)) {
                                         updates.image = finalImageUrl;
-                                        existingItem.image = finalImageUrl; 
-                                        hasChanges = true;
-                                    }
-
-                                    if (!isNaN(parsedQty) && existingItem.quantity !== finalQuantity) {
-                                        updates.quantity = finalQuantity;
-                                        existingItem.quantity = finalQuantity;
-                                        hasChanges = true;
-                                    }
-                                    if (existingItem.location !== finalLocation) {
-                                        updates.location = finalLocation;
-                                        existingItem.location = finalLocation;
-                                        hasChanges = true;
-                                    }
-                                    if (existingItem.category !== finalCategory) {
-                                        updates.category = finalCategory;
-                                        existingItem.category = finalCategory;
-                                        hasChanges = true;
-                                    }
-                                    if (existingItem.price !== price && price > 0) {
-                                        updates.price = price;
-                                        existingItem.price = price;
                                         hasChanges = true;
                                     }
 
                                     if (hasChanges) {
-                                        updatePromises.push(window.db.collection('users').doc(targetUid).collection('stock').doc(existingItem.id).update(updates));
-                                        updatedAny = true;
+                                        updatePromises.push(window.db.collection('users').doc(targetUid).collection('stock').doc(bestMatch.id).update(updates));
+                                        Object.assign(bestMatch, updates); // Pas lokaal aan zodat we hem niet dubbel updaten
+                                        updatedCount++;
+                                    } else {
+                                        skippedCount++;
                                     }
+
+                                    // Omdat dit product gevonden is, geef ook ALLE ANDERE varianten (bijv. in gebruik vs zolder) DEZELFDE FOTO!
+                                    for (const otherItem of nameMatches) {
+                                        if (otherItem.id !== bestMatch.id && isNewLink) {
+                                            const otherImageIsNoLink = !otherItem.image || !otherItem.image.startsWith('http');
+                                            if (otherImageIsNoLink || otherItem.image !== finalImageUrl) {
+                                                updatePromises.push(window.db.collection('users').doc(targetUid).collection('stock').doc(otherItem.id).update({
+                                                    image: finalImageUrl, updatedAt: Date.now()
+                                                }));
+                                                otherItem.image = finalImageUrl; // Pas lokaal aan
+                                            }
+                                        }
+                                    }
+                                    continue; // Ga naar de volgende regel in CSV
                                 }
-                                
-                                if (updatedAny) updatedCount++;
-                                else skippedCount++;
-                                
-                                continue; 
                             }
 
-                            // --- NIEUW PRODUCT TOEVOEGEN ---
-                            if (!newCats.find(c => c.name.toLowerCase() === finalCategory.toLowerCase())) {
+                            // --- NIEUW PRODUCT (Was niet gevonden) ---
+                            // Alleen categorie/locatie toevoegen aan database als ze niet LEEG zijn!
+                            if (finalCategory && !newCats.find(c => c.name.toLowerCase() === finalCategory.toLowerCase())) {
                                 newCats.push({ name: finalCategory, color: CATEGORY_COLORS[16] });
                                 catsChanged = true;
                             }
-                            if (!newLocs.find(l => l.name.toLowerCase() === finalLocation.toLowerCase())) {
+                            if (finalLocation && !newLocs.find(l => l.name.toLowerCase() === finalLocation.toLowerCase())) {
                                 newLocs.push({ name: finalLocation, color: CATEGORY_COLORS[16] });
                                 locsChanged = true;
                             }
 
                             const newItemData = {
-                                name: String(itemName).trim(),
+                                name: itemName,
                                 category: finalCategory,
                                 location: finalLocation,
                                 price: price,
@@ -1235,7 +1393,7 @@
                             await Promise.all([...addPromises, ...updatePromises]);
                             if (catsChanged) await window.db.collection('users').doc(targetUid).collection('settings').doc('categories').set({ list: newCats }, { merge: true });
                             if (locsChanged) await window.db.collection('users').doc(targetUid).collection('settings').doc('locations').set({ list: newLocs }, { merge: true });
-                            window.showAlert(`Import succesvol afgerond!\n\n🆕 ${addedCount} nieuwe producten.\n🔄 ${updatedCount} bestaande producten bijgewerkt (foto/aantal/etc).\n⏭️ ${skippedCount} ongewijzigd gebleven.`);
+                            window.showAlert(`Import succesvol afgerond!\n\n🆕 ${addedCount} nieuwe producten.\n🔄 ${updatedCount} bestaande producten bijgewerkt (foto of aantal).\n⏭️ ${skippedCount} ongewijzigd gebleven.`);
                         } catch (err) {
                             console.error("Fout bij toevoegen:", err);
                             window.showAlert("Er ging iets mis tijdens het toevoegen. Check console.");
@@ -1252,7 +1410,9 @@
             };
 
             const deleteItem = (id) => { 
-                window.showConfirm("Weet je zeker dat je dit product wilt verwijderen?", async () => { await window.db.collection('users').doc(targetUid).collection('stock').doc(id).delete(); });
+                window.showConfirm("Weet je zeker dat je dit product wilt verwijderen?", async () => {
+                    await window.db.collection('users').doc(targetUid).collection('stock').doc(id).delete(); 
+                });
             };
             const updateQuantity = async (id, current, change) => { if(current+change >= 0) await window.db.collection('users').doc(targetUid).collection('stock').doc(id).update({ quantity: current+change }); };
             
@@ -1267,7 +1427,10 @@
             };
 
             const openManager = (type) => {
-                setEditingItemType(type); setEditingItemIndex(null); setEditName(''); setEditColor(0);
+                setEditingItemType(type);
+                setEditingItemIndex(null); 
+                setEditName('');
+                setEditColor(0);
                 if (type === 'category') setShowCatManager(true);
                 if (type === 'location') setShowLocManager(true);
             };
@@ -1282,7 +1445,9 @@
             };
 
             const startEditConfig = (type, index, item) => {
-                setEditingItemType(type); setEditingItemIndex(index); setEditName(item.name);
+                setEditingItemType(type);
+                setEditingItemIndex(index);
+                setEditName(item.name);
                 const colorIndex = CATEGORY_COLORS.findIndex(c => c.bg === item.color.bg);
                 setEditColor(colorIndex !== -1 ? colorIndex : 16);
             };
@@ -1319,120 +1484,145 @@
             const totalPages = itemsPerPage === 'All' ? 1 : Math.ceil(totalItems / itemsPerPage);
             const displayedItems = itemsPerPage === 'All' ? filteredItems : filteredItems.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-            const getCategoryColor = (catName) => { const cat = categories.find(c => c.name === catName); return cat ? cat.color : CATEGORY_COLORS[16]; };
-            const getLocationColor = (locName) => { const loc = locations.find(l => l.name === locName); return loc ? loc.color : CATEGORY_COLORS[16]; };
+            const getCategoryColor = (catName) => {
+                const cat = categories.find(c => c.name === catName);
+                return cat ? cat.color : CATEGORY_COLORS[16];
+            };
+            const getLocationColor = (locName) => {
+                const loc = locations.find(l => l.name === locName);
+                return loc ? loc.color : CATEGORY_COLORS[16];
+            };
+
             const formatEuro = (n) => new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(n || 0);
             
             if (loading) return <div className="text-center p-8"><Icons.Loader className="text-3xl text-emerald-600"/></div>;
 
             return (
                 <div className="space-y-6">
-                    <div className={`p-6 rounded-3xl shadow-glass dark:shadow-glass-dark border transition-all duration-300 ${editingId ? 'bg-amber-50/80 dark:bg-amber-900/20 backdrop-blur-md border-amber-200 dark:border-amber-700' : 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-white/40 dark:border-slate-700'}`}>
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                            <h3 className={`font-bold text-xl flex items-center gap-3 ${editingId ? 'text-amber-800 dark:text-amber-400' : 'text-emerald-800 dark:text-emerald-400'}`}>
-                                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-white ${editingId ? 'bg-gradient-to-br from-amber-400 to-amber-600' : 'bg-gradient-to-br from-emerald-400 to-emerald-600'}`}>
-                                    {editingId ? <Icons.Edit className="text-lg"/> : <Icons.Package className="text-lg"/>} 
-                                </div>
-                                {editingId ? 'Product Wijzigen' : 'Nieuw Product'}
-                            </h3>
-                            <div className="flex gap-2 sm:gap-3 text-xs font-bold w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 custom-scroll">
-                                <button onClick={() => setShowImportModal(true)} disabled={importing} className={`px-3 py-1.5 rounded-lg text-white font-bold transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer shrink-0 ${importing ? 'bg-slate-400' : 'bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600'}`}>
-                                    {importing ? <Icons.Loader className="fa-spin"/> : <Icons.Upload/>} {importing ? 'Bezig met importeren...' : 'CSV Import'}
-                                </button>
-                                <button onClick={()=>openManager('category')} className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-slate-700 hover:text-emerald-600 transition-colors flex items-center gap-1.5 shrink-0"><Icons.Settings className="text-emerald-500"/> Categorieën</button>
-                                <button onClick={()=>openManager('location')} className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-slate-700 hover:text-emerald-600 transition-colors flex items-center gap-1.5 shrink-0"><Icons.Settings className="text-emerald-500"/> Locaties</button>
-                            </div>
-                        </div>
-
-                        {(showCatManager || showLocManager) && (
-                            <div className="mb-6 p-5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm text-sm animate-in">
-                                <div className="flex justify-between items-center mb-4 pb-2 border-b dark:border-slate-700"><span className="font-bold text-slate-700 dark:text-slate-200 text-base">Beheer {showCatManager ? 'Categorieën' : 'Locaties'}</span> <button onClick={()=>{setShowCatManager(false);setShowLocManager(false)}} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 flex items-center justify-center"><Icons.X className="dark:text-slate-400"/></button></div>
-                                <div className="flex gap-3 mb-4">
-                                    <input value={editName} onChange={e=>setEditName(e.target.value)} className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 dark:text-white p-2.5 rounded-xl flex-grow outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all" placeholder="Naam..."/>
-                                    <button onClick={()=>saveConfig(showCatManager?'cat':'loc')} className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 rounded-xl font-bold shadow-sm transition-colors">OK</button>
-                                </div>
-                                <div className="flex gap-1.5 mb-4 flex-wrap bg-slate-50 dark:bg-slate-900 p-2 rounded-xl">{CATEGORY_COLORS.map((c,i)=><button key={i} onClick={()=>setEditColor(i)} className={`w-7 h-7 rounded-full border-2 ${c.bg} ${editColor===i?'border-emerald-600 ring-4 ring-emerald-200/50 dark:ring-emerald-900/50':'border-transparent hover:scale-110'} transition-all`} title={c.name}></button>)}</div>
-                                <div className="max-h-40 overflow-y-auto space-y-1.5 custom-scroll pr-2">
-                                    {(showCatManager?categories:locations).map((it, idx) => (
-                                        <div key={idx} className="flex justify-between items-center bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-colors">
-                                            <span className="flex items-center gap-3 text-slate-800 dark:text-slate-200 font-medium"><span className={`w-4 h-4 rounded-full ${it.color.bg} border border-slate-200 dark:border-slate-700`}></span>{it.name}</span>
-                                            <div className="flex gap-1">
-                                                <button onClick={()=>{startEditConfig(showCatManager?'category':'location', idx, it)}} className="w-8 h-8 rounded-lg text-slate-400 hover:bg-white dark:hover:bg-slate-800 hover:text-emerald-600 flex items-center justify-center transition-all"><Icons.Edit/></button>
-                                                <button onClick={()=>deleteConfig(showCatManager?'cat':'loc', idx)} className="w-8 h-8 rounded-lg text-slate-400 hover:bg-white dark:hover:bg-slate-800 hover:text-red-500 flex items-center justify-center transition-all"><Icons.Trash/></button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <div className="col-span-1 md:col-span-2">
-                                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Naam</label>
-                                <input value={newItem.name} onChange={e=>setNewItem({...newItem, name:e.target.value})} className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 dark:text-white p-3 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all font-medium text-base shadow-sm" placeholder="Productnaam"/>
-                            </div>
-                            <div>
-                                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Categorie</label>
-                                <select value={newItem.category} onChange={e=>setNewItem({...newItem, category:e.target.value})} className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 dark:text-white p-3 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all font-medium shadow-sm cursor-pointer">{categories.map((c,i)=><option key={i} value={c.name}>{c.name}</option>)}</select>
-                            </div>
-                            <div>
-                                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Locatie</label>
-                                <select value={newItem.location} onChange={e=>setNewItem({...newItem, location:e.target.value})} className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 dark:text-white p-3 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all font-medium shadow-sm cursor-pointer">{locations.map((l,i)=><option key={i} value={l.name}>{l.name}</option>)}</select>
-                            </div>
-                            <div>
-                                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Prijs (€)</label>
-                                <input type="text" inputMode="decimal" value={newItem.price} onChange={e=>{ const val = e.target.value.replace(',', '.'); if (/^\d*\.?\d*$/.test(val)) setNewItem({...newItem, price:val}); }} className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 dark:text-white p-3 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all font-mono font-bold text-base shadow-sm"/>
-                            </div>
-                            <div>
-                                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Aantal in stock</label>
-                                <input type="number" value={newItem.quantity} onChange={e=>setNewItem({...newItem, quantity:e.target.value})} className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 dark:text-white p-3 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all font-mono font-bold text-base shadow-sm text-center"/>
-                            </div>
-                            <div>
-                                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block flex items-center gap-1"><Icons.Shirt className="text-[10px] text-cyan-500"/> Op Vinted</label>
-                                <input type="number" value={newItem.vinted} onChange={e=>setNewItem({...newItem, vinted:e.target.value})} className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 dark:text-white p-3 rounded-xl outline-none focus:ring-2 focus:ring-cyan-500/30 transition-all font-mono font-bold text-base shadow-sm text-center text-cyan-700 dark:text-cyan-400" placeholder="0"/>
-                            </div>
-                            
-                            <div className="col-span-1 md:col-span-2 lg:col-span-1 flex flex-col justify-end">
-                                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Status</label>
-                                <div className="flex bg-slate-100 dark:bg-slate-800 rounded-xl p-1 h-[46px] border border-slate-200 dark:border-slate-700 shadow-inner">
-                                    <button onClick={()=>setNewItem({...newItem, status:'zolder'})} className={`flex-1 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${newItem.status==='zolder'?'bg-white dark:bg-slate-600 shadow-sm text-slate-800 dark:text-white scale-100':'text-slate-500 scale-95 hover:text-slate-700 dark:hover:text-slate-300'}`}>📦 Zolder</button>
-                                    <button onClick={()=>setNewItem({...newItem, status:'gebruik'})} className={`flex-1 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${newItem.status==='gebruik'?'bg-white dark:bg-slate-600 shadow-sm text-emerald-600 dark:text-emerald-400 scale-100':'text-slate-500 scale-95 hover:text-emerald-600'}`}>🏠 Gebruik</button>
-                                </div>
-                            </div>
-                            
-                            <div className="col-span-1 md:col-span-2 lg:col-span-4">
-                                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Afbeelding</label>
-                                <div className="flex flex-col sm:flex-row gap-3">
-                                    <label className="sm:w-1/4 h-[46px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl cursor-pointer flex items-center justify-center gap-2 hover:bg-emerald-50 dark:hover:bg-slate-700 hover:border-emerald-300 transition-all text-sm font-bold text-emerald-600 shadow-sm">
-                                        <input type="file" className="hidden" onChange={handleImageUpload}/>
-                                        {uploading ? <Icons.Loader/> : <><Icons.Upload/> Uploaden</>}
-                                    </label>
-                                    <input type="text" placeholder="Of plak een link naar een afbeelding..." value={newItem.image} onChange={(e)=>setNewItem({...newItem, image: e.target.value})} className="sm:w-3/4 px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 dark:text-white rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all text-sm shadow-sm"/>
-                                </div>
-                            </div>
-                        </div>
-
-                        {!editingId && (
-                            <div className="flex items-center gap-3 mt-5 cursor-pointer select-none bg-slate-50/50 dark:bg-slate-800/30 w-fit px-4 py-2 rounded-xl" onClick={()=>setKeepSettings(!keepSettings)}>
-                                <div className={`w-11 h-6 rounded-full relative transition-colors duration-300 shadow-inner ${keepSettings ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
-                                    <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform duration-300 shadow-sm ${keepSettings ? 'translate-x-5' : ''}`}></div>
-                                </div>
-                                <span className="text-xs text-slate-600 dark:text-slate-300 font-semibold">Onthoud categorie & locatie voor volgend product</span>
-                            </div>
-                        )}
-
-                        <button onClick={handleSaveItem} className={`w-full mt-6 py-4 text-white font-extrabold text-lg rounded-2xl shadow-xl transition-all duration-300 hover:-translate-y-1 active:translate-y-0 ${editingId?'bg-gradient-to-r from-amber-500 to-orange-500 hover:shadow-amber-500/40':'bg-gradient-to-r from-emerald-500 to-teal-500 hover:shadow-emerald-500/40'}`}>
-                            {editingId ? 'Wijziging Opslaan' : 'Product Toevoegen'}
+                    {/* TOP CONTROLS */}
+                    <div className="flex flex-wrap gap-3 justify-end items-center mb-4">
+                        <button onClick={() => setShowImportModal(true)} className="px-4 py-2 rounded-xl text-white font-bold transition-colors shadow-md flex items-center gap-2 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 hover:-translate-y-0.5">
+                            <Icons.Upload/> CSV Import
+                        </button>
+                        <button onClick={()=>openManager('category')} className="px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-slate-700 hover:text-emerald-600 transition-colors flex items-center gap-2 shadow-sm"><Icons.Settings className="text-emerald-500"/> Categorieën</button>
+                        <button onClick={()=>openManager('location')} className="px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-slate-700 hover:text-emerald-600 transition-colors flex items-center gap-2 shadow-sm"><Icons.Settings className="text-emerald-500"/> Locaties</button>
+                        <button onClick={() => setIsLocked(!isLocked)} className={`px-5 py-2 rounded-xl font-bold transition-all shadow-md flex items-center gap-2 hover:-translate-y-0.5 ${isLocked ? 'bg-gradient-to-r from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-500' : 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-emerald-500/30'}`}>
+                            {isLocked ? <Icons.Lock /> : <Icons.Unlock />} {isLocked ? 'Vergrendeld' : 'Aanpassen Mogelijk'}
                         </button>
                     </div>
 
+                    {/* CONFIG MANAGERS */}
+                    {(showCatManager || showLocManager) && (
+                        <div className="mb-6 p-5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm text-sm animate-in">
+                            <div className="flex justify-between items-center mb-4 pb-2 border-b dark:border-slate-700"><span className="font-bold text-slate-700 dark:text-slate-200 text-base">Beheer {showCatManager ? 'Categorieën' : 'Locaties'}</span> <button onClick={()=>{setShowCatManager(false);setShowLocManager(false)}} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 flex items-center justify-center"><Icons.X className="dark:text-slate-400"/></button></div>
+                            <div className="flex gap-3 mb-4">
+                                <input value={editName} onChange={e=>setEditName(e.target.value)} className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 dark:text-white p-2.5 rounded-xl flex-grow outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all" placeholder="Naam..."/>
+                                <button onClick={()=>saveConfig(showCatManager?'cat':'loc')} className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 rounded-xl font-bold shadow-sm transition-colors">OK</button>
+                            </div>
+                            <div className="flex gap-1.5 mb-4 flex-wrap bg-slate-50 dark:bg-slate-900 p-2 rounded-xl">{CATEGORY_COLORS.map((c,i)=><button key={i} onClick={()=>setEditColor(i)} className={`w-7 h-7 rounded-full border-2 ${c.bg} ${editColor===i?'border-emerald-600 ring-4 ring-emerald-200/50 dark:ring-emerald-900/50':'border-transparent hover:scale-110'} transition-all`} title={c.name}></button>)}</div>
+                            <div className="max-h-40 overflow-y-auto space-y-1.5 custom-scroll pr-2">
+                                {(showCatManager?categories:locations).map((it, idx) => (
+                                    <div key={idx} className="flex justify-between items-center bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-colors">
+                                        <span className="flex items-center gap-3 text-slate-800 dark:text-slate-200 font-medium"><span className={`w-4 h-4 rounded-full ${it.color.bg} border border-slate-200 dark:border-slate-700`}></span>{it.name}</span>
+                                        <div className="flex gap-1">
+                                            <button onClick={()=>{startEditConfig(showCatManager?'category':'location', idx, it)}} className="w-8 h-8 rounded-lg text-slate-400 hover:bg-white dark:hover:bg-slate-800 hover:text-emerald-600 flex items-center justify-center transition-all"><Icons.Edit/></button>
+                                            <button onClick={()=>deleteConfig(showCatManager?'cat':'loc', idx)} className="w-8 h-8 rounded-lg text-slate-400 hover:bg-white dark:hover:bg-slate-800 hover:text-red-500 flex items-center justify-center transition-all"><Icons.Trash/></button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* INPUT CARD - Alleen zichtbaar als het slotje OPEN is */}
+                    {!isLocked && (
+                        <div className={`p-6 rounded-3xl shadow-glass dark:shadow-glass-dark border transition-all duration-300 animate-in ${editingId ? 'bg-amber-50/80 dark:bg-amber-900/20 backdrop-blur-md border-amber-200 dark:border-amber-700' : 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-white/40 dark:border-slate-700'}`}>
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                                <h3 className={`font-bold text-xl flex items-center gap-3 ${editingId ? 'text-amber-800 dark:text-amber-400' : 'text-emerald-800 dark:text-emerald-400'}`}>
+                                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-white ${editingId ? 'bg-gradient-to-br from-amber-400 to-amber-600' : 'bg-gradient-to-br from-emerald-400 to-emerald-600'}`}>
+                                        {editingId ? <Icons.Edit className="text-lg"/> : <Icons.Package className="text-lg"/>} 
+                                    </div>
+                                    {editingId ? 'Product Wijzigen' : 'Nieuw Product'}
+                                </h3>
+                                <button onClick={() => {setEditingId(null); setIsLocked(true);}} className="text-slate-400 hover:text-slate-600 font-bold text-sm bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors">Annuleren</button>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <div className="col-span-1 md:col-span-2">
+                                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Naam</label>
+                                    <input value={newItem.name} onChange={e=>setNewItem({...newItem, name:e.target.value})} className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 dark:text-white p-3 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all font-medium text-base shadow-sm" placeholder="Productnaam"/>
+                                </div>
+                                <div>
+                                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Categorie</label>
+                                    <select value={newItem.category} onChange={e=>setNewItem({...newItem, category:e.target.value})} className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 dark:text-white p-3 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all font-medium shadow-sm cursor-pointer">
+                                        <option value="">Geen categorie</option>
+                                        {categories.map((c,i)=><option key={i} value={c.name}>{c.name}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Locatie</label>
+                                    <select value={newItem.location} onChange={e=>setNewItem({...newItem, location:e.target.value})} className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 dark:text-white p-3 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all font-medium shadow-sm cursor-pointer">
+                                        <option value="">Geen locatie</option>
+                                        {locations.map((l,i)=><option key={i} value={l.name}>{l.name}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Prijs (€)</label>
+                                    <input type="text" inputMode="decimal" value={newItem.price} onChange={e=>{ const val = e.target.value.replace(',', '.'); if (/^\d*\.?\d*$/.test(val)) setNewItem({...newItem, price:val}); }} className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 dark:text-white p-3 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all font-mono font-bold text-base shadow-sm"/>
+                                </div>
+                                <div>
+                                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Aantal in stock</label>
+                                    <input type="number" value={newItem.quantity} onChange={e=>setNewItem({...newItem, quantity:e.target.value})} className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 dark:text-white p-3 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all font-mono font-bold text-base shadow-sm text-center"/>
+                                </div>
+                                <div>
+                                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block flex items-center gap-1"><Icons.Shirt className="text-[10px] text-cyan-500"/> Op Vinted</label>
+                                    <input type="number" value={newItem.vinted} onChange={e=>setNewItem({...newItem, vinted:e.target.value})} className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 dark:text-white p-3 rounded-xl outline-none focus:ring-2 focus:ring-cyan-500/30 transition-all font-mono font-bold text-base shadow-sm text-center text-cyan-700 dark:text-cyan-400" placeholder="0"/>
+                                </div>
+                                
+                                <div className="col-span-1 md:col-span-2 lg:col-span-1 flex flex-col justify-end">
+                                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Status</label>
+                                    <div className="flex bg-slate-100 dark:bg-slate-800 rounded-xl p-1 h-[46px] border border-slate-200 dark:border-slate-700 shadow-inner">
+                                        <button onClick={()=>setNewItem({...newItem, status:'zolder'})} className={`flex-1 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${newItem.status==='zolder'?'bg-white dark:bg-slate-600 shadow-sm text-slate-800 dark:text-white scale-100':'text-slate-500 scale-95 hover:text-slate-700 dark:hover:text-slate-300'}`}>📦 Zolder</button>
+                                        <button onClick={()=>setNewItem({...newItem, status:'gebruik'})} className={`flex-1 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${newItem.status==='gebruik'?'bg-white dark:bg-slate-600 shadow-sm text-emerald-600 dark:text-emerald-400 scale-100':'text-slate-500 scale-95 hover:text-emerald-600'}`}>🏠 Gebruik</button>
+                                    </div>
+                                </div>
+                                
+                                <div className="col-span-1 md:col-span-2 lg:col-span-4">
+                                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Afbeelding</label>
+                                    <div className="flex flex-col sm:flex-row gap-3">
+                                        <label className="sm:w-1/4 h-[46px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl cursor-pointer flex items-center justify-center gap-2 hover:bg-emerald-50 dark:hover:bg-slate-700 hover:border-emerald-300 transition-all text-sm font-bold text-emerald-600 shadow-sm">
+                                            <input type="file" className="hidden" onChange={handleImageUpload}/>
+                                            {uploading ? <Icons.Loader/> : <><Icons.Upload/> Uploaden</>}
+                                        </label>
+                                        <input type="text" placeholder="Of plak een link naar een afbeelding..." value={newItem.image} onChange={(e)=>setNewItem({...newItem, image: e.target.value})} className="sm:w-3/4 px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 dark:text-white rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all text-sm shadow-sm"/>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {!editingId && (
+                                <div className="flex items-center gap-3 mt-5 cursor-pointer select-none bg-slate-50/50 dark:bg-slate-800/30 w-fit px-4 py-2 rounded-xl" onClick={()=>setKeepSettings(!keepSettings)}>
+                                    <div className={`w-11 h-6 rounded-full relative transition-colors duration-300 shadow-inner ${keepSettings ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                                        <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform duration-300 shadow-sm ${keepSettings ? 'translate-x-5' : ''}`}></div>
+                                    </div>
+                                    <span className="text-xs text-slate-600 dark:text-slate-300 font-semibold">Onthoud categorie & locatie voor volgend product</span>
+                                </div>
+                            )}
+
+                            <button onClick={handleSaveItem} className={`w-full mt-6 py-4 text-white font-extrabold text-lg rounded-2xl shadow-xl transition-all duration-300 hover:-translate-y-1 active:translate-y-0 ${editingId?'bg-gradient-to-r from-amber-500 to-orange-500 hover:shadow-amber-500/40':'bg-gradient-to-r from-emerald-500 to-teal-500 hover:shadow-emerald-500/40'}`}>
+                                {editingId ? 'Wijziging Opslaan' : 'Product Toevoegen'}
+                            </button>
+                        </div>
+                    )}
+
                     {/* LIJST MET ITEMS */}
                     <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-5 rounded-3xl border border-white/40 dark:border-slate-700 shadow-glass dark:shadow-glass-dark space-y-5">
+                        {/* ZOEKBALK */}
                         <div className="relative">
                             <input className="w-full pl-12 pr-4 py-4 rounded-2xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all font-medium shadow-sm text-base" placeholder="Zoek op naam, bak of categorie..." value={searchTerm} onChange={e=>setSearchTerm(e.target.value)}/>
                             <div className="absolute left-4 top-4 text-slate-400 text-lg"><Icons.Search/></div>
                         </div>
 
+                        {/* FILTERS RIJ */}
                         <div className="flex flex-wrap gap-2 sm:gap-3 bg-slate-50 dark:bg-slate-800/50 p-2 sm:p-3 rounded-2xl">
                             <select value={filterCategory} onChange={e=>setFilterCategory(e.target.value)} className="px-3 py-2 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 dark:text-white text-slate-600 outline-none focus:ring-2 focus:ring-emerald-500/30 shadow-sm cursor-pointer hover:border-emerald-300 transition-colors flex-grow sm:flex-grow-0">
                                 <option value="Alles">Alle Categorieën</option>
@@ -1448,7 +1638,10 @@
                                 <option value="gebruik">🏠 In Gebruik</option>
                             </select>
                             
-                            <button onClick={() => setFilterVintedOnly(!filterVintedOnly)} className={`px-4 py-2 text-xs sm:text-sm font-bold rounded-xl border transition-all flex items-center justify-center gap-2 shadow-sm flex-grow sm:flex-grow-0 ${filterVintedOnly ? 'bg-cyan-500 text-white border-cyan-600 shadow-cyan-500/30' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:border-cyan-300 hover:text-cyan-600'}`}>
+                            <button 
+                                onClick={() => setFilterVintedOnly(!filterVintedOnly)} 
+                                className={`px-4 py-2 text-xs sm:text-sm font-bold rounded-xl border transition-all flex items-center justify-center gap-2 shadow-sm flex-grow sm:flex-grow-0 ${filterVintedOnly ? 'bg-cyan-500 text-white border-cyan-600 shadow-cyan-500/30' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:border-cyan-300 hover:text-cyan-600'}`}
+                            >
                                 {filterVintedOnly ? <Icons.ToggleOn className="text-base"/> : <Icons.ToggleOff className="text-base"/>} Vinted Only
                             </button>
 
@@ -1470,30 +1663,38 @@
                             </select>
                         </div>
                         
+                        {/* TOTAAL BLOK */}
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                             <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/30 dark:to-teal-900/30 border border-emerald-100 dark:border-emerald-800/50 rounded-2xl p-5 flex justify-between items-center shadow-sm">
                                 <div>
                                     <p className="text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-widest mb-1">Totale Waarde</p>
                                     <h2 className="text-xl sm:text-3xl font-black text-emerald-800 dark:text-emerald-300">{formatEuro(totalStockValue)}</h2>
                                 </div>
-                                <div className="w-12 h-12 rounded-2xl bg-white dark:bg-emerald-800 shadow-sm flex items-center justify-center text-emerald-500 dark:text-emerald-200 text-xl border border-emerald-50 dark:border-emerald-700 shrink-0"><Icons.Euro/></div>
+                                <div className="w-12 h-12 rounded-2xl bg-white dark:bg-emerald-800 shadow-sm flex items-center justify-center text-emerald-500 dark:text-emerald-200 text-xl border border-emerald-50 dark:border-emerald-700 shrink-0">
+                                    <Icons.Euro/>
+                                </div>
                             </div>
                             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 border border-blue-100 dark:border-blue-800/50 rounded-2xl p-5 flex justify-between items-center shadow-sm">
                                 <div>
                                     <p className="text-[10px] sm:text-xs text-blue-600 dark:text-blue-400 font-bold uppercase tracking-widest mb-1">Totaal Aantal</p>
                                     <h2 className="text-xl sm:text-3xl font-black text-blue-800 dark:text-blue-300">{totalStockCount} <span className="text-sm sm:text-lg font-bold text-blue-600/70">stuks</span></h2>
                                 </div>
-                                <div className="w-12 h-12 rounded-2xl bg-white dark:bg-blue-800 shadow-sm flex items-center justify-center text-blue-500 dark:text-blue-200 text-xl border border-blue-50 dark:border-blue-700 shrink-0"><Icons.Hash/></div>
+                                <div className="w-12 h-12 rounded-2xl bg-white dark:bg-blue-800 shadow-sm flex items-center justify-center text-blue-500 dark:text-blue-200 text-xl border border-blue-50 dark:border-blue-700 shrink-0">
+                                    <Icons.Hash/>
+                                </div>
                             </div>
                             <div className="bg-gradient-to-br from-purple-50 to-fuchsia-50 dark:from-purple-900/30 dark:to-fuchsia-900/30 border border-purple-100 dark:border-purple-800/50 rounded-2xl p-5 flex justify-between items-center shadow-sm">
                                 <div>
                                     <p className="text-[10px] sm:text-xs text-purple-600 dark:text-purple-400 font-bold uppercase tracking-widest mb-1">Verschillende Producten</p>
                                     <h2 className="text-xl sm:text-3xl font-black text-purple-800 dark:text-purple-300">{totalUniqueProducts} <span className="text-sm sm:text-lg font-bold text-purple-600/70">soorten</span></h2>
                                 </div>
-                                <div className="w-12 h-12 rounded-2xl bg-white dark:bg-purple-800 shadow-sm flex items-center justify-center text-purple-500 dark:text-purple-200 text-xl border border-purple-50 dark:border-purple-700 shrink-0"><Icons.Layers/></div>
+                                <div className="w-12 h-12 rounded-2xl bg-white dark:bg-purple-800 shadow-sm flex items-center justify-center text-purple-500 dark:text-purple-200 text-xl border border-purple-50 dark:border-purple-700 shrink-0">
+                                    <Icons.Layers/>
+                                </div>
                             </div>
                         </div>
 
+                        {/* PRODUCTEN LIJST RENDERING */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {displayedItems.length === 0 ? <div className="col-span-full text-center py-16 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700"><Icons.Package className="text-4xl text-slate-300 mb-3 block mx-auto"/><span className="text-slate-500 font-medium">Geen producten gevonden die voldoen aan je criteria.</span></div> :
                                 displayedItems.map(item => {
@@ -1509,31 +1710,47 @@
                                                 <div className="flex justify-between items-start gap-2 mb-1">
                                                     <div className="min-w-0 flex-1">
                                                         <div className="flex flex-wrap gap-1.5 mb-1.5">
-                                                            <span className={`text-[9px] px-2 py-0.5 rounded-md uppercase font-bold tracking-wider ${catColor.bg} ${catColor.text} border border-white/20`}>{item.category}</span>
+                                                            {item.category && <span className={`text-[9px] px-2 py-0.5 rounded-md uppercase font-bold tracking-wider ${catColor.bg} ${catColor.text} border border-white/20`}>{item.category}</span>}
                                                             <span className={`text-[9px] px-2 py-0.5 rounded-md uppercase font-bold tracking-wider ${item.status==='zolder'?'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300':'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300'}`}>{item.status}</span>
                                                         </div>
                                                         <div className="font-bold text-slate-800 dark:text-slate-100 text-base leading-tight break-words pr-2">{item.name}</div>
                                                     </div>
                                                     <div className="text-right flex flex-col items-end shrink-0 pl-2 border-l border-slate-100 dark:border-slate-700">
                                                         <div className="font-black text-emerald-600 dark:text-emerald-400 text-lg leading-none">{formatEuro(item.price)}</div>
-                                                        {item.quantity > 1 && <span className="text-[10px] text-slate-400 font-bold mt-1 bg-slate-50 dark:bg-slate-800 px-1.5 py-0.5 rounded">Tot. {formatEuro((item.price || 0) * item.quantity)}</span>}
+                                                        {item.quantity > 1 && (
+                                                            <span className="text-[10px] text-slate-400 font-bold mt-1 bg-slate-50 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                                                                Tot. {formatEuro((item.price || 0) * item.quantity)}
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 </div>
+                                                
                                                 <div className="mt-auto pt-3 flex items-end justify-between">
                                                     <div className="flex flex-col gap-1.5">
-                                                        <div className={`flex items-center gap-1.5 text-[10px] px-2 py-1 rounded-lg w-fit ${locColor.bg} ${locColor.text} font-bold`}><Icons.Box className="w-3 h-3 opacity-70"/> {item.location || 'Geen locatie'}</div>
-                                                        {item.vinted > 0 && <div className="flex items-center gap-1.5 text-[10px] px-2 py-1 rounded-lg w-fit bg-gradient-to-r from-cyan-100 to-blue-100 text-cyan-800 dark:from-cyan-900/50 dark:to-blue-900/50 dark:text-cyan-200 border border-cyan-200/50 dark:border-cyan-800/50 font-bold shadow-sm"><Icons.Shirt className="w-3 h-3"/> Vinted: {item.vinted}</div>}
+                                                        <div className={`flex items-center gap-1.5 text-[10px] px-2 py-1 rounded-lg w-fit ${item.location ? locColor.bg : 'bg-slate-100 dark:bg-slate-800'} ${item.location ? locColor.text : 'text-slate-400'} font-bold`}>
+                                                            <Icons.Box className="w-3 h-3 opacity-70"/> 
+                                                            {item.location || 'Geen bak gekozen'}
+                                                        </div>
+                                                        {item.vinted > 0 && (
+                                                            <div className="flex items-center gap-1.5 text-[10px] px-2 py-1 rounded-lg w-fit bg-gradient-to-r from-cyan-100 to-blue-100 text-cyan-800 dark:from-cyan-900/50 dark:to-blue-900/50 dark:text-cyan-200 border border-cyan-200/50 dark:border-cyan-800/50 font-bold shadow-sm">
+                                                                <Icons.Shirt className="w-3 h-3"/>
+                                                                Vinted: {item.vinted}
+                                                            </div>
+                                                        )}
                                                     </div>
+                                                    
                                                     <div className="flex flex-col items-end gap-2">
-                                                        <div className="flex items-center border border-slate-200 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-800 shadow-sm overflow-hidden h-8">
-                                                            <button onClick={()=>updateQuantity(item.id,item.quantity,-1)} className="w-8 h-full flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 dark:text-slate-200 transition-colors font-bold text-slate-500">-</button>
+                                                        <div className={`flex items-center border border-slate-200 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-800 shadow-sm overflow-hidden h-8 ${isLocked ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                            <button onClick={()=>updateQuantity(item.id,item.quantity,-1)} className="w-8 h-full flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 dark:text-slate-200 transition-colors font-bold text-slate-500" disabled={isLocked}>-</button>
                                                             <span className="w-8 h-full flex items-center justify-center font-mono font-black text-sm bg-white dark:bg-slate-900 dark:text-white border-x border-slate-200 dark:border-slate-600">{item.quantity}</span>
-                                                            <button onClick={()=>updateQuantity(item.id,item.quantity,1)} className="w-8 h-full flex items-center justify-center hover:bg-emerald-100 text-emerald-600 dark:hover:bg-emerald-900/50 dark:text-emerald-400 transition-colors font-bold">+</button>
+                                                            <button onClick={()=>updateQuantity(item.id,item.quantity,1)} className="w-8 h-full flex items-center justify-center hover:bg-emerald-100 text-emerald-600 dark:hover:bg-emerald-900/50 dark:text-emerald-400 transition-colors font-bold" disabled={isLocked}>+</button>
                                                         </div>
-                                                        <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity absolute top-2 right-2 sm:static sm:opacity-100 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm sm:bg-transparent p-1 sm:p-0 rounded-lg shadow-sm sm:shadow-none">
-                                                            <button onClick={()=>{setNewItem(item);setEditingId(item.id);window.scrollTo({top:0,behavior:'smooth'})}} className="w-7 h-7 rounded-md bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-colors"><Icons.Edit className="text-xs"/></button>
-                                                            <button onClick={()=>deleteItem(item.id)} className="w-7 h-7 rounded-md bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"><Icons.Trash className="text-xs"/></button>
-                                                        </div>
+                                                        {!isLocked && (
+                                                            <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity absolute top-2 right-2 sm:static sm:opacity-100 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm sm:bg-transparent p-1 sm:p-0 rounded-lg shadow-sm sm:shadow-none">
+                                                                <button onClick={()=>{setNewItem(item);setEditingId(item.id);setIsLocked(false);window.scrollTo({top:0,behavior:'smooth'})}} className="w-7 h-7 rounded-md bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-colors"><Icons.Edit className="text-xs"/></button>
+                                                                <button onClick={()=>deleteItem(item.id)} className="w-7 h-7 rounded-md bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"><Icons.Trash className="text-xs"/></button>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -1543,40 +1760,57 @@
                             }
                         </div>
 
+                        {/* PAGINERING CONTROLS */}
                         {totalPages > 1 && (
                             <div className="flex justify-center items-center gap-4 pt-4 border-t border-slate-100 dark:border-slate-700/50">
-                                <button onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} className={`px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${currentPage === 1 ? 'bg-slate-50 text-slate-300 dark:bg-slate-800/50 dark:text-slate-600 cursor-not-allowed' : 'bg-white border border-slate-200 text-emerald-600 shadow-sm hover:bg-emerald-50 dark:bg-slate-800 dark:border-slate-600 dark:text-emerald-400 dark:hover:bg-emerald-900/30'}`}><Icons.ChevronLeft/> Vorige</button>
+                                <button 
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    disabled={currentPage === 1}
+                                    className={`px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${currentPage === 1 ? 'bg-slate-50 text-slate-300 dark:bg-slate-800/50 dark:text-slate-600 cursor-not-allowed' : 'bg-white border border-slate-200 text-emerald-600 shadow-sm hover:bg-emerald-50 dark:bg-slate-800 dark:border-slate-600 dark:text-emerald-400 dark:hover:bg-emerald-900/30'}`}
+                                >
+                                    <Icons.ChevronLeft/> Vorige
+                                </button>
                                 <span className="text-sm font-bold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 px-4 py-2 rounded-xl border border-slate-100 dark:border-slate-700">{currentPage} / {totalPages}</span>
-                                <button onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages} className={`px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${currentPage === totalPages ? 'bg-slate-50 text-slate-300 dark:bg-slate-800/50 dark:text-slate-600 cursor-not-allowed' : 'bg-white border border-slate-200 text-emerald-600 shadow-sm hover:bg-emerald-50 dark:bg-slate-800 dark:border-slate-600 dark:text-emerald-400 dark:hover:bg-emerald-900/30'}`}>Volgende <Icons.ChevronRight/></button>
+                                <button 
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                    disabled={currentPage === totalPages}
+                                    className={`px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${currentPage === totalPages ? 'bg-slate-50 text-slate-300 dark:bg-slate-800/50 dark:text-slate-600 cursor-not-allowed' : 'bg-white border border-slate-200 text-emerald-600 shadow-sm hover:bg-emerald-50 dark:bg-slate-800 dark:border-slate-600 dark:text-emerald-400 dark:hover:bg-emerald-900/30'}`}
+                                >
+                                    Volgende <Icons.ChevronRight/>
+                                </button>
                             </div>
                         )}
                     </div>
-                    
-                    {}
                     {previewImage && <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in" onClick={()=>setPreviewImage(null)}>
                         <img src={previewImage} className="max-w-full max-h-[85vh] rounded-2xl shadow-2xl border border-white/20"/>
                         <button className="absolute top-4 right-4 w-12 h-12 bg-white/20 hover:bg-white/40 rounded-full flex items-center justify-center text-white backdrop-blur-md transition-colors"><Icons.X className="text-2xl"/></button>
                     </div>}
 
+                    {/* CSV IMPORT MODAL */}
                     {showImportModal && (
-                        <div className="fixed inset-0 bg-slate-900/50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setShowImportModal(false)}>
-                            <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-lg overflow-hidden animate-in flex flex-col" onClick={e => e.stopPropagation()}>
-                                <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm">
-                                    <h3 className="font-bold text-lg text-blue-600 dark:text-blue-400 flex items-center gap-2"><Icons.Upload/> Slimme CSV Import</h3>
-                                    <button onClick={() => setShowImportModal(false)} className="w-8 h-8 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors text-slate-400"><Icons.X/></button>
+                        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setShowImportModal(false)}>
+                            <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-700 w-full max-w-lg overflow-hidden flex flex-col p-6 animate-in" onClick={e=>e.stopPropagation()}>
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2"><Icons.Upload className="text-blue-500"/> CSV Importeren</h3>
+                                    <button onClick={() => setShowImportModal(false)} className="text-slate-400 hover:text-slate-600"><Icons.X/></button>
                                 </div>
-                                <div className="p-6 space-y-4">
-                                    <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800/50 text-sm text-blue-800 dark:text-blue-200">
-                                        <p className="mb-2"><strong>Stap 1:</strong> Plak hieronder al je directe fotolinks (https://i.ibb.co/...).</p>
-                                        <textarea value={importLinks} onChange={(e) => setImportLinks(e.target.value)} className="w-full h-32 p-3 rounded-lg border border-blue-200 dark:border-blue-700 bg-white dark:bg-slate-800 outline-none focus:ring-2 focus:ring-blue-500/30 text-xs font-mono custom-scroll" placeholder="https://i.ibb.co/...\nhttps://i.ibb.co/..."></textarea>
-                                    </div>
-                                    <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800/50 text-sm text-emerald-800 dark:text-emerald-200">
-                                        <p className="mb-3"><strong>Stap 2:</strong> Selecteer je Tupperware CSV-bestand. Wij koppelen de foto's, werken categorieën/locaties bij en zorgen dat de aantallen perfect kloppen!</p>
-                                        <label className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold rounded-xl shadow-lg cursor-pointer transition-all flex items-center justify-center gap-2">
-                                            <Icons.Upload/> Kies CSV Bestand
-                                            <input type="file" accept=".csv" className="hidden" onChange={handleImportCSV}/>
-                                        </label>
-                                    </div>
+                                
+                                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+                                    Plak hieronder al je directe ImgBB links (bijv. https://i.ibb.co/...). Het systeem zal deze automatisch koppelen aan de producten in je CSV-bestand!
+                                </p>
+                                
+                                <textarea 
+                                    value={importLinks} 
+                                    onChange={e => setImportLinks(e.target.value)} 
+                                    className="w-full h-40 p-3 mb-6 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-white rounded-xl text-xs font-mono outline-none focus:ring-2 focus:ring-blue-500/30 custom-scroll" 
+                                    placeholder="https://i.ibb.co/...\nhttps://i.ibb.co/..."
+                                ></textarea>
+                                
+                                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50 rounded-xl p-4 flex flex-col items-center justify-center gap-3">
+                                    <label className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-bold px-6 py-3 rounded-xl shadow-md cursor-pointer transition-all hover:-translate-y-0.5 flex items-center gap-2">
+                                        {importing ? <Icons.Loader className="animate-spin"/> : <Icons.Upload/>} {importing ? 'Bezig met importeren...' : 'Kies CSV Bestand & Start'}
+                                        <input type="file" accept=".csv" className="hidden" onChange={handleImportCSV} disabled={importing}/>
+                                    </label>
                                 </div>
                             </div>
                         </div>
@@ -1607,12 +1841,15 @@
                         await window.db.collection('users').doc(targetUid).collection('requests').add({...input, completed:false, createdAt:Date.now()}); 
                     }
                     setInput({customer:'',product:'',note:'', image: '', email: '', phone: ''}); 
-                } else { window.showAlert("Vul minimaal de klantnaam en het product in."); }
+                } else {
+                    window.showAlert("Vul minimaal de klantnaam en het product in.");
+                }
             };
             
             const handleEdit = (item) => {
                 setInput({ customer: item.customer, product: item.product, note: item.note || '', image: item.image || '', email: item.email || '', phone: item.phone || '' });
-                setEditingId(item.id); window.scrollTo({top:0, behavior:'smooth'});
+                setEditingId(item.id);
+                window.scrollTo({top:0, behavior:'smooth'});
             };
 
             const handleImageUpload = async (e) => {
@@ -1626,7 +1863,11 @@
             };
 
             const toggle = async (item) => window.db.collection('users').doc(targetUid).collection('requests').doc(item.id).update({completed:!item.completed});
-            const del = (id) => { window.showConfirm("Wens verwijderen?", async () => { window.db.collection('users').doc(targetUid).collection('requests').doc(id).delete(); }); };
+            const del = (id) => { 
+                window.showConfirm("Wens verwijderen?", async () => {
+                    window.db.collection('users').doc(targetUid).collection('requests').doc(id).delete(); 
+                });
+            };
 
             const activeRequests = list.filter(item => !item.completed);
             const completedRequests = list.filter(item => item.completed);
@@ -1657,10 +1898,13 @@
                             <input value={input.image} onChange={e=>setInput({...input, image:e.target.value})} placeholder="Of plak een link naar een afbeelding..." className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 dark:text-slate-300 p-3 rounded-xl text-sm w-full outline-none focus:ring-2 focus:ring-emerald-500/30 shadow-sm transition-all"/>
                             <input value={input.note} onChange={e=>setInput({...input, note:e.target.value})} placeholder="Notitie of specifieke wensen (optioneel)" className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 dark:text-white p-3 rounded-xl text-sm w-full outline-none focus:ring-2 focus:ring-emerald-500/30 shadow-sm transition-all"/>
                         </div>
-                        <button onClick={handleSave} className={`w-full mt-6 py-3.5 text-white font-extrabold rounded-2xl shadow-lg transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 ${editingId ? 'bg-gradient-to-r from-amber-500 to-amber-600 shadow-amber-500/30' : 'bg-gradient-to-r from-emerald-500 to-teal-500 shadow-emerald-500/30'}`}>{editingId ? 'Wijziging Opslaan' : 'Wens Toevoegen'}</button>
+                        <button onClick={handleSave} className={`w-full mt-6 py-3.5 text-white font-extrabold rounded-2xl shadow-lg transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 ${editingId ? 'bg-gradient-to-r from-amber-500 to-amber-600 shadow-amber-500/30' : 'bg-gradient-to-r from-emerald-500 to-teal-500 shadow-emerald-500/30'}`}>
+                            {editingId ? 'Wijziging Opslaan' : 'Wens Toevoegen'}
+                        </button>
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* NOG TE ZOEKEN LIJST */}
                         <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-6 rounded-3xl border border-white/40 dark:border-slate-700 shadow-glass dark:shadow-glass-dark">
                             <h4 className="font-black text-slate-700 dark:text-slate-200 mb-5 flex items-center gap-2 text-lg uppercase tracking-wide border-b border-slate-100 dark:border-slate-800 pb-3"><Icons.Search className="text-emerald-500"/> Nog te zoeken <span className="bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 text-xs px-2 py-1 rounded-lg ml-2">{activeRequests.length}</span></h4>
                             <div className="space-y-3">
@@ -1693,6 +1937,7 @@
                             </div>
                         </div>
 
+                        {/* GEVONDEN LIJST */}
                         <div className="bg-emerald-50/50 dark:bg-emerald-950/20 backdrop-blur-md p-6 rounded-3xl border border-emerald-100/50 dark:border-emerald-900/30 shadow-glass dark:shadow-glass-dark h-fit">
                             <h4 className="font-black text-emerald-700 dark:text-emerald-400 mb-5 flex items-center gap-2 text-lg uppercase tracking-wide border-b border-emerald-200/50 dark:border-emerald-800/50 pb-3"><Icons.CheckCircle className="text-emerald-500"/> Reeds gevonden <span className="bg-emerald-200 dark:bg-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs px-2 py-1 rounded-lg ml-2">{completedRequests.length}</span></h4>
                             <div className="space-y-3">
@@ -1731,7 +1976,11 @@
             
             const addLevel = () => updatePsLevels([...(psLevels||[]), { id: Date.now(), amount: '', name: '', label: '', image: '' }]);
             const updateLevel = (id, field, value) => updatePsLevels(psLevels.map(l => l.id === id ? { ...l, [field]: value } : l));
-            const deleteLevel = (id) => { window.showConfirm("Weet je zeker dat je dit niveau wilt verwijderen?", () => { updatePsLevels(psLevels.filter(l => l.id !== id)); }); };
+            const deleteLevel = (id) => { 
+                window.showConfirm("Weet je zeker dat je dit niveau wilt verwijderen?", () => {
+                    updatePsLevels(psLevels.filter(l => l.id !== id)); 
+                });
+            };
             
             const handleImageUpload = async (e, levelId) => {
                 const file = e.target.files[0];
