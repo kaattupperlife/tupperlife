@@ -1022,7 +1022,7 @@
             return (
                 <div className="space-y-6">
                      <div className={`p-6 rounded-3xl shadow-glass dark:shadow-glass-dark border transition-all duration-300 ${editingId ? 'bg-amber-50/80 dark:bg-amber-900/20 backdrop-blur-md border-amber-200 dark:border-amber-700' : 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-white/40 dark:border-slate-700'}`}>
-                        <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-slate-700 dark:text-slate-200"><Icons.BookOpen className="text-orange-500"/> {editingId ? 'Recept Wijzigen' : 'Nieuw Recept'}</h3>
+                        <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-slate-700 dark:text-slate-200"><Icons.BookOpen className="text-orange-500"/> {editingId ? 'Recept Wijzigen' : 'Nieuwe Recept'}</h3>
                         <div className="grid grid-cols-1 gap-4">
                             <div className="flex flex-col sm:flex-row gap-4">
                                  <label className="w-32 h-32 border border-dashed border-slate-300 dark:border-slate-600 rounded-2xl bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-center cursor-pointer hover:bg-orange-50 dark:hover:bg-slate-700 shrink-0 relative overflow-hidden transition-colors">
@@ -1244,13 +1244,14 @@
                             let statusVal = getVal(['status', 'staat', 'conditie']) || 'zolder';
                             let status = String(statusVal).toLowerCase().includes('gebruik') ? 'gebruik' : 'zolder';
 
-                            if (!newCats.find(c => c.name.toLowerCase() === String(category).toLowerCase().trim())) {
-                                newCats.push({ name: String(category).trim(), color: CATEGORY_COLORS[16] });
-                                catsChanged = true;
-                            }
-                            if (!newLocs.find(l => l.name.toLowerCase() === String(location).toLowerCase().trim())) {
-                                newLocs.push({ name: String(location).trim(), color: CATEGORY_COLORS[16] });
-                                locsChanged = true;
+                            let imageVal = getVal(['afbeelding', 'foto', 'image', 'plaatje', 'url', 'afbeeldingen', "foto's", 'fotos', 'cover', 'bestanden', 'files']) || '';
+                            let imageStr = String(imageVal).trim();
+                            if (imageStr && imageStr !== 'null' && imageStr !== 'undefined') {
+                                if (imageStr.includes(',')) {
+                                    imageStr = imageStr.split(',')[0].trim();
+                                }
+                            } else {
+                                imageStr = '';
                             }
 
                             const newItemData = {
@@ -1261,7 +1262,7 @@
                                 quantity: quantity,
                                 vinted: vinted,
                                 status: status,
-                                image: '',
+                                image: imageStr,
                                 createdAt: Date.now(),
                                 updatedAt: Date.now()
                             };
