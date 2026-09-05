@@ -50,6 +50,9 @@
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone@7.23.6/babel.min.js"></script>
     
+    <!-- PapaParse for CSV import -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -179,7 +182,6 @@
             const firstDayOfMonth = new Date(y, range.start, 1);
             const lastDayOfMonth = new Date(y, range.end + 1, 0);
 
-            // Start with the Monday of the week that contains the first day of the month
             let currentWeekStart = new Date(firstDayOfMonth);
             const firstDayDayOfWeek = currentWeekStart.getDay();
             if (firstDayDayOfWeek !== 1) {
@@ -193,7 +195,6 @@
 
                 const weekNum = getWeekNumber(currentWeekStart);
 
-                // Determine the visible portion of the week for *this* specific month
                 let visibleStart = new Date(Math.max(currentWeekStart, firstDayOfMonth));
                 let visibleEnd = new Date(Math.min(currentWeekEnd, lastDayOfMonth));
 
@@ -201,21 +202,20 @@
                 
                 let labelDateRange;
                 if (visibleStart.getTime() === visibleEnd.getTime()) {
-                    labelDateRange = formatShortDate(visibleStart); // Just one day
+                    labelDateRange = formatShortDate(visibleStart); 
                 } else {
                     labelDateRange = `${formatShortDate(visibleStart)} - ${formatShortDate(visibleEnd)}`;
                 }
 
                 weeks.push({
-                    start: new Date(visibleStart), // Use visible start/end for the object logic
+                    start: new Date(visibleStart), 
                     end: new Date(visibleEnd),
-                    actualWeekStart: new Date(currentWeekStart), // Keep track of the real week boundaries
+                    actualWeekStart: new Date(currentWeekStart), 
                     actualWeekEnd: new Date(currentWeekEnd),
                     weekNumber: weekNum,
                     label: `W${weekNum} (${labelDateRange})`
                 });
 
-                // Move to next week
                 currentWeekStart = new Date(currentWeekEnd);
                 currentWeekStart.setDate(currentWeekStart.getDate() + 1);
             }
@@ -1120,6 +1120,7 @@
             const [loading, setLoading] = useState(true);
             const [editingId, setEditingId] = useState(null); 
             const [keepSettings, setKeepSettings] = useState(false); 
+            const [importing, setImporting] = useState(false);
             
             const [showCatManager, setShowCatManager] = useState(false);
             const [showLocManager, setShowLocManager] = useState(false);
@@ -1179,6 +1180,101 @@
                         }
                     }
                 } catch(err) { window.showAlert("Fout: " + err.message); }
+            };
+
+            const handleImportCSV = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                setImporting(true);
+
+                Papa.parse(file, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: async (results) => {
+                        const data = results.data;
+                        let addedCount = 0;
+                        let skippedCount = 0;
+
+                        let newCats = [...categories];
+                        let newLocs = [...locations];
+                        let catsChanged = false;
+                        let locsChanged = false;
+
+                        const addPromises = [];
+
+                        for (const row of data) {
+                            const getVal = (possibleKeys) => {
+                                const key = Object.keys(row).find(k => possibleKeys.includes(k.toLowerCase().trim()));
+                                return key ? row[key] : null;
+                            };
+
+                            const itemName = getVal(['naam', 'name', 'titel', 'title', 'product']);
+                            if (!itemName) continue;
+
+                            // Skip if already exists (case insensitive match)
+                            if (items.some(item => item.name.toLowerCase() === itemName.toLowerCase())) {
+                                skippedCount++;
+                                continue;
+                            }
+
+                            const rawPrice = getVal(['prijs', 'price', 'verkoopprijs']);
+                            const price = rawPrice ? parseFloat(String(rawPrice).replace('€', '').replace(',', '.').trim()) || 0 : 0;
+                            
+                            const quantity = parseInt(getVal(['aantal', 'quantity', 'aantal in stock', 'stock', 'hoeveelheid'])) || 1;
+                            const vinted = parseInt(getVal(['stockverkoop', 'vinted', 'op vinted', 'vinted stock'])) || 0;
+                            
+                            let category = getVal(['categorie', 'category', 'soort']) || 'Algemeen';
+                            let location = getVal(['locatie', 'location', 'bak', 'doos']) || 'Algemeen';
+                            
+                            let statusVal = getVal(['status', 'staat']) || 'zolder';
+                            let status = statusVal.toLowerCase().includes('gebruik') ? 'gebruik' : 'zolder';
+
+                            if (!newCats.find(c => c.name.toLowerCase() === category.toLowerCase())) {
+                                newCats.push({ name: category, color: CATEGORY_COLORS[16] });
+                                catsChanged = true;
+                            }
+                            if (!newLocs.find(l => l.name.toLowerCase() === location.toLowerCase())) {
+                                newLocs.push({ name: location, color: CATEGORY_COLORS[16] });
+                                locsChanged = true;
+                            }
+
+                            const newItemData = {
+                                name: itemName,
+                                category: category,
+                                location: location,
+                                price: price,
+                                quantity: quantity,
+                                vinted: vinted,
+                                status: status,
+                                image: '',
+                                createdAt: Date.now(),
+                                updatedAt: Date.now()
+                            };
+
+                            addPromises.push(window.db.collection('users').doc(targetUid).collection('stock').add(newItemData));
+                            addedCount++;
+                        }
+
+                        try {
+                            await Promise.all(addPromises);
+                            
+                            if (catsChanged) await window.db.collection('users').doc(targetUid).collection('settings').doc('categories').set({ list: newCats }, { merge: true });
+                            if (locsChanged) await window.db.collection('users').doc(targetUid).collection('settings').doc('locations').set({ list: newLocs }, { merge: true });
+
+                            window.showAlert(`Import succesvol! \n${addedCount} producten toegevoegd.\n${skippedCount} producten overgeslagen (bestaan al).`);
+                        } catch (err) {
+                            console.error("Fout bij toevoegen producten:", err);
+                            window.showAlert("Er ging iets mis tijdens het toevoegen. Check console.");
+                        } finally {
+                            setImporting(false);
+                            e.target.value = null; 
+                        }
+                    },
+                    error: (error) => {
+                        setImporting(false);
+                        window.showAlert("Fout bij het inlezen van de CSV: " + error.message);
+                    }
+                });
             };
 
             const deleteItem = (id) => { 
@@ -1274,16 +1370,20 @@
                 <div className="space-y-6">
                     {/* INPUT CARD */}
                     <div className={`p-6 rounded-3xl shadow-glass dark:shadow-glass-dark border transition-all duration-300 ${editingId ? 'bg-amber-50/80 dark:bg-amber-900/20 backdrop-blur-md border-amber-200 dark:border-amber-700' : 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-white/40 dark:border-slate-700'}`}>
-                        <div className="flex justify-between items-center mb-6">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                             <h3 className={`font-bold text-xl flex items-center gap-3 ${editingId ? 'text-amber-800 dark:text-amber-400' : 'text-emerald-800 dark:text-emerald-400'}`}>
                                 <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-white ${editingId ? 'bg-gradient-to-br from-amber-400 to-amber-600' : 'bg-gradient-to-br from-emerald-400 to-emerald-600'}`}>
                                     {editingId ? <Icons.Edit className="text-lg"/> : <Icons.Package className="text-lg"/>} 
                                 </div>
                                 {editingId ? 'Product Wijzigen' : 'Nieuw Product'}
                             </h3>
-                            <div className="flex gap-3 text-xs font-bold">
-                                <button onClick={()=>openManager('category')} className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-slate-700 hover:text-emerald-600 transition-colors flex items-center gap-1.5"><Icons.Settings className="text-emerald-500"/> Categorieën</button>
-                                <button onClick={()=>openManager('location')} className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-slate-700 hover:text-emerald-600 transition-colors flex items-center gap-1.5"><Icons.Settings className="text-emerald-500"/> Locaties</button>
+                            <div className="flex gap-2 sm:gap-3 text-xs font-bold w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 custom-scroll">
+                                <label className={`px-3 py-1.5 rounded-lg text-white font-bold transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer shrink-0 ${importing ? 'bg-slate-400' : 'bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600'}`}>
+                                    {importing ? <Icons.Loader/> : <Icons.Upload/>} {importing ? 'Bezig met importeren...' : 'CSV Import'}
+                                    <input type="file" accept=".csv" className="hidden" onChange={handleImportCSV} disabled={importing}/>
+                                </label>
+                                <button onClick={()=>openManager('category')} className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-slate-700 hover:text-emerald-600 transition-colors flex items-center gap-1.5 shrink-0"><Icons.Settings className="text-emerald-500"/> Categorieën</button>
+                                <button onClick={()=>openManager('location')} className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-slate-700 hover:text-emerald-600 transition-colors flex items-center gap-1.5 shrink-0"><Icons.Settings className="text-emerald-500"/> Locaties</button>
                             </div>
                         </div>
 
