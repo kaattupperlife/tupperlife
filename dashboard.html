@@ -138,7 +138,7 @@
                         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in">
                             <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md p-6 rounded-3xl shadow-glass dark:shadow-glass-dark max-w-sm w-full border border-white/50 dark:border-slate-700/50">
                                 <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2 flex items-center gap-2"><Icons.CheckCircle className="text-emerald-500"/> Melding</h3>
-                                <p className="text-slate-600 dark:text-slate-300 mb-6">{alertData}</p>
+                                <p className="text-slate-600 dark:text-slate-300 mb-6 whitespace-pre-wrap">{alertData}</p>
                                 <button onClick={() => setAlertData(null)} className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl font-bold transition-all shadow-lg shadow-emerald-500/20">OK, begrepen</button>
                             </div>
                         </div>
@@ -1022,7 +1022,7 @@
             return (
                 <div className="space-y-6">
                      <div className={`p-6 rounded-3xl shadow-glass dark:shadow-glass-dark border transition-all duration-300 ${editingId ? 'bg-amber-50/80 dark:bg-amber-900/20 backdrop-blur-md border-amber-200 dark:border-amber-700' : 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-white/40 dark:border-slate-700'}`}>
-                        <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-slate-700 dark:text-slate-200"><Icons.BookOpen className="text-orange-500"/> {editingId ? 'Recept Wijzigen' : 'Nieuw Recept'}</h3>
+                        <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-slate-700 dark:text-slate-200"><Icons.BookOpen className="text-orange-500"/> {editingId ? 'Recept Wijzigen' : 'Nieuwe Recept'}</h3>
                         <div className="grid grid-cols-1 gap-4">
                             <div className="flex flex-col sm:flex-row gap-4">
                                  <label className="w-32 h-32 border border-dashed border-slate-300 dark:border-slate-600 rounded-2xl bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-center cursor-pointer hover:bg-orange-50 dark:hover:bg-slate-700 shrink-0 relative overflow-hidden transition-colors">
@@ -1190,8 +1190,16 @@
                 Papa.parse(file, {
                     header: true,
                     skipEmptyLines: true,
+                    transformHeader: function(h) {
+                        return h.trim();
+                    },
                     complete: async (results) => {
                         const data = results.data;
+                        if (!data || data.length === 0) {
+                            setImporting(false);
+                            return window.showAlert("Het CSV-bestand lijkt leeg te zijn of kon niet worden gelezen.");
+                        }
+
                         let addedCount = 0;
                         let skippedCount = 0;
 
@@ -1208,40 +1216,47 @@
                                 return key ? row[key] : null;
                             };
 
-                            const itemName = getVal(['naam', 'name', 'titel', 'title', 'product']);
-                            if (!itemName) continue;
+                            let itemName = getVal(['naam', 'name', 'titel', 'title', 'product', 'artikel', 'item']);
+                            
+                            // Als we nog geen naam hebben gevonden via bekende kolommen, pakt hij de ALLEREERSTE kolom
+                            if (!itemName) {
+                                const firstKey = Object.keys(row)[0];
+                                itemName = row[firstKey];
+                            }
 
-                            // Skip if already exists (case insensitive match)
-                            if (items.some(item => item.name.toLowerCase() === itemName.toLowerCase())) {
+                            if (!itemName || String(itemName).trim() === '') continue;
+
+                            // Skip if already exists
+                            if (items.some(item => item.name.toLowerCase() === String(itemName).toLowerCase().trim())) {
                                 skippedCount++;
                                 continue;
                             }
 
-                            const rawPrice = getVal(['prijs', 'price', 'verkoopprijs']);
+                            const rawPrice = getVal(['prijs', 'price', 'verkoopprijs', 'waarde']);
                             const price = rawPrice ? parseFloat(String(rawPrice).replace('€', '').replace(',', '.').trim()) || 0 : 0;
                             
                             const quantity = parseInt(getVal(['aantal', 'quantity', 'aantal in stock', 'stock', 'hoeveelheid'])) || 1;
-                            const vinted = parseInt(getVal(['stockverkoop', 'vinted', 'op vinted', 'vinted stock'])) || 0;
+                            const vinted = parseInt(getVal(['stockverkoop', 'vinted', 'op vinted', 'vinted stock', 'aantal vinted'])) || 0;
                             
-                            let category = getVal(['categorie', 'category', 'soort']) || 'Algemeen';
-                            let location = getVal(['locatie', 'location', 'bak', 'doos']) || 'Algemeen';
+                            let category = getVal(['categorie', 'category', 'soort', 'tags']) || 'Algemeen';
+                            let location = getVal(['locatie', 'location', 'bak', 'doos', 'plaats']) || 'Algemeen';
                             
-                            let statusVal = getVal(['status', 'staat']) || 'zolder';
-                            let status = statusVal.toLowerCase().includes('gebruik') ? 'gebruik' : 'zolder';
+                            let statusVal = getVal(['status', 'staat', 'conditie']) || 'zolder';
+                            let status = String(statusVal).toLowerCase().includes('gebruik') ? 'gebruik' : 'zolder';
 
-                            if (!newCats.find(c => c.name.toLowerCase() === category.toLowerCase())) {
-                                newCats.push({ name: category, color: CATEGORY_COLORS[16] });
+                            if (!newCats.find(c => c.name.toLowerCase() === String(category).toLowerCase().trim())) {
+                                newCats.push({ name: String(category).trim(), color: CATEGORY_COLORS[16] });
                                 catsChanged = true;
                             }
-                            if (!newLocs.find(l => l.name.toLowerCase() === location.toLowerCase())) {
-                                newLocs.push({ name: location, color: CATEGORY_COLORS[16] });
+                            if (!newLocs.find(l => l.name.toLowerCase() === String(location).toLowerCase().trim())) {
+                                newLocs.push({ name: String(location).trim(), color: CATEGORY_COLORS[16] });
                                 locsChanged = true;
                             }
 
                             const newItemData = {
-                                name: itemName,
-                                category: category,
-                                location: location,
+                                name: String(itemName).trim(),
+                                category: String(category).trim(),
+                                location: String(location).trim(),
                                 price: price,
                                 quantity: quantity,
                                 vinted: vinted,
