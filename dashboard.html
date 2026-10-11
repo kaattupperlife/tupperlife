@@ -356,12 +356,15 @@
 
 const CatalogsTab = ({ isAdmin }) => {
             const [catalogs, setCatalogs] = useState([]);
+            const [promotions, setPromotions] = useState([]);
             const [selectedItem, setSelectedItem] = useState(null);
             const [isAdding, setIsAdding] = useState(false);
             const [input, setInput] = useState({ title: '', type: 'Catalogus', url: '' });
+            const [uploading, setUploading] = useState(false);
+            const [previewImage, setPreviewImage] = useState(null);
 
             useEffect(() => {
-                const unsub = window.db.collection('settings').doc('global_catalogs').onSnapshot(doc => {
+                const unsubCat = window.db.collection('settings').doc('global_catalogs').onSnapshot(doc => {
                     if (doc.exists && doc.data().list) {
                         const list = doc.data().list || [];
                         setCatalogs(list);
@@ -372,27 +375,36 @@ const CatalogsTab = ({ isAdmin }) => {
                         }
                     }
                 });
-                return () => unsub();
+                
+                // Ophalen van weekpromoties
+                const unsubPromo = window.db.collection('settings').doc('global_promotions').onSnapshot(doc => {
+                    if (doc.exists && doc.data().list) {
+                        setPromotions(doc.data().list || []);
+                    }
+                });
+
+                return () => { unsubCat(); unsubPromo(); };
             }, []);
 
-            const handleSave = async () => {
+            // --- CATALOG LOGIC ---
+            const handleSaveCatalog = async () => {
                 if (!input.title || !input.url) return window.showAlert("Vul een titel en een link in.");
                 const newList = [...catalogs, { id: Date.now().toString(), ...input, createdAt: Date.now() }];
                 await window.db.collection('settings').doc('global_catalogs').set({ list: newList }, { merge: true });
                 setIsAdding(false);
                 setInput({ title: '', type: 'Catalogus', url: '' });
-                window.showAlert("Succesvol toegevoegd!");
+                window.showAlert("Catalogus succesvol toegevoegd!");
             };
 
-            const handleDelete = async (id) => {
-                window.showConfirm("Weet je zeker dat je dit wilt verwijderen?", async () => {
+            const handleDeleteCatalog = async (id) => {
+                window.showConfirm("Weet je zeker dat je deze catalogus wilt verwijderen?", async () => {
                     const newList = catalogs.filter(c => c.id !== id);
                     await window.db.collection('settings').doc('global_catalogs').set({ list: newList }, { merge: true });
                     if (selectedItem?.id === id) setSelectedItem(newList.length > 0 ? newList[0] : null);
                 });
             };
 
-            const handleMoveUp = async (index) => {
+            const handleMoveCatalogUp = async (index) => {
                 if (index === 0) return;
                 const newList = [...catalogs];
                 const temp = newList[index - 1];
@@ -401,7 +413,7 @@ const CatalogsTab = ({ isAdmin }) => {
                 await window.db.collection('settings').doc('global_catalogs').set({ list: newList }, { merge: true });
             };
 
-            const handleMoveDown = async (index) => {
+            const handleMoveCatalogDown = async (index) => {
                 if (index === catalogs.length - 1) return;
                 const newList = [...catalogs];
                 const temp = newList[index + 1];
@@ -410,25 +422,67 @@ const CatalogsTab = ({ isAdmin }) => {
                 await window.db.collection('settings').doc('global_catalogs').set({ list: newList }, { merge: true });
             };
 
+            // --- PROMO LOGIC ---
+            const handlePromoUpload = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                setUploading(true);
+                try {
+                    const url = await window.uploadToImgBB(file);
+                    const newList = [...promotions, { id: Date.now().toString(), image: url, createdAt: Date.now() }];
+                    await window.db.collection('settings').doc('global_promotions').set({ list: newList }, { merge: true });
+                    window.showAlert("Promotie succesvol toegevoegd!");
+                } catch (error) {
+                    window.showAlert("Upload fout: " + error.message);
+                } finally {
+                    setUploading(false);
+                    e.target.value = null; // reset input
+                }
+            };
+
+            const handleDeletePromo = (id) => {
+                window.showConfirm("Weet je zeker dat je deze promotie wilt verwijderen?", async () => {
+                    const newList = promotions.filter(p => p.id !== id);
+                    await window.db.collection('settings').doc('global_promotions').set({ list: newList }, { merge: true });
+                });
+            };
+
+            const handleMovePromoUp = async (index) => {
+                if (index === 0) return;
+                const newList = [...promotions];
+                const temp = newList[index - 1];
+                newList[index - 1] = newList[index];
+                newList[index] = temp;
+                await window.db.collection('settings').doc('global_promotions').set({ list: newList }, { merge: true });
+            };
+
+            const handleMovePromoDown = async (index) => {
+                if (index === promotions.length - 1) return;
+                const newList = [...promotions];
+                const temp = newList[index + 1];
+                newList[index + 1] = newList[index];
+                newList[index] = temp;
+                await window.db.collection('settings').doc('global_promotions').set({ list: newList }, { merge: true });
+            };
+
             const types = [...new Set(catalogs.map(c => c.type))];
 
             return (
                 <div className="space-y-6">
+                    {/* ADMIN BEHEER PANEEL */}
                     {isAdmin && (
                         <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-6 rounded-3xl border border-white/40 dark:border-slate-700 shadow-glass dark:shadow-glass-dark">
+                            
+                            {/* --- DEEL 1: CATALOGEN --- */}
                             <div className="flex justify-between items-center mb-4">
-                                <h3 className="font-bold text-lg text-slate-800 dark:text-slate-200 flex items-center gap-2"><Icons.Settings className="text-emerald-500"/> Beheer Catalogen & Leaflets (Admin)</h3>
+                                <h3 className="font-bold text-lg text-slate-800 dark:text-slate-200 flex items-center gap-2"><Icons.Settings className="text-emerald-500"/> Beheer Catalogen (Admin)</h3>
                                 <button onClick={() => setIsAdding(!isAdding)} className="px-4 py-2 rounded-xl text-white font-bold transition-colors shadow-md bg-gradient-to-r from-emerald-500 to-teal-500 hover:-translate-y-0.5">
                                     {isAdding ? 'Annuleren' : '+ Toevoegen'}
                                 </button>
                             </div>
 
                             {isAdding && (
-                                <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 animate-in space-y-4">
-                                    <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-200 dark:border-blue-800/50 text-sm text-blue-800 dark:text-blue-300">
-                                        <p className="font-bold mb-1"><Icons.BookOpen/> Hoe voeg ik een bladerboekje toe?</p>
-                                        <p>Omdat de app geen grote PDF bestanden bewaart, kun je jouw PDF gratis omzetten in een bladerboekje via <a href="https://heyzine.com/" target="_blank" className="underline font-bold">Heyzine.com</a> of <a href="https://issuu.com/" target="_blank" className="underline font-bold">Issuu</a>. Kopieer vervolgens de "Embed Link" of deel-link en plak deze hieronder.</p>
-                                    </div>
+                                <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 animate-in space-y-4 mb-6">
                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                         <div>
                                             <label className="text-[11px] font-bold text-slate-500 uppercase block mb-1">Type</label>
@@ -447,13 +501,12 @@ const CatalogsTab = ({ isAdmin }) => {
                                             <input value={input.url} onChange={e=>setInput({...input, url:e.target.value})} placeholder="https://heyzine.com/flip-book/..." className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/30"/>
                                         </div>
                                     </div>
-                                    <button onClick={handleSave} className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-md transition-all">Opslaan</button>
+                                    <button onClick={handleSaveCatalog} className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-md transition-all">Opslaan</button>
                                 </div>
                             )}
 
-                            {isAdmin && catalogs.length > 0 && (
-                                <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
-                                    <p className="text-xs font-bold text-slate-500 mb-2 uppercase">Aanwezige Boekjes (Beheer):</p>
+                            {catalogs.length > 0 && (
+                                <div className="mt-4 mb-8">
                                     <div className="flex flex-col gap-2">
                                         {catalogs.map((c, index) => (
                                             <div key={c.id} className="flex justify-between items-center bg-slate-50 dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700">
@@ -462,50 +515,118 @@ const CatalogsTab = ({ isAdmin }) => {
                                                     <span className="text-sm font-medium dark:text-white">{c.title}</span>
                                                 </div>
                                                 <div className="flex items-center gap-1">
-                                                    <button onClick={() => handleMoveUp(index)} disabled={index === 0} className={`w-8 h-8 rounded-lg flex justify-center items-center shadow-sm ${index === 0 ? 'bg-slate-100 dark:bg-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'bg-white dark:bg-slate-700 text-slate-400 hover:text-emerald-500'}`}><Icons.ChevronUp className="text-xs"/></button>
-                                                    <button onClick={() => handleMoveDown(index)} disabled={index === catalogs.length - 1} className={`w-8 h-8 rounded-lg flex justify-center items-center shadow-sm ${index === catalogs.length - 1 ? 'bg-slate-100 dark:bg-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'bg-white dark:bg-slate-700 text-slate-400 hover:text-emerald-500'}`}><Icons.ChevronDown className="text-xs"/></button>
-                                                    <button onClick={()=>handleDelete(c.id)} className="w-8 h-8 ml-2 rounded-lg bg-white dark:bg-slate-700 text-slate-400 hover:text-red-500 flex justify-center items-center shadow-sm"><Icons.Trash className="text-xs"/></button>
+                                                    <button onClick={() => handleMoveCatalogUp(index)} disabled={index === 0} className={`w-8 h-8 rounded-lg flex justify-center items-center shadow-sm ${index === 0 ? 'bg-slate-100 dark:bg-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'bg-white dark:bg-slate-700 text-slate-400 hover:text-emerald-500'}`}><Icons.ChevronUp className="text-xs"/></button>
+                                                    <button onClick={() => handleMoveCatalogDown(index)} disabled={index === catalogs.length - 1} className={`w-8 h-8 rounded-lg flex justify-center items-center shadow-sm ${index === catalogs.length - 1 ? 'bg-slate-100 dark:bg-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'bg-white dark:bg-slate-700 text-slate-400 hover:text-emerald-500'}`}><Icons.ChevronDown className="text-xs"/></button>
+                                                    <button onClick={()=>handleDeleteCatalog(c.id)} className="w-8 h-8 ml-2 rounded-lg bg-white dark:bg-slate-700 text-slate-400 hover:text-red-500 flex justify-center items-center shadow-sm"><Icons.Trash className="text-xs"/></button>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
                             )}
+
+                            <hr className="border-slate-200 dark:border-slate-700 mb-6" />
+
+                            {/* --- DEEL 2: WEEKPROMOTIES --- */}
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="font-bold text-lg text-slate-800 dark:text-slate-200 flex items-center gap-2"><Icons.Image className="text-orange-500"/> Beheer Weekpromoties</h3>
+                                <label className="px-4 py-2 rounded-xl text-white font-bold transition-colors shadow-md bg-gradient-to-r from-orange-500 to-rose-500 hover:-translate-y-0.5 cursor-pointer flex items-center gap-2">
+                                    <input type="file" className="hidden" accept="image/*" onChange={handlePromoUpload} disabled={uploading}/>
+                                    {uploading ? <><Icons.Loader className="animate-spin"/> Uploaden...</> : '+ Foto Uploaden'}
+                                </label>
+                            </div>
+
+                            {promotions.length > 0 && (
+                                <div className="mt-4">
+                                    <div className="flex flex-col gap-2">
+                                        {promotions.map((p, index) => (
+                                            <div key={p.id} className="flex justify-between items-center bg-slate-50 dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                                                <div className="flex items-center gap-3">
+                                                    <img src={p.image} className="w-12 h-12 rounded-lg object-cover border border-slate-200 dark:border-slate-600 cursor-pointer" onClick={() => setPreviewImage(p.image)}/>
+                                                    <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Promotie {index + 1}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    <button onClick={() => handleMovePromoUp(index)} disabled={index === 0} className={`w-8 h-8 rounded-lg flex justify-center items-center shadow-sm ${index === 0 ? 'bg-slate-100 dark:bg-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'bg-white dark:bg-slate-700 text-slate-400 hover:text-orange-500'}`}><Icons.ChevronUp className="text-xs"/></button>
+                                                    <button onClick={() => handleMovePromoDown(index)} disabled={index === promotions.length - 1} className={`w-8 h-8 rounded-lg flex justify-center items-center shadow-sm ${index === promotions.length - 1 ? 'bg-slate-100 dark:bg-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'bg-white dark:bg-slate-700 text-slate-400 hover:text-orange-500'}`}><Icons.ChevronDown className="text-xs"/></button>
+                                                    <button onClick={()=>handleDeletePromo(p.id)} className="w-8 h-8 ml-2 rounded-lg bg-white dark:bg-slate-700 text-slate-400 hover:text-red-500 flex justify-center items-center shadow-sm"><Icons.Trash className="text-xs"/></button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
                         </div>
                     )}
 
-                    <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-4 sm:p-6 rounded-3xl border border-white/40 dark:border-slate-700 shadow-glass dark:shadow-glass-dark flex flex-col gap-6">
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                            <h3 className="font-black text-xl text-emerald-800 dark:text-emerald-400 flex items-center gap-2"><Icons.BookReader/> Bladeren</h3>
-                            {catalogs.length > 0 && (
-                                <select 
-                                    className="w-full sm:w-auto p-3 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-900 dark:text-emerald-200 font-bold outline-none focus:ring-2 focus:ring-emerald-500/50 cursor-pointer shadow-sm"
-                                    value={selectedItem?.id || ''}
-                                    onChange={(e) => setSelectedItem(catalogs.find(c => c.id === e.target.value))}
-                                >
-                                    {types.map(t => (
-                                        <optgroup key={t} label={t}>
-                                            {catalogs.filter(c => c.type === t).map(c => (
-                                                <option key={c.id} value={c.id}>{c.title}</option>
-                                            ))}
-                                        </optgroup>
+                    {/* GEBRUIKER WEERGAVE (2 KOLOMMEN OP GROTE SCHERMEN) */}
+                    <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                        
+                        {/* KOLOM 1: CATALOGEN (Neemt 2/3e in op desktop) */}
+                        <div className="xl:col-span-2 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-4 sm:p-6 rounded-3xl border border-white/40 dark:border-slate-700 shadow-glass dark:shadow-glass-dark flex flex-col gap-6">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                <h3 className="font-black text-xl text-emerald-800 dark:text-emerald-400 flex items-center gap-2"><Icons.BookReader/> Bladeren</h3>
+                                {catalogs.length > 0 && (
+                                    <select 
+                                        className="w-full sm:w-auto p-3 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-900 dark:text-emerald-200 font-bold outline-none focus:ring-2 focus:ring-emerald-500/50 cursor-pointer shadow-sm"
+                                        value={selectedItem?.id || ''}
+                                        onChange={(e) => setSelectedItem(catalogs.find(c => c.id === e.target.value))}
+                                    >
+                                        {types.map(t => (
+                                            <optgroup key={t} label={t}>
+                                                {catalogs.filter(c => c.type === t).map(c => (
+                                                    <option key={c.id} value={c.id}>{c.title}</option>
+                                                ))}
+                                            </optgroup>
+                                        ))}
+                                    </select>
+                                )}
+                            </div>
+
+                            {catalogs.length === 0 ? (
+                                <div className="text-center py-20 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700">
+                                    <Icons.BookOpen className="text-4xl text-slate-300 mb-4 block mx-auto"/>
+                                    <h4 className="text-lg font-bold text-slate-600 dark:text-slate-300">Nog geen boekjes beschikbaar</h4>
+                                </div>
+                            ) : selectedItem ? (
+                                <div className="catalog-iframe-container bg-slate-100 dark:bg-slate-950 shadow-inner">
+                                    <iframe src={selectedItem.url} allowFullScreen loading="lazy" title={selectedItem.title}></iframe>
+                                </div>
+                            ) : null}
+                        </div>
+
+                        {/* KOLOM 2: WEEKPROMOTIES (Neemt 1/3e in op desktop) */}
+                        <div className="xl:col-span-1 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-4 sm:p-6 rounded-3xl border border-white/40 dark:border-slate-700 shadow-glass dark:shadow-glass-dark flex flex-col gap-6">
+                            <h3 className="font-black text-xl text-orange-600 dark:text-orange-400 flex items-center gap-2"><Icons.Image/> Weekpromoties</h3>
+                            
+                            {promotions.length === 0 ? (
+                                <div className="text-center py-20 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 h-full flex flex-col justify-center">
+                                    <Icons.Image className="text-4xl text-slate-300 mb-4 block mx-auto"/>
+                                    <h4 className="text-lg font-bold text-slate-600 dark:text-slate-300">Geen promoties</h4>
+                                </div>
+                            ) : (
+                                <div className="space-y-4 max-h-[100vh] xl:max-h-[80vh] overflow-y-auto custom-scroll pr-1">
+                                    {promotions.map(p => (
+                                        <div key={p.id} className="relative group cursor-pointer" onClick={() => setPreviewImage(p.image)}>
+                                            <img src={p.image} className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm transition-transform duration-300 group-hover:scale-[1.02] group-hover:shadow-lg" loading="lazy" />
+                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors rounded-2xl flex items-center justify-center">
+                                                <Icons.Search className="text-white opacity-0 group-hover:opacity-100 text-3xl drop-shadow-md transition-opacity duration-300"/>
+                                            </div>
+                                        </div>
                                     ))}
-                                </select>
+                                </div>
                             )}
                         </div>
 
-                        {catalogs.length === 0 ? (
-                            <div className="text-center py-20 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700">
-                                <Icons.BookOpen className="text-4xl text-slate-300 mb-4 block mx-auto"/>
-                                <h4 className="text-lg font-bold text-slate-600 dark:text-slate-300">Nog geen boekjes beschikbaar</h4>
-                                <p className="text-sm text-slate-500">De beheerder heeft nog geen catalogen of leaflets toegevoegd.</p>
-                            </div>
-                        ) : selectedItem ? (
-                            <div className="catalog-iframe-container bg-slate-100 dark:bg-slate-950 shadow-inner">
-                                <iframe src={selectedItem.url} allowFullScreen loading="lazy" title={selectedItem.title}></iframe>
-                            </div>
-                        ) : null}
                     </div>
+
+                    {/* MODAL VOOR VERGROOTTE AFBEELDING */}
+                    {previewImage && (
+                        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in" onClick={() => setPreviewImage(null)}>
+                            <img src={previewImage} className="max-w-full max-h-[95vh] rounded-2xl shadow-2xl border border-white/20"/>
+                            <button className="absolute top-4 right-4 sm:top-8 sm:right-8 w-12 h-12 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white backdrop-blur-md transition-colors"><Icons.X className="text-2xl"/></button>
+                        </div>
+                    )}
                 </div>
             );
         };
