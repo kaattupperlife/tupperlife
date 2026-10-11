@@ -362,6 +362,10 @@ const CatalogsTab = ({ isAdmin }) => {
             const [input, setInput] = useState({ title: '', type: 'Catalogus', url: '' });
             const [uploading, setUploading] = useState(false);
             const [previewImage, setPreviewImage] = useState(null);
+            
+            // State voor het wijzigen van promotie titels
+            const [editingPromoId, setEditingPromoId] = useState(null);
+            const [editPromoTitle, setEditPromoTitle] = useState('');
 
             useEffect(() => {
                 const unsubCat = window.db.collection('settings').doc('global_catalogs').onSnapshot(doc => {
@@ -429,15 +433,23 @@ const CatalogsTab = ({ isAdmin }) => {
                 setUploading(true);
                 try {
                     const url = await window.uploadToImgBB(file);
-                    const newList = [...promotions, { id: Date.now().toString(), image: url, createdAt: Date.now() }];
+                    // Geef standaard een naam mee zoals 'Promotie 1', 'Promotie 2'
+                    const newList = [...promotions, { id: Date.now().toString(), image: url, title: `Promotie ${promotions.length + 1}`, createdAt: Date.now() }];
                     await window.db.collection('settings').doc('global_promotions').set({ list: newList }, { merge: true });
                     window.showAlert("Promotie succesvol toegevoegd!");
                 } catch (error) {
                     window.showAlert("Upload fout: " + error.message);
                 } finally {
                     setUploading(false);
-                    e.target.value = null; // reset input
+                    e.target.value = null; 
                 }
+            };
+
+            const handleSavePromoTitle = async (id) => {
+                const newList = promotions.map(p => p.id === id ? { ...p, title: editPromoTitle } : p);
+                await window.db.collection('settings').doc('global_promotions').set({ list: newList }, { merge: true });
+                setEditingPromoId(null);
+                setEditPromoTitle('');
             };
 
             const handleDeletePromo = (id) => {
@@ -541,15 +553,35 @@ const CatalogsTab = ({ isAdmin }) => {
                                     <div className="flex flex-col gap-2">
                                         {promotions.map((p, index) => (
                                             <div key={p.id} className="flex justify-between items-center bg-slate-50 dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700">
-                                                <div className="flex items-center gap-3">
-                                                    <img src={p.image} className="w-12 h-12 rounded-lg object-cover border border-slate-200 dark:border-slate-600 cursor-pointer" onClick={() => setPreviewImage(p.image)}/>
-                                                    <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Promotie {index + 1}</span>
+                                                <div className="flex items-center gap-3 flex-grow mr-4">
+                                                    <img src={p.image} className="w-12 h-12 rounded-lg object-cover border border-slate-200 dark:border-slate-600 cursor-pointer shrink-0" onClick={() => setPreviewImage(p.image)}/>
+                                                    
+                                                    {editingPromoId === p.id ? (
+                                                        <div className="flex items-center gap-2 flex-grow">
+                                                            <input 
+                                                                value={editPromoTitle} 
+                                                                onChange={e => setEditPromoTitle(e.target.value)} 
+                                                                placeholder="Naam van promotie"
+                                                                className="w-full p-2 rounded-lg border border-orange-300 dark:border-orange-700 bg-white dark:bg-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-orange-500/50 text-sm"
+                                                                autoFocus
+                                                            />
+                                                            <button onClick={() => handleSavePromoTitle(p.id)} className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 hover:bg-emerald-200 flex justify-center items-center shadow-sm shrink-0"><Icons.CheckCircle className="text-sm"/></button>
+                                                            <button onClick={() => setEditingPromoId(null)} className="w-8 h-8 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-500 hover:bg-slate-300 dark:hover:bg-slate-600 flex justify-center items-center shadow-sm shrink-0"><Icons.X className="text-sm"/></button>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">{p.title || `Promotie ${index + 1}`}</span>
+                                                    )}
                                                 </div>
-                                                <div className="flex items-center gap-1">
-                                                    <button onClick={() => handleMovePromoUp(index)} disabled={index === 0} className={`w-8 h-8 rounded-lg flex justify-center items-center shadow-sm ${index === 0 ? 'bg-slate-100 dark:bg-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'bg-white dark:bg-slate-700 text-slate-400 hover:text-orange-500'}`}><Icons.ChevronUp className="text-xs"/></button>
-                                                    <button onClick={() => handleMovePromoDown(index)} disabled={index === promotions.length - 1} className={`w-8 h-8 rounded-lg flex justify-center items-center shadow-sm ${index === promotions.length - 1 ? 'bg-slate-100 dark:bg-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'bg-white dark:bg-slate-700 text-slate-400 hover:text-orange-500'}`}><Icons.ChevronDown className="text-xs"/></button>
-                                                    <button onClick={()=>handleDeletePromo(p.id)} className="w-8 h-8 ml-2 rounded-lg bg-white dark:bg-slate-700 text-slate-400 hover:text-red-500 flex justify-center items-center shadow-sm"><Icons.Trash className="text-xs"/></button>
-                                                </div>
+                                                
+                                                {/* Verberg de actieknoppen als we aan het bewerken zijn */}
+                                                {editingPromoId !== p.id && (
+                                                    <div className="flex items-center gap-1 shrink-0">
+                                                        <button onClick={() => { setEditingPromoId(p.id); setEditPromoTitle(p.title || `Promotie ${index + 1}`); }} className="w-8 h-8 mr-2 rounded-lg bg-white dark:bg-slate-700 text-slate-400 hover:text-amber-500 flex justify-center items-center shadow-sm" title="Naam wijzigen"><Icons.Edit className="text-xs"/></button>
+                                                        <button onClick={() => handleMovePromoUp(index)} disabled={index === 0} className={`w-8 h-8 rounded-lg flex justify-center items-center shadow-sm ${index === 0 ? 'bg-slate-100 dark:bg-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'bg-white dark:bg-slate-700 text-slate-400 hover:text-orange-500'}`}><Icons.ChevronUp className="text-xs"/></button>
+                                                        <button onClick={() => handleMovePromoDown(index)} disabled={index === promotions.length - 1} className={`w-8 h-8 rounded-lg flex justify-center items-center shadow-sm ${index === promotions.length - 1 ? 'bg-slate-100 dark:bg-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'bg-white dark:bg-slate-700 text-slate-400 hover:text-orange-500'}`}><Icons.ChevronDown className="text-xs"/></button>
+                                                        <button onClick={()=>handleDeletePromo(p.id)} className="w-8 h-8 ml-2 rounded-lg bg-white dark:bg-slate-700 text-slate-400 hover:text-red-500 flex justify-center items-center shadow-sm"><Icons.Trash className="text-xs"/></button>
+                                                    </div>
+                                                )}
                                             </div>
                                         ))}
                                     </div>
@@ -605,12 +637,20 @@ const CatalogsTab = ({ isAdmin }) => {
                                     <h4 className="text-lg font-bold text-slate-600 dark:text-slate-300">Geen promoties</h4>
                                 </div>
                             ) : (
-                                <div className="space-y-4 max-h-[100vh] xl:max-h-[80vh] overflow-y-auto custom-scroll pr-1">
-                                    {promotions.map(p => (
-                                        <div key={p.id} className="relative group cursor-pointer" onClick={() => setPreviewImage(p.image)}>
-                                            <img src={p.image} className="w-full rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm transition-transform duration-300 group-hover:scale-[1.02] group-hover:shadow-lg" loading="lazy" />
-                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors rounded-2xl flex items-center justify-center">
-                                                <Icons.Search className="text-white opacity-0 group-hover:opacity-100 text-3xl drop-shadow-md transition-opacity duration-300"/>
+                                <div className="space-y-6 max-h-[100vh] xl:max-h-[80vh] overflow-y-auto custom-scroll pr-2 pb-4">
+                                    {promotions.map((p, index) => (
+                                        <div key={p.id} className="relative group cursor-pointer flex flex-col gap-2" onClick={() => setPreviewImage(p.image)}>
+                                            <div className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm transition-all duration-300 group-hover:scale-[1.02] group-hover:shadow-lg">
+                                                <img src={p.image} className="w-full h-auto object-cover" loading="lazy" />
+                                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex flex-col items-center justify-center">
+                                                    <Icons.Search className="text-white opacity-0 group-hover:opacity-100 text-3xl drop-shadow-md transition-opacity duration-300"/>
+                                                </div>
+                                            </div>
+                                            {/* Weergave van de naam onder de foto */}
+                                            <div className="text-center px-2">
+                                                <span className="text-sm font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-lg inline-block border border-slate-200 dark:border-slate-700/50 shadow-sm">
+                                                    {p.title || `Promotie ${index + 1}`}
+                                                </span>
                                             </div>
                                         </div>
                                     ))}
@@ -630,7 +670,6 @@ const CatalogsTab = ({ isAdmin }) => {
                 </div>
             );
         };
-
         const CustomersTab = ({ targetUid }) => {
             const [customers, setCustomers] = useState([]);
             const [input, setInput] = useState({ name: '', email: '', phone: '', address: '', note: '' });
