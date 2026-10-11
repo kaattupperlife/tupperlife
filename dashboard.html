@@ -354,7 +354,7 @@
             { name: 'Steen', bg: 'bg-stone-100 dark:bg-stone-800', text: 'text-stone-700 dark:text-stone-200' },
         ];
 
-        const CatalogsTab = ({ isAdmin }) => {
+const CatalogsTab = ({ isAdmin }) => {
             const [catalogs, setCatalogs] = useState([]);
             const [selectedItem, setSelectedItem] = useState(null);
             const [isAdding, setIsAdding] = useState(false);
@@ -390,6 +390,24 @@
                     await window.db.collection('settings').doc('global_catalogs').set({ list: newList }, { merge: true });
                     if (selectedItem?.id === id) setSelectedItem(newList.length > 0 ? newList[0] : null);
                 });
+            };
+
+            const handleMoveUp = async (index) => {
+                if (index === 0) return;
+                const newList = [...catalogs];
+                const temp = newList[index - 1];
+                newList[index - 1] = newList[index];
+                newList[index] = temp;
+                await window.db.collection('settings').doc('global_catalogs').set({ list: newList }, { merge: true });
+            };
+
+            const handleMoveDown = async (index) => {
+                if (index === catalogs.length - 1) return;
+                const newList = [...catalogs];
+                const temp = newList[index + 1];
+                newList[index + 1] = newList[index];
+                newList[index] = temp;
+                await window.db.collection('settings').doc('global_catalogs').set({ list: newList }, { merge: true });
             };
 
             const types = [...new Set(catalogs.map(c => c.type))];
@@ -437,13 +455,17 @@
                                 <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
                                     <p className="text-xs font-bold text-slate-500 mb-2 uppercase">Aanwezige Boekjes (Beheer):</p>
                                     <div className="flex flex-col gap-2">
-                                        {catalogs.map(c => (
+                                        {catalogs.map((c, index) => (
                                             <div key={c.id} className="flex justify-between items-center bg-slate-50 dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700">
                                                 <div>
                                                     <span className="bg-slate-200 dark:bg-slate-700 text-[10px] px-2 py-1 rounded font-bold mr-2">{c.type}</span>
                                                     <span className="text-sm font-medium dark:text-white">{c.title}</span>
                                                 </div>
-                                                <button onClick={()=>handleDelete(c.id)} className="w-8 h-8 rounded-lg bg-white dark:bg-slate-700 text-slate-400 hover:text-red-500 flex justify-center items-center shadow-sm"><Icons.Trash className="text-xs"/></button>
+                                                <div className="flex items-center gap-1">
+                                                    <button onClick={() => handleMoveUp(index)} disabled={index === 0} className={`w-8 h-8 rounded-lg flex justify-center items-center shadow-sm ${index === 0 ? 'bg-slate-100 dark:bg-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'bg-white dark:bg-slate-700 text-slate-400 hover:text-emerald-500'}`}><Icons.ChevronUp className="text-xs"/></button>
+                                                    <button onClick={() => handleMoveDown(index)} disabled={index === catalogs.length - 1} className={`w-8 h-8 rounded-lg flex justify-center items-center shadow-sm ${index === catalogs.length - 1 ? 'bg-slate-100 dark:bg-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'bg-white dark:bg-slate-700 text-slate-400 hover:text-emerald-500'}`}><Icons.ChevronDown className="text-xs"/></button>
+                                                    <button onClick={()=>handleDelete(c.id)} className="w-8 h-8 ml-2 rounded-lg bg-white dark:bg-slate-700 text-slate-400 hover:text-red-500 flex justify-center items-center shadow-sm"><Icons.Trash className="text-xs"/></button>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
