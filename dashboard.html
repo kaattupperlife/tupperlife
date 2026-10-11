@@ -358,14 +358,20 @@ const CatalogsTab = ({ isAdmin }) => {
             const [catalogs, setCatalogs] = useState([]);
             const [promotions, setPromotions] = useState([]);
             const [selectedItem, setSelectedItem] = useState(null);
+            
             const [isAdding, setIsAdding] = useState(false);
             const [input, setInput] = useState({ title: '', type: 'Catalogus', url: '' });
+            
             const [uploading, setUploading] = useState(false);
             const [previewImage, setPreviewImage] = useState(null);
             
-            // State voor het wijzigen van promotie titels
+            // Bewerk states voor Catalogen
+            const [editingCatalogId, setEditingCatalogId] = useState(null);
+            const [editCatalogInput, setEditCatalogInput] = useState({ title: '', type: 'Catalogus', url: '' });
+
+            // Bewerk states voor Promoties
             const [editingPromoId, setEditingPromoId] = useState(null);
-            const [editPromoTitle, setEditPromoTitle] = useState('');
+            const [editPromoInput, setEditPromoInput] = useState({ title: '', image: '' });
 
             useEffect(() => {
                 const unsubCat = window.db.collection('settings').doc('global_catalogs').onSnapshot(doc => {
@@ -380,7 +386,6 @@ const CatalogsTab = ({ isAdmin }) => {
                     }
                 });
                 
-                // Ophalen van weekpromoties
                 const unsubPromo = window.db.collection('settings').doc('global_promotions').onSnapshot(doc => {
                     if (doc.exists && doc.data().list) {
                         setPromotions(doc.data().list || []);
@@ -397,32 +402,50 @@ const CatalogsTab = ({ isAdmin }) => {
                 await window.db.collection('settings').doc('global_catalogs').set({ list: newList }, { merge: true });
                 setIsAdding(false);
                 setInput({ title: '', type: 'Catalogus', url: '' });
-                window.showAlert("Catalogus succesvol toegevoegd!");
+                window.showAlert("Succesvol toegevoegd!");
+            };
+
+            const handleSaveCatalogEdit = async (id) => {
+                if (!editCatalogInput.title || !editCatalogInput.url) return window.showAlert("Vul een titel en link in.");
+                const newList = catalogs.map(c => c.id === id ? { ...c, ...editCatalogInput } : c);
+                await window.db.collection('settings').doc('global_catalogs').set({ list: newList }, { merge: true });
+                setEditingCatalogId(null);
             };
 
             const handleDeleteCatalog = async (id) => {
-                window.showConfirm("Weet je zeker dat je deze catalogus wilt verwijderen?", async () => {
+                window.showConfirm("Weet je zeker dat je dit wilt verwijderen?", async () => {
                     const newList = catalogs.filter(c => c.id !== id);
                     await window.db.collection('settings').doc('global_catalogs').set({ list: newList }, { merge: true });
                     if (selectedItem?.id === id) setSelectedItem(newList.length > 0 ? newList[0] : null);
                 });
             };
 
-            const handleMoveCatalogUp = async (index) => {
-                if (index === 0) return;
-                const newList = [...catalogs];
-                const temp = newList[index - 1];
-                newList[index - 1] = newList[index];
-                newList[index] = temp;
-                await window.db.collection('settings').doc('global_catalogs').set({ list: newList }, { merge: true });
-            };
-
-            const handleMoveCatalogDown = async (index) => {
-                if (index === catalogs.length - 1) return;
-                const newList = [...catalogs];
-                const temp = newList[index + 1];
-                newList[index + 1] = newList[index];
-                newList[index] = temp;
+            const handleMoveCatalog = async (id, direction) => {
+                const itemToMove = catalogs.find(c => c.id === id);
+                if (!itemToMove) return;
+                
+                const type = itemToMove.type;
+                const sameTypeItems = catalogs.filter(c => c.type === type);
+                const index = sameTypeItems.findIndex(c => c.id === id);
+                
+                if (direction === 'up' && index > 0) {
+                    const temp = sameTypeItems[index - 1];
+                    sameTypeItems[index - 1] = sameTypeItems[index];
+                    sameTypeItems[index] = temp;
+                } else if (direction === 'down' && index < sameTypeItems.length - 1) {
+                    const temp = sameTypeItems[index + 1];
+                    sameTypeItems[index + 1] = sameTypeItems[index];
+                    sameTypeItems[index] = temp;
+                } else {
+                    return;
+                }
+                
+                let sameTypeIndex = 0;
+                const newList = catalogs.map(c => {
+                    if (c.type === type) return sameTypeItems[sameTypeIndex++];
+                    return c;
+                });
+                
                 await window.db.collection('settings').doc('global_catalogs').set({ list: newList }, { merge: true });
             };
 
@@ -433,7 +456,6 @@ const CatalogsTab = ({ isAdmin }) => {
                 setUploading(true);
                 try {
                     const url = await window.uploadToImgBB(file);
-                    // Geef standaard een naam mee zoals 'Promotie 1', 'Promotie 2'
                     const newList = [...promotions, { id: Date.now().toString(), image: url, title: `Promotie ${promotions.length + 1}`, createdAt: Date.now() }];
                     await window.db.collection('settings').doc('global_promotions').set({ list: newList }, { merge: true });
                     window.showAlert("Promotie succesvol toegevoegd!");
@@ -444,12 +466,27 @@ const CatalogsTab = ({ isAdmin }) => {
                     e.target.value = null; 
                 }
             };
+            
+            const handlePromoEditUpload = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                setUploading(true);
+                try {
+                    const url = await window.uploadToImgBB(file);
+                    setEditPromoInput(prev => ({...prev, image: url}));
+                } catch (error) {
+                    window.showAlert("Upload fout: " + error.message);
+                } finally {
+                    setUploading(false);
+                    e.target.value = null; 
+                }
+            };
 
-            const handleSavePromoTitle = async (id) => {
-                const newList = promotions.map(p => p.id === id ? { ...p, title: editPromoTitle } : p);
+            const handleSavePromoEdit = async (id) => {
+                if (!editPromoInput.image) return window.showAlert("Een afbeelding is verplicht.");
+                const newList = promotions.map(p => p.id === id ? { ...p, title: editPromoInput.title, image: editPromoInput.image } : p);
                 await window.db.collection('settings').doc('global_promotions').set({ list: newList }, { merge: true });
                 setEditingPromoId(null);
-                setEditPromoTitle('');
             };
 
             const handleDeletePromo = (id) => {
@@ -459,25 +496,71 @@ const CatalogsTab = ({ isAdmin }) => {
                 });
             };
 
-            const handleMovePromoUp = async (index) => {
-                if (index === 0) return;
+            const handleMovePromo = async (index, direction) => {
+                if (direction === 'up' && index === 0) return;
+                if (direction === 'down' && index === promotions.length - 1) return;
+                
                 const newList = [...promotions];
-                const temp = newList[index - 1];
-                newList[index - 1] = newList[index];
-                newList[index] = temp;
-                await window.db.collection('settings').doc('global_promotions').set({ list: newList }, { merge: true });
-            };
-
-            const handleMovePromoDown = async (index) => {
-                if (index === promotions.length - 1) return;
-                const newList = [...promotions];
-                const temp = newList[index + 1];
-                newList[index + 1] = newList[index];
-                newList[index] = temp;
+                if (direction === 'up') {
+                    const temp = newList[index - 1];
+                    newList[index - 1] = newList[index];
+                    newList[index] = temp;
+                } else {
+                    const temp = newList[index + 1];
+                    newList[index + 1] = newList[index];
+                    newList[index] = temp;
+                }
                 await window.db.collection('settings').doc('global_promotions').set({ list: newList }, { merge: true });
             };
 
             const types = [...new Set(catalogs.map(c => c.type))];
+
+            // Helper functie voor de catalogus/leaflet lijsten
+            const renderCatalogCategory = (categoryType, categoryTitle) => {
+                const categoryItems = catalogs.filter(c => c.type === categoryType);
+                if (categoryItems.length === 0) return null;
+
+                return (
+                    <div className="mt-4 mb-6">
+                        <h4 className="text-xs font-bold text-slate-500 mb-2 uppercase tracking-widest">{categoryTitle}</h4>
+                        <div className="flex flex-col gap-2">
+                            {categoryItems.map((c, index) => (
+                                <div key={c.id} className="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 transition-all">
+                                    {editingCatalogId === c.id ? (
+                                        <div className="flex flex-col sm:flex-row gap-2 w-full animate-in">
+                                            <select value={editCatalogInput.type} onChange={e=>setEditCatalogInput({...editCatalogInput, type:e.target.value})} className="p-2 rounded-lg border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/50 text-sm w-full sm:w-1/4">
+                                                <option value="Catalogus">Catalogus</option>
+                                                <option value="Leaflet">Leaflet</option>
+                                                <option value="Ander">Ander</option>
+                                            </select>
+                                            <input value={editCatalogInput.title} onChange={e=>setEditCatalogInput({...editCatalogInput, title:e.target.value})} placeholder="Titel" className="p-2 rounded-lg border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/50 text-sm w-full sm:w-1/4"/>
+                                            <input value={editCatalogInput.url} onChange={e=>setEditCatalogInput({...editCatalogInput, url:e.target.value})} placeholder="Link (URL)" className="p-2 rounded-lg border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/50 text-sm flex-grow"/>
+                                            
+                                            <div className="flex gap-1 shrink-0">
+                                                <button onClick={() => handleSaveCatalogEdit(c.id)} className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-600 hover:bg-emerald-200 flex justify-center items-center shadow-sm"><Icons.CheckCircle className="text-sm"/></button>
+                                                <button onClick={() => setEditingCatalogId(null)} className="w-9 h-9 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-500 hover:bg-slate-300 dark:hover:bg-slate-600 flex justify-center items-center shadow-sm"><Icons.X className="text-sm"/></button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex justify-between items-center w-full">
+                                            <div className="min-w-0 pr-4">
+                                                <span className="bg-slate-200 dark:bg-slate-700 text-[10px] px-2 py-1 rounded font-bold mr-2">{c.type}</span>
+                                                <span className="text-sm font-medium dark:text-white truncate">{c.title}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1 shrink-0">
+                                                <button onClick={() => { setEditingCatalogId(c.id); setEditCatalogInput(c); }} className="w-8 h-8 rounded-lg bg-white dark:bg-slate-700 text-slate-400 hover:text-amber-500 flex justify-center items-center shadow-sm mr-1"><Icons.Edit className="text-xs"/></button>
+                                                <button onClick={() => handleMoveCatalog(c.id, 'up')} disabled={index === 0} className={`w-8 h-8 rounded-lg flex justify-center items-center shadow-sm ${index === 0 ? 'bg-slate-100 dark:bg-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'bg-white dark:bg-slate-700 text-slate-400 hover:text-emerald-500'}`}><Icons.ChevronUp className="text-xs"/></button>
+                                                <button onClick={() => handleMoveCatalog(c.id, 'down')} disabled={index === categoryItems.length - 1} className={`w-8 h-8 rounded-lg flex justify-center items-center shadow-sm ${index === categoryItems.length - 1 ? 'bg-slate-100 dark:bg-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'bg-white dark:bg-slate-700 text-slate-400 hover:text-emerald-500'}`}><Icons.ChevronDown className="text-xs"/></button>
+                                                <button onClick={() => handleDeleteCatalog(c.id)} className="w-8 h-8 ml-2 rounded-lg bg-white dark:bg-slate-700 text-slate-400 hover:text-red-500 flex justify-center items-center shadow-sm"><Icons.Trash className="text-xs"/></button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                );
+            };
 
             return (
                 <div className="space-y-6">
@@ -485,7 +568,7 @@ const CatalogsTab = ({ isAdmin }) => {
                     {isAdmin && (
                         <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-6 rounded-3xl border border-white/40 dark:border-slate-700 shadow-glass dark:shadow-glass-dark">
                             
-                            {/* --- DEEL 1: CATALOGEN --- */}
+                            {/* --- DEEL 1: CATALOGEN & LEAFLETS --- */}
                             <div className="flex justify-between items-center mb-4">
                                 <h3 className="font-bold text-lg text-slate-800 dark:text-slate-200 flex items-center gap-2"><Icons.Settings className="text-emerald-500"/> Beheer Catalogen (Admin)</h3>
                                 <button onClick={() => setIsAdding(!isAdding)} className="px-4 py-2 rounded-xl text-white font-bold transition-colors shadow-md bg-gradient-to-r from-emerald-500 to-teal-500 hover:-translate-y-0.5">
@@ -517,27 +600,12 @@ const CatalogsTab = ({ isAdmin }) => {
                                 </div>
                             )}
 
-                            {catalogs.length > 0 && (
-                                <div className="mt-4 mb-8">
-                                    <div className="flex flex-col gap-2">
-                                        {catalogs.map((c, index) => (
-                                            <div key={c.id} className="flex justify-between items-center bg-slate-50 dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700">
-                                                <div>
-                                                    <span className="bg-slate-200 dark:bg-slate-700 text-[10px] px-2 py-1 rounded font-bold mr-2">{c.type}</span>
-                                                    <span className="text-sm font-medium dark:text-white">{c.title}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1">
-                                                    <button onClick={() => handleMoveCatalogUp(index)} disabled={index === 0} className={`w-8 h-8 rounded-lg flex justify-center items-center shadow-sm ${index === 0 ? 'bg-slate-100 dark:bg-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'bg-white dark:bg-slate-700 text-slate-400 hover:text-emerald-500'}`}><Icons.ChevronUp className="text-xs"/></button>
-                                                    <button onClick={() => handleMoveCatalogDown(index)} disabled={index === catalogs.length - 1} className={`w-8 h-8 rounded-lg flex justify-center items-center shadow-sm ${index === catalogs.length - 1 ? 'bg-slate-100 dark:bg-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'bg-white dark:bg-slate-700 text-slate-400 hover:text-emerald-500'}`}><Icons.ChevronDown className="text-xs"/></button>
-                                                    <button onClick={()=>handleDeleteCatalog(c.id)} className="w-8 h-8 ml-2 rounded-lg bg-white dark:bg-slate-700 text-slate-400 hover:text-red-500 flex justify-center items-center shadow-sm"><Icons.Trash className="text-xs"/></button>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+                            {/* Aparte lijsten renderen */}
+                            {renderCatalogCategory('Catalogus', 'Catalogen')}
+                            {renderCatalogCategory('Leaflet', 'Leaflets')}
+                            {renderCatalogCategory('Ander', 'Andere')}
 
-                            <hr className="border-slate-200 dark:border-slate-700 mb-6" />
+                            <hr className="border-slate-200 dark:border-slate-700 mb-6 mt-2" />
 
                             {/* --- DEEL 2: WEEKPROMOTIES --- */}
                             <div className="flex justify-between items-center mb-4">
@@ -552,35 +620,39 @@ const CatalogsTab = ({ isAdmin }) => {
                                 <div className="mt-4">
                                     <div className="flex flex-col gap-2">
                                         {promotions.map((p, index) => (
-                                            <div key={p.id} className="flex justify-between items-center bg-slate-50 dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700">
-                                                <div className="flex items-center gap-3 flex-grow mr-4">
-                                                    <img src={p.image} className="w-12 h-12 rounded-lg object-cover border border-slate-200 dark:border-slate-600 cursor-pointer shrink-0" onClick={() => setPreviewImage(p.image)}/>
-                                                    
-                                                    {editingPromoId === p.id ? (
-                                                        <div className="flex items-center gap-2 flex-grow">
-                                                            <input 
-                                                                value={editPromoTitle} 
-                                                                onChange={e => setEditPromoTitle(e.target.value)} 
-                                                                placeholder="Naam van promotie"
-                                                                className="w-full p-2 rounded-lg border border-orange-300 dark:border-orange-700 bg-white dark:bg-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-orange-500/50 text-sm"
-                                                                autoFocus
-                                                            />
-                                                            <button onClick={() => handleSavePromoTitle(p.id)} className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 hover:bg-emerald-200 flex justify-center items-center shadow-sm shrink-0"><Icons.CheckCircle className="text-sm"/></button>
-                                                            <button onClick={() => setEditingPromoId(null)} className="w-8 h-8 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-500 hover:bg-slate-300 dark:hover:bg-slate-600 flex justify-center items-center shadow-sm shrink-0"><Icons.X className="text-sm"/></button>
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">{p.title || `Promotie ${index + 1}`}</span>
-                                                    )}
-                                                </div>
+                                            <div key={p.id} className="flex flex-col sm:flex-row justify-between sm:items-center bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 gap-3">
                                                 
-                                                {/* Verberg de actieknoppen als we aan het bewerken zijn */}
-                                                {editingPromoId !== p.id && (
-                                                    <div className="flex items-center gap-1 shrink-0">
-                                                        <button onClick={() => { setEditingPromoId(p.id); setEditPromoTitle(p.title || `Promotie ${index + 1}`); }} className="w-8 h-8 mr-2 rounded-lg bg-white dark:bg-slate-700 text-slate-400 hover:text-amber-500 flex justify-center items-center shadow-sm" title="Naam wijzigen"><Icons.Edit className="text-xs"/></button>
-                                                        <button onClick={() => handleMovePromoUp(index)} disabled={index === 0} className={`w-8 h-8 rounded-lg flex justify-center items-center shadow-sm ${index === 0 ? 'bg-slate-100 dark:bg-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'bg-white dark:bg-slate-700 text-slate-400 hover:text-orange-500'}`}><Icons.ChevronUp className="text-xs"/></button>
-                                                        <button onClick={() => handleMovePromoDown(index)} disabled={index === promotions.length - 1} className={`w-8 h-8 rounded-lg flex justify-center items-center shadow-sm ${index === promotions.length - 1 ? 'bg-slate-100 dark:bg-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'bg-white dark:bg-slate-700 text-slate-400 hover:text-orange-500'}`}><Icons.ChevronDown className="text-xs"/></button>
-                                                        <button onClick={()=>handleDeletePromo(p.id)} className="w-8 h-8 ml-2 rounded-lg bg-white dark:bg-slate-700 text-slate-400 hover:text-red-500 flex justify-center items-center shadow-sm"><Icons.Trash className="text-xs"/></button>
+                                                {editingPromoId === p.id ? (
+                                                    <div className="flex flex-col sm:flex-row gap-2 w-full animate-in">
+                                                        <div className="flex items-center gap-2 w-full sm:w-1/3">
+                                                            <img src={editPromoInput.image} className="w-10 h-10 rounded-lg object-cover border border-slate-200 dark:border-slate-600 shrink-0"/>
+                                                            <label className="bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 px-2 py-2 rounded-lg text-xs font-bold cursor-pointer hover:bg-slate-100 transition-colors shrink-0">
+                                                                <input type="file" className="hidden" accept="image/*" onChange={handlePromoEditUpload} disabled={uploading}/>
+                                                                <Icons.Upload/>
+                                                            </label>
+                                                            <input value={editPromoInput.image} onChange={e=>setEditPromoInput({...editPromoInput, image:e.target.value})} placeholder="Foto link" className="p-2 rounded-lg border border-orange-300 dark:border-orange-700 bg-white dark:bg-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-orange-500/50 text-sm flex-grow"/>
+                                                        </div>
+                                                        <input value={editPromoInput.title} onChange={e=>setEditPromoInput({...editPromoInput, title:e.target.value})} placeholder="Naam van promotie" className="p-2 rounded-lg border border-orange-300 dark:border-orange-700 bg-white dark:bg-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-orange-500/50 text-sm flex-grow"/>
+                                                        
+                                                        <div className="flex gap-1 shrink-0 justify-end">
+                                                            <button onClick={() => handleSavePromoEdit(p.id)} className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-600 hover:bg-emerald-200 flex justify-center items-center shadow-sm"><Icons.CheckCircle className="text-sm"/></button>
+                                                            <button onClick={() => setEditingPromoId(null)} className="w-9 h-9 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-500 hover:bg-slate-300 dark:hover:bg-slate-600 flex justify-center items-center shadow-sm"><Icons.X className="text-sm"/></button>
+                                                        </div>
                                                     </div>
+                                                ) : (
+                                                    <>
+                                                        <div className="flex items-center gap-3 min-w-0 pr-4">
+                                                            <img src={p.image} className="w-12 h-12 rounded-lg object-cover border border-slate-200 dark:border-slate-600 cursor-pointer shrink-0" onClick={() => setPreviewImage(p.image)}/>
+                                                            <span className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">{p.title || `Promotie ${index + 1}`}</span>
+                                                        </div>
+                                                        
+                                                        <div className="flex items-center gap-1 shrink-0 justify-end mt-2 sm:mt-0">
+                                                            <button onClick={() => { setEditingPromoId(p.id); setEditPromoInput(p); }} className="w-8 h-8 mr-1 rounded-lg bg-white dark:bg-slate-700 text-slate-400 hover:text-amber-500 flex justify-center items-center shadow-sm"><Icons.Edit className="text-xs"/></button>
+                                                            <button onClick={() => handleMovePromo(index, 'up')} disabled={index === 0} className={`w-8 h-8 rounded-lg flex justify-center items-center shadow-sm ${index === 0 ? 'bg-slate-100 dark:bg-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'bg-white dark:bg-slate-700 text-slate-400 hover:text-orange-500'}`}><Icons.ChevronUp className="text-xs"/></button>
+                                                            <button onClick={() => handleMovePromo(index, 'down')} disabled={index === promotions.length - 1} className={`w-8 h-8 rounded-lg flex justify-center items-center shadow-sm ${index === promotions.length - 1 ? 'bg-slate-100 dark:bg-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed' : 'bg-white dark:bg-slate-700 text-slate-400 hover:text-orange-500'}`}><Icons.ChevronDown className="text-xs"/></button>
+                                                            <button onClick={()=>handleDeletePromo(p.id)} className="w-8 h-8 ml-2 rounded-lg bg-white dark:bg-slate-700 text-slate-400 hover:text-red-500 flex justify-center items-center shadow-sm"><Icons.Trash className="text-xs"/></button>
+                                                        </div>
+                                                    </>
                                                 )}
                                             </div>
                                         ))}
@@ -646,7 +718,6 @@ const CatalogsTab = ({ isAdmin }) => {
                                                     <Icons.Search className="text-white opacity-0 group-hover:opacity-100 text-3xl drop-shadow-md transition-opacity duration-300"/>
                                                 </div>
                                             </div>
-                                            {/* Weergave van de naam onder de foto */}
                                             <div className="text-center px-2">
                                                 <span className="text-sm font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-lg inline-block border border-slate-200 dark:border-slate-700/50 shadow-sm">
                                                     {p.title || `Promotie ${index + 1}`}
