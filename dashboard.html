@@ -462,7 +462,6 @@ const CatalogsTab = ({ isAdmin }) => {
                         uploadedUrls.push(url);
                     }
                     
-                    // Maak één enkele promotie-entree aan met een array van afbeeldingen
                     const newPromo = {
                         id: Date.now().toString(),
                         images: uploadedUrls,
@@ -625,7 +624,7 @@ const CatalogsTab = ({ isAdmin }) => {
                                                         <div className="flex flex-col gap-2 w-full animate-in">
                                                             <div className="flex items-center gap-2">
                                                                 <input value={editPromoTitle} onChange={e=>setEditPromoTitle(e.target.value)} placeholder="Naam van promotiegroep" className="p-2 rounded-lg border border-orange-300 dark:border-orange-700 bg-white dark:bg-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-orange-500/50 text-sm flex-grow"/>
-                                                                <button onClick={() => handleSavePromoEdit(p.id)} className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-600 hover:bg-emerald-200 flex justify-center items-center shadow-sm shrink-0"><Icons.CheckCircle className="text-sm"/></button>
+                                                                <button onClick={() => handleSavePromoTitle(p.id)} className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-600 hover:bg-emerald-200 flex justify-center items-center shadow-sm shrink-0"><Icons.CheckCircle className="text-sm"/></button>
                                                                 <button onClick={() => setEditingPromoId(null)} className="w-9 h-9 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-500 hover:bg-slate-300 dark:hover:bg-slate-600 flex justify-center items-center shadow-sm shrink-0"><Icons.X className="text-sm"/></button>
                                                             </div>
                                                         </div>
@@ -633,7 +632,7 @@ const CatalogsTab = ({ isAdmin }) => {
                                                         <>
                                                             <div className="flex items-center gap-3 min-w-0 pr-4">
                                                                 <div className="flex -space-x-3 overflow-hidden shrink-0">
-                                                                    {imagesList.slice(0, 3).imgUrl = imagesList[0], imagesList.map((imgUrl, i) => (
+                                                                    {imagesList.slice(0, 3).map((imgUrl, i) => (
                                                                         <img key={i} src={imgUrl} className="w-12 h-12 rounded-lg object-cover border-2 border-white dark:border-slate-800 cursor-pointer shadow-sm" onClick={() => setPreviewImage(imgUrl)}/>
                                                                     ))}
                                                                 </div>
@@ -712,14 +711,12 @@ const CatalogsTab = ({ isAdmin }) => {
                                         const imagesList = p.images || (p.image ? [p.image] : []);
                                         return (
                                             <div key={p.id} className="flex flex-col gap-3 bg-slate-50/50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm">
-                                                {/* Titel bovenaan of onderaan de groep */}
                                                 <div className="text-center">
                                                     <span className="text-sm font-extrabold text-orange-700 dark:text-orange-300 uppercase tracking-wider">
                                                         {p.title || `Weekpromotie ${index + 1}`}
                                                     </span>
                                                 </div>
                                                 
-                                                {/* Alle foto's die bij deze upload horen */}
                                                 <div className="flex flex-col gap-2">
                                                     {imagesList.map((imgUrl, imgIdx) => (
                                                         <div key={imgIdx} className="relative group cursor-pointer rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm transition-all duration-300 hover:scale-[1.01]" onClick={() => setPreviewImage(imgUrl)}>
@@ -748,7 +745,6 @@ const CatalogsTab = ({ isAdmin }) => {
                     )}
                 </div>
             );
-        };
         };
         const CustomersTab = ({ targetUid }) => {
             const [customers, setCustomers] = useState([]);
