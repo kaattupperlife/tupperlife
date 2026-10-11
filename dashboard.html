@@ -449,7 +449,7 @@ const CatalogsTab = ({ isAdmin }) => {
                 await window.db.collection('settings').doc('global_catalogs').set({ list: newList }, { merge: true });
             };
 
-            // --- PROMO LOGIC (Meerdere foto's samenvoegen in 1 groep) ---
+            // --- PROMO LOGIC ---
             const handlePromoUpload = async (e) => {
                 const files = e.target.files;
                 if (!files || files.length === 0) return;
@@ -660,11 +660,11 @@ const CatalogsTab = ({ isAdmin }) => {
                         </div>
                     )}
 
-                    {/* GEBRUIKER WEERGAVE */}
-                    <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                    {/* GEBRUIKER WEERGAVE (ONDER ELKAAR) */}
+                    <div className="flex flex-col gap-8">
                         
-                        {/* KOLOM 1: CATALOGEN */}
-                        <div className="xl:col-span-2 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-4 sm:p-6 rounded-3xl border border-white/40 dark:border-slate-700 shadow-glass dark:shadow-glass-dark flex flex-col gap-6">
+                        {/* SECTIE 1: BLADEREN (CATALOGEN / LEAFLETS) */}
+                        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-4 sm:p-6 rounded-3xl border border-white/40 dark:border-slate-700 shadow-glass dark:shadow-glass-dark flex flex-col gap-6 w-full">
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                                 <h3 className="font-black text-xl text-emerald-800 dark:text-emerald-400 flex items-center gap-2"><Icons.BookReader/> Bladeren</h3>
                                 {catalogs.length > 0 && (
@@ -696,17 +696,17 @@ const CatalogsTab = ({ isAdmin }) => {
                             ) : null}
                         </div>
 
-                        {/* KOLOM 2: WEEKPROMOTIES (gegroepeerd per upload) */}
-                        <div className="xl:col-span-1 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-4 sm:p-6 rounded-3xl border border-white/40 dark:border-slate-700 shadow-glass dark:shadow-glass-dark flex flex-col gap-6">
+                        {/* SECTIE 2: WEEKPROMOTIES (ONDER DE CATALOGEN) */}
+                        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-4 sm:p-6 rounded-3xl border border-white/40 dark:border-slate-700 shadow-glass dark:shadow-glass-dark flex flex-col gap-6 w-full">
                             <h3 className="font-black text-xl text-orange-600 dark:text-orange-400 flex items-center gap-2"><Icons.Image/> Weekpromoties</h3>
                             
                             {promotions.length === 0 ? (
-                                <div className="text-center py-20 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 h-full flex flex-col justify-center">
+                                <div className="text-center py-16 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700">
                                     <Icons.Image className="text-4xl text-slate-300 mb-4 block mx-auto"/>
                                     <h4 className="text-lg font-bold text-slate-600 dark:text-slate-300">Geen promoties</h4>
                                 </div>
                             ) : (
-                                <div className="space-y-6 max-h-[100vh] xl:max-h-[80vh] overflow-y-auto custom-scroll pr-2 pb-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                     {promotions.map((p, index) => {
                                         const imagesList = p.images || (p.image ? [p.image] : []);
                                         return (
