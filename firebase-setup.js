@@ -11,6 +11,10 @@ const firebaseConfig = {
   appId: "1:993548471182:web:9b846a1da085685981b2df"
 };
 
+// Beheerders: deze e-mailadressen komen na het inloggen in de beheer-app (beheer.html).
+// Iedereen anders komt in de gewone app (dashboard.html).
+window.ADMIN_EMAILS = ['jaiderjannis@gmail.com', 'kaat.tupperware@gmail.com'];
+
 // Controleren of Firebase al geladen is via de CDN scripts in HTML
 if (typeof firebase !== 'undefined') {
     // Initialiseer alleen als het nog niet bestaat

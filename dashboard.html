@@ -132,7 +132,9 @@
 
         const { useState, useEffect } = React;
         
-        const ADMIN_EMAILS = ['jaiderjannis@gmail.com', 'kaat.tupperware@gmail.com']; 
+        // De lijst met beheerders staat in firebase-setup.js (window.ADMIN_EMAILS), zodat inlogpagina, app en beheer-app dezelfde lijst gebruiken.
+        const ADMIN_EMAILS = (window.ADMIN_EMAILS || ['jaiderjannis@gmail.com', 'kaat.tupperware@gmail.com']).map(e => e.toLowerCase());
+        const isAdminEmail = (email) => !!email && ADMIN_EMAILS.includes(String(email).toLowerCase());
         const MONTHS = ['Januari', 'Februari', 'Maart', 'April', 'Mei', 'Juni', 'Juli & Augustus', 'September', 'Oktober', 'November', 'December'];
         
         window.uploadToImgBB = async (file) => {
@@ -3079,14 +3081,14 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             return <CustomGoalsModal inline isOpen={true} onClose={() => {}} title={`Doelen van ${name}`} customGoals={goals} updateCustomGoals={save} formatCurrency={formatCurrency} availableWeeks={weeks} />;
         };
 
-        const AdminPage = ({ section, setSection, selectedYear, globalPsData, updateGlobalPsData, onSelectUser, isAdmin, users, formatCurrency }) => {
+        const AdminPage = ({ section, setSection, selectedYear, globalPsData, updateGlobalPsData, onSelectUser, isAdmin, users, formatCurrency, hideNav = false }) => {
             const [uid, setUid] = useState(users[0] ? users[0].uid : '');
             useEffect(() => { if (!users.some(u => u.uid === uid) && users[0]) setUid(users[0].uid); }, [users.map(u => u.uid).join(',')]);
             const picked = users.find(u => u.uid === uid);
             const perUser = ['goals', 'requests', 'stock'].includes(section);
             return (
                 <div className="space-y-5">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
+                    {!hideNav && <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
                         {ADMIN_SECTIONS.map(sct => {
                             const active = section === sct.id;
                             return (
@@ -3099,7 +3101,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                                 </button>
                             );
                         })}
-                    </div>
+                    </div>}
 
                     {perUser && (
                         <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-glass flex flex-col sm:flex-row sm:items-center gap-3">
@@ -3137,6 +3139,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             const setAdminSection = (s) => { setAdminSectionState(s); try { localStorage.setItem('tl-admin-section', s); } catch (e) {} };
             const [customGoals, setCustomGoals] = useState([]);
             const [viewingUser, setViewingUser] = useState(null);
+            const [cameFromAdmin, setCameFromAdmin] = useState(false);
             const [showProfileMenu, setShowProfileMenu] = useState(false);
             const [darkMode, setDarkMode] = useState(() => { try { return localStorage.getItem('theme') === 'dark'; } catch (e) { return false; } });
             const defaultPerms = { showStock: true, showRequests: true, showCustomers: true, showRecipes: true, showClub: true, showCatalogs: true };
@@ -3144,8 +3147,14 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
 
             useEffect(() => {
                 const unsub = window.auth.onAuthStateChanged(u => {
-                    if (!u) window.location.href = 'index.html';
-                    else { setUser(u); setLoading(false); }
+                    if (!u) { window.location.href = 'index.html'; return; }
+                    const params = new URLSearchParams(window.location.search);
+                    const viewUid = params.get('view');
+                    if (viewUid && isAdminEmail(u.email) && viewUid !== u.uid) {
+                        setViewingUser({ uid: viewUid, name: params.get('name') || 'Onbekend' });
+                        setCameFromAdmin(true);
+                    }
+                    setUser(u); setLoading(false);
                 });
                 return () => unsub();
             }, []);
@@ -3158,7 +3167,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             }, [darkMode]);
 
             const targetUid = viewingUser ? viewingUser.uid : (user ? user.uid : null);
-            const isAdmin = !!(user && ADMIN_EMAILS.includes(user.email));
+            const isAdmin = !!(user && isAdminEmail(user.email));
 
             useEffect(() => {
                 if (!targetUid || !window.db) return;
@@ -3191,8 +3200,9 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
 
             // Admin: lijst van gebruikers om snel te wisselen (wie dit of vorig jaar gegevens heeft)
             const [adminUsers, setAdminUsers] = useState([]);
+            const showSwitcherEnabled = false;
             useEffect(() => {
-                if (!isAdmin || !window.db) return;
+                if (!isAdmin || !window.db || !showSwitcherEnabled) return;
                 const unsub = window.db.collectionGroup('months').where('yearId', 'in', [selectedYear, selectedYear - 1]).onSnapshot(snap => {
                     const map = {};
                     snap.forEach(doc => { const d = doc.data(); if (d.userId && !map[d.userId]) map[d.userId] = { uid: d.userId, name: d.userName || 'Onbekend', email: d.userEmail, photo: d.userPhoto }; });
@@ -3225,7 +3235,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
 
             const formatCurrency = (val) => new Intl.NumberFormat('nl-BE', { style: 'currency', currency: 'EUR' }).format(val || 0);
 
-            const visibleTabs = TABS.filter(t => t.perm === 'admin' ? isAdmin : (!t.perm || userPermissions[t.perm] || isAdmin));
+            const visibleTabs = TABS.filter(t => t.perm === 'admin' ? false : (!t.perm || userPermissions[t.perm] || isAdmin));
             const currentTab = visibleTabs.find(t => t.id === activeTab) || visibleTabs[0];
             const navTabs = visibleTabs.filter(t => t.id !== 'admin');
             useEffect(() => { if (!loading && currentTab && currentTab.id !== activeTab) setActiveTabState(currentTab.id); }, [loading, currentTab && currentTab.id, activeTab]);
@@ -3233,7 +3243,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
 
             if (loading) return <div className="h-screen flex flex-col items-center justify-center text-emerald-600"><Icons.Loader className="text-4xl mb-4"/><div className="font-semibold">Tupper Life wordt geladen...</div></div>;
 
-            const showSwitcher = isAdmin && adminUsers.some(u => u.uid !== user.uid);
+            const showSwitcher = false; // gebruikers wisselen gebeurt nu in de beheer-app (beheer.html)
             const adminUserOptions = [{ uid: user.uid, name: `${user.displayName || 'Mijn account'} (jij)` }, ...adminUsers.filter(u => u.uid !== user.uid)];
             const yearOptions = [0, 1, 2, 3, 4].map(i => new Date().getFullYear() - 2 + i);
             const yearTotal = MONTHS.reduce((acc, m) => acc + sumMonth(monthlyData[m]), 0);
@@ -3305,7 +3315,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                                                 </span>
                                             </button>
                                             <button onClick={() => { setShowCustomGoalsModal(true); setShowProfileMenu(false); }} className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-semibold text-slate-700 dark:text-slate-200 flex gap-3 items-center"><i className="fa-solid fa-bullseye w-5 text-indigo-500"></i> Mijn doelen</button>
-                                            {isAdmin && <button onClick={() => { setActiveTab('admin'); setShowProfileMenu(false); }} className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-semibold text-slate-700 dark:text-slate-200 flex gap-3 items-center"><i className="fa-solid fa-screwdriver-wrench w-5 text-amber-500"></i> Beheer</button>}
+                                            {isAdmin && <a href="beheer.html" className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-semibold text-slate-700 dark:text-slate-200 flex gap-3 items-center"><i className="fa-solid fa-screwdriver-wrench w-5 text-amber-500"></i> Naar de beheer-app</a>}
                                             <div className="border-t border-slate-100 dark:border-slate-800 mt-1 pt-1">
                                                 <button onClick={() => window.auth.signOut()} className="w-full text-left px-4 py-3 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm font-semibold text-red-600 dark:text-red-400 flex gap-3 items-center"><i className="fa-solid fa-right-from-bracket w-5"></i> Uitloggen</button>
                                             </div>
@@ -3317,7 +3327,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                         {viewingUser && (
                             <div className="bg-amber-400 text-amber-950 text-xs sm:text-sm font-semibold py-2 px-4 flex justify-center items-center gap-3">
                                 <span><i className="fa-solid fa-user-shield mr-1.5"></i>Je bekijkt het account van <strong>{viewingUser.name}</strong></span>
-                                <button onClick={() => setViewingUser(null)} className="bg-amber-950/10 hover:bg-amber-950/20 px-2.5 py-1 rounded-lg font-bold">Afsluiten</button>
+                                <button onClick={() => { if (cameFromAdmin) window.location.href = 'beheer.html'; else setViewingUser(null); }} className="bg-amber-950/10 hover:bg-amber-950/20 px-2.5 py-1 rounded-lg font-bold whitespace-nowrap">{cameFromAdmin ? '← Terug naar beheer' : 'Afsluiten'}</button>
                             </div>
                         )}
                     </header>
@@ -3334,7 +3344,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                             </div>
                             {currentTab.id === 'admin' && <div className="shrink-0">{yearSelect}</div>}
                             {currentTab.id === 'catalogs' && isAdmin && (
-                                <button onClick={() => { setAdminSection('catalogs'); setActiveTab('admin'); }} className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm"><i className="fa-solid fa-screwdriver-wrench text-amber-500"></i> Beheren</button>
+                                <button onClick={() => { window.location.href = 'beheer.html#catalogs'; }} className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm"><i className="fa-solid fa-screwdriver-wrench text-amber-500"></i> Beheren</button>
                             )}
                             {currentTab.id === 'overview' && (
                                 <div className="flex items-center gap-2 shrink-0">
@@ -3422,8 +3432,248 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             );
         }
 
+        // =====================================================================
+        //  BEHEERDERS-APP (beheer.html) — gebruikt dezelfde onderdelen als de app
+        // =====================================================================
+        const ADMIN_NAV = [
+            { id: 'start',    label: 'Start',      icon: 'fa-house',            subtitle: 'Verkoop van alle gebruikers samen' },
+            { id: 'users',    label: 'Gebruikers', icon: 'fa-users',            subtitle: 'Accounts openen en rechten instellen' },
+            { id: 'goals',    label: 'Doelen',     icon: 'fa-bullseye',         subtitle: 'Doelen van elke gebruiker beheren' },
+            { id: 'requests', label: 'Wensen',     icon: 'fa-gift',             subtitle: 'Wensen van elke gebruiker beheren' },
+            { id: 'stock',    label: 'Voorraad',   icon: 'fa-box',              subtitle: 'Voorraad van elke gebruiker beheren' },
+            { id: 'ps',       label: 'Globale PS', icon: 'fa-award',            subtitle: 'Beloningen voor iedereen, per maand' },
+            { id: 'catalogs', label: 'Catalogen',  icon: 'fa-book-open-reader', subtitle: 'Catalogen, leaflets en weekpromoties' },
+        ];
+
+        const openUserApp = (u) => {
+            window.location.href = `dashboard.html?view=${encodeURIComponent(u.uid)}&name=${encodeURIComponent(u.name || '')}`;
+        };
+
+        const AdminStart = ({ monthDocs, selectedYear, formatCurrency, selfUid }) => {
+            const curName = currentMonthName();
+            const isCurrentYear = selectedYear === new Date().getFullYear();
+            const byUser = {};
+            monthDocs.filter(d => d.yearId === selectedYear).forEach(d => {
+                if (!d.userId) return;
+                const u = byUser[d.userId] || (byUser[d.userId] = { uid: d.userId, name: d.userName || 'Onbekend', total: 0, current: 0, months: 0 });
+                const t = sumMonth(d);
+                u.total += t;
+                if (t > 0) u.months += 1;
+                if (d.monthId === curName) u.current += t;
+            });
+            const rows = Object.values(byUser).sort((a, b) => b.total - a.total);
+            const total = rows.reduce((a, r) => a + r.total, 0);
+            const current = rows.reduce((a, r) => a + r.current, 0);
+            const active = rows.filter(r => r.total > 0).length;
+            const top = rows[0] && rows[0].total > 0 ? rows[0] : null;
+
+            const cards = [
+                { label: `Omzet ${selectedYear} (iedereen)`, value: formatCurrency(total), sub: `Winst ${formatCurrency(total * PROFIT_RATE)}`, icon: 'fa-euro-sign', tint: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' },
+                isCurrentYear
+                    ? { label: `Deze maand (${curName})`, value: formatCurrency(current), icon: 'fa-calendar-day', tint: 'bg-sky-50 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400' }
+                    : { label: 'Gemiddeld per gebruiker', value: formatCurrency(active ? total / active : 0), icon: 'fa-calendar-days', tint: 'bg-sky-50 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400' },
+                { label: 'Actieve gebruikers', value: String(active), sub: `${rows.length} met gegevens in ${selectedYear}`, icon: 'fa-users', tint: 'bg-violet-50 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400' },
+                { label: 'Topverkoper', value: top ? formatCurrency(top.total) : '–', sub: top ? top.name : 'Nog geen verkoop', icon: 'fa-trophy', tint: 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' },
+            ];
+
+            return (
+                <div className="space-y-6">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                        {cards.map(c => (
+                            <div key={c.label} className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-glass dark:shadow-glass-dark">
+                                <div className="flex items-start justify-between gap-2">
+                                    <div className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 leading-tight">{c.label}</div>
+                                    <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shrink-0 ${c.tint}`}><i className={`fa-solid ${c.icon} text-sm`}></i></div>
+                                </div>
+                                <div className="text-lg sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-2 tracking-tight">{c.value}</div>
+                                {c.sub && <div className="text-[11px] sm:text-xs text-slate-400 mt-0.5 truncate">{c.sub}</div>}
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-glass dark:shadow-glass-dark border border-slate-200/80 dark:border-slate-800 overflow-hidden">
+                        <div className="px-4 sm:px-6 pt-5 pb-3 flex items-center justify-between gap-3">
+                            <h3 className="font-bold text-slate-800 dark:text-white">Gebruikers {selectedYear}</h3>
+                            <span className="text-xs text-slate-400 text-right">Tik op een gebruiker om haar app te openen</span>
+                        </div>
+                        {rows.length === 0 ? (
+                            <p className="text-center text-slate-400 py-10 text-sm">Nog geen verkoopgegevens in {selectedYear}.</p>
+                        ) : (
+                            <div className="divide-y divide-slate-100 dark:divide-slate-800 border-t border-slate-100 dark:border-slate-800">
+                                {rows.map((r, i) => (
+                                    <button key={r.uid} onClick={() => openUserApp(r)} className="w-full flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-3.5 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                        <span className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${i === 0 && r.total > 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>{i + 1}</span>
+                                        <span className="flex-grow min-w-0">
+                                            <span className="block font-semibold text-slate-800 dark:text-slate-100 truncate">{r.name}{r.uid === selfUid ? ' (jij)' : ''}</span>
+                                            <span className="block text-xs text-slate-400">{r.months} actieve {r.months === 1 ? 'maand' : 'maanden'}{isCurrentYear ? ` · deze maand ${formatCurrency(r.current)}` : ''}</span>
+                                        </span>
+                                        <span className="text-right shrink-0">
+                                            <span className="block font-bold text-slate-900 dark:text-white tabular-nums">{formatCurrency(r.total)}</span>
+                                            <span className="block text-xs font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">{formatCurrency(r.total * PROFIT_RATE)}</span>
+                                        </span>
+                                        <i className="fa-solid fa-chevron-right text-slate-300 text-xs shrink-0"></i>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        function AdminApp() {
+            const [user, setUser] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+            const [monthDocs, setMonthDocs] = useState([]);
+            const [globalPsData, setGlobalPsData] = useState({});
+            const [showMenu, setShowMenu] = useState(false);
+            const [darkMode, setDarkMode] = useState(() => { try { return localStorage.getItem('theme') === 'dark'; } catch (e) { return false; } });
+            const initialSection = () => {
+                const h = (window.location.hash || '').slice(1);
+                if (ADMIN_NAV.some(n => n.id === h)) return h;
+                try { const s = localStorage.getItem('tl-admin-nav'); if (ADMIN_NAV.some(n => n.id === s)) return s; } catch (e) {}
+                return 'start';
+            };
+            const [section, setSectionState] = useState(initialSection);
+            const setSection = (s) => {
+                setSectionState(s); setShowMenu(false);
+                try { localStorage.setItem('tl-admin-nav', s); } catch (e) {}
+                try { history.replaceState(null, '', '#' + s); } catch (e) {}
+                window.scrollTo({ top: 0 });
+            };
+
+            useEffect(() => {
+                const unsub = window.auth.onAuthStateChanged(u => {
+                    if (!u) { window.location.href = 'index.html'; return; }
+                    if (!isAdminEmail(u.email)) { window.location.replace('dashboard.html'); return; }
+                    setUser(u); setLoading(false);
+                });
+                return () => unsub();
+            }, []);
+
+            useEffect(() => {
+                document.documentElement.classList.toggle('dark', darkMode);
+                try { localStorage.setItem('theme', darkMode ? 'dark' : 'light'); } catch (e) {}
+            }, [darkMode]);
+
+            useEffect(() => {
+                const onHash = () => { const h = (window.location.hash || '').slice(1); if (ADMIN_NAV.some(n => n.id === h)) setSectionState(h); };
+                window.addEventListener('hashchange', onHash);
+                return () => window.removeEventListener('hashchange', onHash);
+            }, []);
+
+            useEffect(() => {
+                if (!user) return;
+                const u1 = window.db.collectionGroup('months').where('yearId', 'in', [selectedYear, selectedYear - 1]).onSnapshot(snap => {
+                    const arr = []; snap.forEach(d => arr.push(d.data())); setMonthDocs(arr);
+                }, err => { console.error(err); window.showAlert("Gegevens van gebruikers laden mislukt: " + err.message); });
+                const u2 = window.db.collection('settings').doc(`global_ps_${selectedYear}`).onSnapshot(doc => setGlobalPsData(doc.exists ? doc.data() : {}), err => console.error(err));
+                return () => { u1(); u2(); };
+            }, [user, selectedYear]);
+
+            const formatCurrency = (val) => new Intl.NumberFormat('nl-BE', { style: 'currency', currency: 'EUR' }).format(val || 0);
+            const updateGlobalPsData = async (month, newLevels) => {
+                try { await window.db.collection('settings').doc(`global_ps_${selectedYear}`).set({ [month]: newLevels }, { merge: true }); }
+                catch (e) { window.showAlert("Opslaan mislukt: " + e.message); }
+            };
+
+            if (loading) return <div className="h-screen flex flex-col items-center justify-center text-emerald-600"><Icons.Loader className="text-4xl mb-4"/><div className="font-semibold">Beheer wordt geladen...</div></div>;
+
+            const userMap = {};
+            monthDocs.forEach(d => { if (d.userId && !userMap[d.userId]) userMap[d.userId] = { uid: d.userId, name: d.userName || 'Onbekend' }; });
+            const others = Object.values(userMap).filter(u => u.uid !== user.uid).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'nl'));
+            const userOptions = [{ uid: user.uid, name: `${user.displayName || 'Mijn account'} (jij)` }, ...others];
+            const current = ADMIN_NAV.find(n => n.id === section) || ADMIN_NAV[0];
+            const yearOptions = [0, 1, 2, 3, 4].map(i => new Date().getFullYear() - 2 + i);
+            const showYear = ['start', 'users', 'goals', 'ps'].includes(current.id);
+
+            return (
+                <div className="relative min-h-screen">
+                    <GlobalDialogs />
+
+                    <header className="sticky top-0 z-30 bg-slate-900 text-white border-b border-slate-800">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-4">
+                            <button onClick={() => setSection('start')} className="flex items-center gap-3 shrink-0 select-none">
+                                <img src="apple-touch-icon.png" alt="" className="w-9 h-9 rounded-xl bg-white object-cover"/>
+                                <div className="text-left leading-tight">
+                                    <div className="font-extrabold text-[17px] tracking-tight">Tupper Life</div>
+                                    <div className="text-[11px] font-bold text-amber-400 -mt-0.5 uppercase tracking-wider">Beheer</div>
+                                </div>
+                            </button>
+                            <nav className="hidden lg:flex items-center gap-1 ml-6 overflow-x-auto no-scrollbar">
+                                {ADMIN_NAV.map(n => (
+                                    <button key={n.id} onClick={() => setSection(n.id)} className={`whitespace-nowrap px-3.5 py-2 rounded-xl text-sm font-semibold transition-colors flex items-center gap-2 ${current.id === n.id ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
+                                        <i className={`fa-solid ${n.icon} text-[13px]`}></i> {n.label}
+                                    </button>
+                                ))}
+                            </nav>
+                            <div className="relative ml-auto">
+                                <button onClick={() => setShowMenu(!showMenu)} aria-label="Profielmenu" className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center border border-white/20 bg-white/10 text-white hover:ring-4 hover:ring-white/10">
+                                    {user.photoURL ? <img src={user.photoURL} referrerPolicy="no-referrer" className="w-full h-full object-cover"/> : <Icons.User/>}
+                                </button>
+                                {showMenu && (
+                                    <React.Fragment>
+                                        <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)}></div>
+                                        <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 z-20 py-2 overflow-hidden modal-content">
+                                            <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
+                                                <div className="text-sm font-bold truncate">{user.displayName || 'Beheerder'}</div>
+                                                <div className="text-xs text-slate-500 truncate">{user.email}</div>
+                                            </div>
+                                            <a href="dashboard.html" className="w-full px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-semibold flex gap-3 items-center"><i className="fa-solid fa-mobile-screen w-5 text-emerald-500"></i> Mijn eigen app</a>
+                                            <button onClick={() => setDarkMode(!darkMode)} className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800">
+                                                <span className="text-sm font-semibold flex items-center gap-3"><i className={`fa-solid ${darkMode ? 'fa-moon' : 'fa-sun'} w-5 text-slate-400`}></i> Donkere modus</span>
+                                                <span className={`w-11 h-6 rounded-full relative transition-colors ${darkMode ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-600'}`}><span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform shadow-sm ${darkMode ? 'translate-x-5' : ''}`}></span></span>
+                                            </button>
+                                            <div className="border-t border-slate-100 dark:border-slate-800 mt-1 pt-1">
+                                                <button onClick={() => window.auth.signOut()} className="w-full text-left px-4 py-3 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm font-semibold text-red-600 dark:text-red-400 flex gap-3 items-center"><i className="fa-solid fa-right-from-bracket w-5"></i> Uitloggen</button>
+                                            </div>
+                                        </div>
+                                    </React.Fragment>
+                                )}
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-5 sm:pt-8 pb-28 lg:pb-12">
+                        <div className="flex items-end justify-between gap-3 mb-5 sm:mb-7">
+                            <div className="min-w-0">
+                                <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">{current.label}</h2>
+                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{current.subtitle}</p>
+                            </div>
+                            {showYear && (
+                                <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} className="shrink-0 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 font-semibold pl-3 pr-8 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-emerald-500/30 shadow-sm text-sm">
+                                    {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+                                </select>
+                            )}
+                        </div>
+
+                        <ErrorBoundary key={current.id}>
+                            {current.id === 'start'
+                                ? <AdminStart monthDocs={monthDocs} selectedYear={selectedYear} formatCurrency={formatCurrency} selfUid={user.uid} />
+                                : <AdminPage hideNav section={current.id} setSection={setSection} users={userOptions} formatCurrency={formatCurrency} selectedYear={selectedYear} globalPsData={globalPsData} updateGlobalPsData={updateGlobalPsData} isAdmin={true} onSelectUser={openUserApp} />}
+                        </ErrorBoundary>
+                    </main>
+
+                    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-900 border-t border-slate-800 pb-safe">
+                        <div className="flex max-w-xl mx-auto">
+                            {ADMIN_NAV.map(n => {
+                                const active = current.id === n.id;
+                                return (
+                                    <button key={n.id} onClick={() => setSection(n.id)} className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-1 pt-2.5 pb-2 transition-colors ${active ? 'text-amber-400' : 'text-slate-400'}`}>
+                                        <span className={`w-11 h-7 rounded-full flex items-center justify-center ${active ? 'bg-white/10' : ''}`}><i className={`fa-solid ${n.icon} text-[16px]`}></i></span>
+                                        <span className={`text-[10px] leading-none truncate max-w-full px-0.5 ${active ? 'font-bold' : 'font-medium'}`}>{n.label}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </nav>
+                </div>
+            );
+        }
+
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<DashboardPage />);
+        root.render(window.TL_MODE === 'admin' ? <AdminApp /> : <DashboardPage />);
     </script>
 
     <!-- LADER: vertaalt de app één keer en bewaart het resultaat -->

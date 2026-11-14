@@ -2,7 +2,7 @@
   "name": "Tupper Life by Kaat",
   "short_name": "Tupper Life",
   "description": "Verkoop, wensen, voorraad, recepten en klanten op één plek.",
-  "start_url": "dashboard.html",
+  "start_url": "index.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f8fafc",

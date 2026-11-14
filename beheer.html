@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Beheer - Tupper Life</title>
+
+    <!-- Donkere modus meteen toepassen (geen witte flits bij het laden) -->
+    <script>try { if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark'); } catch (e) {}</script>
+
+    <!-- PWA & Favicon -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Tupper Life">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+    <meta name="msapplication-TileImage" content="android-chrome-192x192.png">
+    <meta name="msapplication-TileColor" content="#059669">
+
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+                    colors: {
+                        dark: { bg: '#0b1120', card: '#111827', border: '#1f2937', input: '#1f2937', text: '#f1f5f9', muted: '#94a3b8' }
+                    },
+                    boxShadow: {
+                        'glass': '0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 16px rgba(15, 23, 42, 0.05)',
+                        'glass-dark': '0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.25)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- React in productiemodus (sneller dan de ontwikkelversie) -->
+    <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+
+    <!-- PapaParse voor CSV-import -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js" defer></script>
+
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+    <script src="firebase-setup.js"></script>
+
+    <style>
+        html { -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+        @media (max-width: 640px) {
+            html { font-size: 14px; }
+            /* Voorkomt dat iPhone inzoomt bij het aantikken van een invulveld */
+            input, select, textarea { font-size: 16px !important; }
+        }
+        .loading-text { text-align: center; margin-top: 30vh; color: #64748b; }
+        .debug-box { display:none; position: fixed; top: 0; left: 0; right: 0; background: #fff0f0; border-bottom: 2px solid red; color: #d8000c; padding: 20px; z-index: 9999; max-height: 50vh; overflow: auto; font-family: monospace; font-size: 13px; }
+
+        @keyframes modalFade { from { opacity: 0; transform: scale(0.97) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        .modal-content { animation: modalFade 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-in { animation: modalFade 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+        /* Knoppen die op een computer pas bij 'hover' verschijnen, zijn op gsm/tablet altijd zichtbaar */
+        @media (hover: hover) and (pointer: fine) {
+            .hover-reveal { opacity: 0; transition: opacity .2s; }
+            .group:hover .hover-reveal, .hover-reveal:focus-within { opacity: 1; }
+        }
+
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { scrollbar-width: none; }
+
+        .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 6px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+        .dark .custom-scroll::-webkit-scrollbar-thumb { background: #475569; }
+        .dark .custom-scroll::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+
+        /* Iframe styling voor de catalogen */
+        .catalog-iframe-container { position: relative; overflow: hidden; width: 100%; padding-top: 141.4%; border-radius: 1rem; }
+        .catalog-iframe-container iframe { position: absolute; top: 0; left: 0; bottom: 0; right: 0; width: 100%; height: 100%; border: none; }
+        @media (min-width: 768px) { .catalog-iframe-container { padding-top: 75%; } }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-[#0b1120] text-slate-800 dark:text-dark-text min-h-screen">
+
+    <div aria-hidden="true" class="pointer-events-none fixed inset-x-0 top-0 h-72 bg-gradient-to-b from-emerald-100/60 via-emerald-50/30 to-transparent dark:from-emerald-900/20 dark:via-transparent -z-10"></div>
+
+    <div id="debug-console" class="debug-box">
+        <h3 style="margin-top: 0; font-weight: bold;">⚠️ Er is een fout opgetreden:</h3>
+    </div>
+
+    <div id="root">
+        <div class="loading-text">
+            <i class="fa-solid fa-spinner fa-spin text-emerald-600" style="font-size: 2.5em;"></i>
+            <p style="margin-top: 16px; font-weight: 600;">Beheer wordt geladen...</p>
+        </div>
+    </div>
+
+    <!--
+        BEHEER-APP
+        Deze pagina heeft geen eigen app-code: ze gebruikt de code uit dashboard.html
+        en start daarvan de beheerders-versie (AdminApp). Een aanpassing in dashboard.html
+        geldt dus voor beide apps.
+    -->
+    <script>
+        window.TL_MODE = 'admin';
+        (function () {
+            var BABEL_URL = 'https://unpkg.com/@babel/standalone@7.23.6/babel.min.js';
+            var showError = function (msg) {
+                var box = document.getElementById('debug-console');
+                if (!box) return;
+                var p = document.createElement('pre');
+                p.style.whiteSpace = 'pre-wrap';
+                p.textContent = msg;
+                box.appendChild(p);
+                box.style.display = 'block';
+            };
+            window.addEventListener('error', function (e) { if (e && e.message) showError(e.message); });
+
+            if (typeof React === 'undefined' || typeof ReactDOM === 'undefined' || typeof firebase === 'undefined' || !window.db) {
+                showError('Niet alle onderdelen konden geladen worden. Controleer je internetverbinding en vernieuw de pagina.');
+                return;
+            }
+
+            var run = function (code) {
+                var s = document.createElement('script');
+                s.text = code;
+                document.body.appendChild(s);
+            };
+
+            var start = function (src) {
+                var h = 5381;
+                for (var i = 0; i < src.length; i++) { h = ((h << 5) + h + src.charCodeAt(i)) | 0; }
+                var key = 'v1-' + src.length + '-' + (h >>> 0).toString(36);
+                var cached = null;
+                try { if (localStorage.getItem('tl-app-key') === key) cached = localStorage.getItem('tl-app-code'); } catch (e) {}
+                if (cached) { run(cached); return; }
+                var b = document.createElement('script');
+                b.src = BABEL_URL;
+                b.onload = function () {
+                    var out;
+                    try { out = Babel.transform(src, { presets: ['react'], sourceType: 'script' }).code; }
+                    catch (err) { showError('Fout in de app-code: ' + err.message); return; }
+                    try {
+                        localStorage.removeItem('tl-app-code');
+                        localStorage.setItem('tl-app-code', out);
+                        localStorage.setItem('tl-app-key', key);
+                    } catch (e) {}
+                    run(out);
+                };
+                b.onerror = function () { showError('De vertaler (Babel) kon niet geladen worden. Controleer je internetverbinding.'); };
+                document.head.appendChild(b);
+            };
+
+            fetch('dashboard.html', { cache: 'no-cache' })
+                .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+                .then(function (html) {
+                    var doc = new DOMParser().parseFromString(html, 'text/html');
+                    var el = doc.getElementById('app-source');
+                    if (!el) throw new Error('app-code niet gevonden in dashboard.html');
+                    start(el.textContent);
+                })
+                .catch(function (err) { showError('De beheer-app kon niet geladen worden: ' + err.message); });
+        })();
+    </script>
+</body>
+</html>

@@ -105,8 +105,14 @@
                 showError('Inloggen mislukt: ' + (err.message || err.code));
             });
 
+            function isAdmin(email) {
+                var list = (window.ADMIN_EMAILS || []).map(function (e) { return String(e).toLowerCase(); });
+                return !!email && list.indexOf(String(email).toLowerCase()) !== -1;
+            }
+
             window.auth.onAuthStateChanged(function (user) {
-                if (user) window.location.replace('dashboard.html');
+                // Beheerders gaan naar de beheer-app, gewone gebruikers naar de app
+                if (user) window.location.replace(isAdmin(user.email) ? 'beheer.html' : 'dashboard.html');
                 else ready();
             });
 
