@@ -3063,6 +3063,60 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             { id: 'catalogs', label: 'Catalogen',   icon: 'fa-book-open-reader', desc: 'Catalogen, leaflets en weekpromoties' },
         ];
 
+        const AdminSalesSection = ({ uid, realName, selectedYear, globalPsData, formatCurrency }) => {
+            const [mData, setMData] = useState({});
+            const [loaded, setLoaded] = useState(false);
+            useEffect(() => {
+                if (!uid) return;
+                setLoaded(false);
+                const unsub = window.db.collection('users').doc(uid).collection('years').doc(String(selectedYear)).collection('months').onSnapshot(snap => {
+                    const d = {}; snap.forEach(x => d[x.id] = x.data()); setMData(d); setLoaded(true);
+                }, err => { console.error(err); window.showAlert("Verkoop laden mislukt: " + err.message); });
+                return () => unsub();
+            }, [uid, selectedYear]);
+            const updateMonthData = async (month, field, value) => {
+                try {
+                    await window.db.collection('users').doc(uid).collection('years').doc(String(selectedYear)).collection('months').doc(month).set({
+                        [field]: value, userId: uid, userName: realName || 'Onbekend', yearId: selectedYear, monthId: month
+                    }, { merge: true });
+                } catch (e) { window.showAlert("Opslaan mislukt: " + e.message); }
+            };
+            const yearTotal = MONTHS.reduce((acc, m) => acc + sumMonth(mData[m]), 0);
+            if (!loaded) return <div className="text-center py-10 text-slate-400"><Icons.Loader className="text-2xl"/></div>;
+            return (
+                <div className="space-y-5">
+                    <OverviewStats monthlyData={mData} selectedYear={selectedYear} formatCurrency={formatCurrency} />
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-glass dark:shadow-glass-dark border border-slate-200/80 dark:border-slate-800 overflow-hidden w-full">
+                        <div className="px-4 sm:px-6 pt-5 pb-3 flex items-center justify-between gap-3">
+                            <h3 className="font-bold text-slate-800 dark:text-white">Verkoop per week {selectedYear}</h3>
+                            <span className="text-xs text-slate-400 text-right">Tik op een maand om de weken te zien en aan te passen</span>
+                        </div>
+                        <div className="w-full overflow-x-auto custom-scroll">
+                            <table className="w-full text-left border-collapse min-w-full">
+                                <thead className="border-y border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40">
+                                    <tr>
+                                        <th className="px-3 sm:px-5 py-3 text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-bold">Maand</th>
+                                        <th className="px-3 sm:px-5 py-3 text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-bold text-right">Verkoop</th>
+                                        <th className="px-3 sm:px-5 py-3 text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-bold text-right">Winst</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {MONTHS.map((m, index) => <MonthRow key={m} month={m} monthIndex={index} year={selectedYear} data={mData[m] || {}} updateMonthData={updateMonthData} formatCurrency={formatCurrency} user={null} globalPs={(globalPsData || {})[m] || []} />)}
+                                </tbody>
+                                <tfoot className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white">
+                                    <tr>
+                                        <td className="px-3 sm:px-5 py-4 font-extrabold text-sm sm:text-base uppercase tracking-wider">Totaal {selectedYear}</td>
+                                        <td className="px-3 sm:px-5 py-4 font-extrabold text-base sm:text-xl text-right whitespace-nowrap">{formatCurrency(yearTotal)}</td>
+                                        <td className="px-3 sm:px-5 py-4 font-extrabold text-base sm:text-xl text-right whitespace-nowrap">{formatCurrency(yearTotal * PROFIT_RATE)}</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         const AdminGoalsSection = ({ uid, name, selectedYear, formatCurrency }) => {
             const [goals, setGoals] = useState([]);
             const [mData, setMData] = useState({});
@@ -3085,7 +3139,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             const [uid, setUid] = useState(users[0] ? users[0].uid : '');
             useEffect(() => { if (!users.some(u => u.uid === uid) && users[0]) setUid(users[0].uid); }, [users.map(u => u.uid).join(',')]);
             const picked = users.find(u => u.uid === uid);
-            const perUser = ['goals', 'requests', 'stock'].includes(section);
+            const perUser = ['sales', 'goals', 'requests', 'stock'].includes(section);
             return (
                 <div className="space-y-5">
                     {!hideNav && <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
@@ -3113,6 +3167,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                     )}
 
                     {section === 'users' && <AdminUserModal inline isOpen={true} onClose={() => {}} selectedYear={selectedYear} onSelectUser={onSelectUser} />}
+                    {section === 'sales' && uid && <AdminSalesSection key={uid} uid={uid} realName={picked ? (picked.realName || picked.name) : ''} selectedYear={selectedYear} globalPsData={globalPsData} formatCurrency={formatCurrency} />}
                     {section === 'goals' && uid && <AdminGoalsSection key={uid} uid={uid} name={picked ? picked.name : ''} selectedYear={selectedYear} formatCurrency={formatCurrency} />}
                     {section === 'requests' && uid && <RequestsTab key={uid} targetUid={uid} />}
                     {section === 'stock' && uid && <StockTab key={uid} targetUid={uid} user={null} />}
@@ -3436,13 +3491,14 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
         //  BEHEERDERS-APP (beheer.html) — gebruikt dezelfde onderdelen als de app
         // =====================================================================
         const ADMIN_NAV = [
-            { id: 'start',    label: 'Start',      icon: 'fa-house',            subtitle: 'Verkoop van alle gebruikers samen' },
-            { id: 'users',    label: 'Gebruikers', icon: 'fa-users',            subtitle: 'Accounts openen en rechten instellen' },
-            { id: 'goals',    label: 'Doelen',     icon: 'fa-bullseye',         subtitle: 'Doelen van elke gebruiker beheren' },
-            { id: 'requests', label: 'Wensen',     icon: 'fa-gift',             subtitle: 'Wensen van elke gebruiker beheren' },
-            { id: 'stock',    label: 'Voorraad',   icon: 'fa-box',              subtitle: 'Voorraad van elke gebruiker beheren' },
-            { id: 'ps',       label: 'Globale PS', icon: 'fa-award',            subtitle: 'Beloningen voor iedereen, per maand' },
-            { id: 'catalogs', label: 'Catalogen',  icon: 'fa-book-open-reader', subtitle: 'Catalogen, leaflets en weekpromoties' },
+            { id: 'start',    label: 'Start',      short: 'Start',    icon: 'fa-house',            subtitle: 'Verkoop van alle gebruikers samen' },
+            { id: 'sales',    label: 'Verkoop',    short: 'Verkoop',  icon: 'fa-chart-line',       subtitle: 'Verkoop per week van elke gebruiker bekijken en aanpassen' },
+            { id: 'users',    label: 'Gebruikers', short: 'Leden', icon: 'fa-users',            subtitle: 'Accounts openen en rechten instellen' },
+            { id: 'goals',    label: 'Doelen',     short: 'Doelen',   icon: 'fa-bullseye',         subtitle: 'Doelen van elke gebruiker beheren' },
+            { id: 'requests', label: 'Wensen',     short: 'Wensen',   icon: 'fa-gift',             subtitle: 'Wensen van elke gebruiker beheren' },
+            { id: 'stock',    label: 'Voorraad',   short: 'Voorraad', icon: 'fa-box',              subtitle: 'Voorraad van elke gebruiker beheren' },
+            { id: 'ps',       label: 'Globale PS', short: 'PS',       icon: 'fa-award',            subtitle: 'Beloningen voor iedereen, per maand' },
+            { id: 'catalogs', label: 'Catalogen',  short: 'Catalogi', icon: 'fa-book-open-reader', subtitle: 'Catalogen, leaflets en weekpromoties' },
         ];
 
         const openUserApp = (u) => {
@@ -3583,10 +3639,10 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             const userMap = {};
             monthDocs.forEach(d => { if (d.userId && !userMap[d.userId]) userMap[d.userId] = { uid: d.userId, name: d.userName || 'Onbekend' }; });
             const others = Object.values(userMap).filter(u => u.uid !== user.uid).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'nl'));
-            const userOptions = [{ uid: user.uid, name: `${user.displayName || 'Mijn account'} (jij)` }, ...others];
+            const userOptions = [{ uid: user.uid, name: `${user.displayName || 'Mijn account'} (jij)`, realName: user.displayName || user.email || 'Onbekend' }, ...others];
             const current = ADMIN_NAV.find(n => n.id === section) || ADMIN_NAV[0];
             const yearOptions = [0, 1, 2, 3, 4].map(i => new Date().getFullYear() - 2 + i);
-            const showYear = ['start', 'users', 'goals', 'ps'].includes(current.id);
+            const showYear = ['start', 'sales', 'users', 'goals', 'ps'].includes(current.id);
 
             return (
                 <div className="relative min-h-screen">
@@ -3661,8 +3717,8 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                                 const active = current.id === n.id;
                                 return (
                                     <button key={n.id} onClick={() => setSection(n.id)} className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-1 pt-2.5 pb-2 transition-colors ${active ? 'text-amber-400' : 'text-slate-400'}`}>
-                                        <span className={`w-11 h-7 rounded-full flex items-center justify-center ${active ? 'bg-white/10' : ''}`}><i className={`fa-solid ${n.icon} text-[16px]`}></i></span>
-                                        <span className={`text-[10px] leading-none truncate max-w-full px-0.5 ${active ? 'font-bold' : 'font-medium'}`}>{n.label}</span>
+                                        <span className={`w-10 h-7 rounded-full flex items-center justify-center ${active ? 'bg-white/10' : ''}`}><i className={`fa-solid ${n.icon} text-[15px]`}></i></span>
+                                        <span className={`text-[9.5px] leading-none truncate max-w-full px-0.5 ${active ? 'font-bold' : 'font-medium'}`}>{n.short}</span>
                                     </button>
                                 );
                             })}
