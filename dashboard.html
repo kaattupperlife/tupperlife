@@ -2,22 +2,29 @@
 <html lang="nl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Tupper Life by Kaat</title>
-    
-    <!-- PWA & Favicon Settings -->
+
+    <!-- Donkere modus meteen toepassen (geen witte flits bij het laden) -->
+    <script>try { if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark'); } catch (e) {}</script>
+
+    <!-- PWA & Favicon -->
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#059669"> 
-    
+    <meta name="theme-color" content="#059669">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Tupper Life">
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
-    <link rel="icon" type="image/png" sizes="192x192" href="android-chrome-192x192.png">
-    <link rel="icon" type="image/png" sizes="512x512" href="android-chrome-512x512.png">
-    
     <meta name="msapplication-TileImage" content="android-chrome-192x192.png">
     <meta name="msapplication-TileColor" content="#059669">
+
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -25,75 +32,80 @@
             darkMode: 'class',
             theme: {
                 extend: {
+                    fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
                     colors: {
-                        dark: {
-                            bg: '#0f172a',      
-                            card: '#1e293b',    
-                            border: '#334155',  
-                            input: '#334155',   
-                            text: '#f1f5f9',    
-                            muted: '#94a3b8'    
-                        }
+                        dark: { bg: '#0b1120', card: '#111827', border: '#1f2937', input: '#1f2937', text: '#f1f5f9', muted: '#94a3b8' }
                     },
                     boxShadow: {
-                        'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.05)',
-                        'glass-dark': '0 8px 32px 0 rgba(0, 0, 0, 0.3)',
+                        'glass': '0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 16px rgba(15, 23, 42, 0.05)',
+                        'glass-dark': '0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.25)',
                     }
                 }
             }
         }
     </script>
-    
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone@7.23.6/babel.min.js"></script>
-    
-    <!-- PapaParse for CSV import -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- React in productiemodus (sneller dan de ontwikkelversie) -->
+    <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+
+    <!-- PapaParse voor CSV-import -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js" defer></script>
 
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
 
     <script src="firebase-setup.js"></script>
 
     <style>
+        html { -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
         @media (max-width: 640px) {
-            html {
-                font-size: 13px; 
-            }
+            html { font-size: 14px; }
+            /* Voorkomt dat iPhone inzoomt bij het aantikken van een invulveld */
+            input, select, textarea { font-size: 16px !important; }
         }
-        body { font-family: 'Inter', sans-serif; }
-        .loading-text { text-align: center; margin-top: 50px; color: #666; }
-        .debug-box { display:none; position: fixed; top: 0; left: 0; right: 0; background: #fff0f0; border-bottom: 2px solid red; color: #d8000c; padding: 20px; z-index: 9999; max-height: 50vh; overflow: auto; font-family: monospace; }
-        
-        @keyframes modalFade { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-        .modal-content { animation: modalFade 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        .animate-in { animation: modalFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        
+        .loading-text { text-align: center; margin-top: 30vh; color: #64748b; }
+        .debug-box { display:none; position: fixed; top: 0; left: 0; right: 0; background: #fff0f0; border-bottom: 2px solid red; color: #d8000c; padding: 20px; z-index: 9999; max-height: 50vh; overflow: auto; font-family: monospace; font-size: 13px; }
+
+        @keyframes modalFade { from { opacity: 0; transform: scale(0.97) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        .modal-content { animation: modalFade 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-in { animation: modalFade 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+        /* Knoppen die op een computer pas bij 'hover' verschijnen, zijn op gsm/tablet altijd zichtbaar */
+        @media (hover: hover) and (pointer: fine) {
+            .hover-reveal { opacity: 0; transition: opacity .2s; }
+            .group:hover .hover-reveal, .hover-reveal:focus-within { opacity: 1; }
+        }
+
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { scrollbar-width: none; }
+
         .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scroll::-webkit-scrollbar-track { background: transparent; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 6px; }
         .custom-scroll::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
-        
         .dark .custom-scroll::-webkit-scrollbar-thumb { background: #475569; }
         .dark .custom-scroll::-webkit-scrollbar-thumb:hover { background: #64748b; }
 
-        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-inner-spin-button,
         input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
 
         /* Iframe styling voor de catalogen */
-        .catalog-iframe-container { position: relative; overflow: hidden; width: 100%; padding-top: 141.4%; /* A4 proportie ongeveer */ border-radius: 1rem; }
+        .catalog-iframe-container { position: relative; overflow: hidden; width: 100%; padding-top: 141.4%; border-radius: 1rem; }
         .catalog-iframe-container iframe { position: absolute; top: 0; left: 0; bottom: 0; right: 0; width: 100%; height: 100%; border: none; }
-        @media (min-width: 768px) { .catalog-iframe-container { padding-top: 75%; /* Breder op desktop */ } }
+        @media (min-width: 768px) { .catalog-iframe-container { padding-top: 75%; } }
     </style>
 </head>
-<body class="bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-slate-50 via-slate-100 to-emerald-50 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950 text-slate-800 dark:text-dark-text transition-colors duration-500 min-h-screen">
+<body class="bg-slate-50 dark:bg-[#0b1120] text-slate-800 dark:text-dark-text min-h-screen">
+
+    <div aria-hidden="true" class="pointer-events-none fixed inset-x-0 top-0 h-72 bg-gradient-to-b from-emerald-100/60 via-emerald-50/30 to-transparent dark:from-emerald-900/20 dark:via-transparent -z-10"></div>
 
     <div id="debug-console" class="debug-box">
         <h3 style="margin-top: 0; font-weight: bold;">⚠️ Er is een fout opgetreden:</h3>
@@ -101,12 +113,19 @@
 
     <div id="root">
         <div class="loading-text">
-            <h1 class="text-2xl font-bold">Dashboard wordt geladen...</h1>
-            <i class="fa-solid fa-spinner fa-spin mt-6 text-emerald-600" style="font-size: 3em;"></i>
+            <i class="fa-solid fa-spinner fa-spin text-emerald-600" style="font-size: 2.5em;"></i>
+            <p style="margin-top: 16px; font-weight: 600;">Tupper Life wordt geladen...</p>
         </div>
     </div>
 
-    <script type="text/babel">
+    <!--
+        DE APP
+        De code hieronder is gewone React/JSX en kan je net zoals vroeger aanpassen.
+        Ze wordt één keer vertaald en daarna in de browser bewaard, zodat de app
+        bij een volgend bezoek veel sneller opent. Na een aanpassing wordt ze
+        automatisch opnieuw vertaald.
+    -->
+    <script type="text/x-jsx" id="app-source">
         // === VUL HIER JOUW IMGBB API KEY IN ===
         const IMGBB_API_KEY = '2d8cfe2bc06041aea3bb266afde53d66';
         // ======================================
@@ -162,7 +181,7 @@
                 <React.Fragment>
                     {alertData && (
                         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in">
-                            <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md p-6 rounded-3xl shadow-glass dark:shadow-glass-dark max-w-sm w-full border border-white/50 dark:border-slate-700/50">
+                            <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-glass dark:shadow-glass-dark max-w-sm w-full border border-slate-200/80 dark:border-slate-800">
                                 <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2 flex items-center gap-2"><Icons.CheckCircle className="text-emerald-500"/> Melding</h3>
                                 <p className="text-slate-600 dark:text-slate-300 mb-6 whitespace-pre-wrap">{alertData}</p>
                                 <button onClick={() => setAlertData(null)} className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl font-bold transition-all shadow-lg shadow-emerald-500/20">OK, begrepen</button>
@@ -171,7 +190,7 @@
                     )}
                     {confirmData && (
                         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in">
-                            <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md p-6 rounded-3xl shadow-glass dark:shadow-glass-dark max-w-sm w-full border border-white/50 dark:border-slate-700/50">
+                            <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-glass dark:shadow-glass-dark max-w-sm w-full border border-slate-200/80 dark:border-slate-800">
                                 <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2 flex items-center gap-2"><Icons.Shield className="text-amber-500"/> Bevestigen</h3>
                                 <p className="text-slate-600 dark:text-slate-300 mb-6 font-medium">{confirmData.msg}</p>
                                 <div className="flex gap-3">
@@ -378,11 +397,10 @@ const CatalogsTab = ({ isAdmin }) => {
                     if (doc.exists && doc.data().list) {
                         const list = doc.data().list || [];
                         setCatalogs(list);
-                        if (!selectedItem && list.length > 0) setSelectedItem(list[0]);
-                        else if (selectedItem) {
-                            const updated = list.find(c => c.id === selectedItem.id);
-                            if (updated) setSelectedItem(updated);
-                        }
+                        setSelectedItem(prev => {
+                            if (prev) { const updated = list.find(c => c.id === prev.id); if (updated) return updated; }
+                            return list.length > 0 ? list[0] : null;
+                        });
                     }
                 });
                 
@@ -563,12 +581,12 @@ const CatalogsTab = ({ isAdmin }) => {
                 <div className="space-y-6">
                     {/* ADMIN BEHEER PANEEL */}
                     {isAdmin && (
-                        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-6 rounded-3xl border border-white/40 dark:border-slate-700 shadow-glass dark:shadow-glass-dark">
+                        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-glass dark:shadow-glass-dark">
                             
                             {/* --- DEEL 1: CATALOGEN & LEAFLETS --- */}
-                            <div className="flex justify-between items-center mb-4">
-                                <h3 className="font-bold text-lg text-slate-800 dark:text-slate-200 flex items-center gap-2"><Icons.Settings className="text-emerald-500"/> Beheer Catalogen (Admin)</h3>
-                                <button onClick={() => setIsAdding(!isAdding)} className="px-4 py-2 rounded-xl text-white font-bold transition-colors shadow-md bg-gradient-to-r from-emerald-500 to-teal-500 hover:-translate-y-0.5">
+                            <div className="flex justify-between items-center gap-3 mb-4">
+                                <h3 className="font-bold text-lg text-slate-800 dark:text-slate-200 flex items-center gap-2"><Icons.Settings className="text-emerald-500"/> Beheer catalogen</h3>
+                                <button onClick={() => setIsAdding(!isAdding)} className="shrink-0 whitespace-nowrap px-4 py-2 rounded-xl text-white font-bold transition-colors shadow-md bg-gradient-to-r from-emerald-500 to-teal-500 hover:-translate-y-0.5">
                                     {isAdding ? 'Annuleren' : '+ Toevoegen'}
                                 </button>
                             </div>
@@ -604,11 +622,11 @@ const CatalogsTab = ({ isAdmin }) => {
                             <hr className="border-slate-200 dark:border-slate-700 mb-6 mt-2" />
 
                             {/* --- DEEL 2: WEEKPROMOTIES --- */}
-                            <div className="flex justify-between items-center mb-4">
+                            <div className="flex justify-between items-center gap-3 mb-4">
                                 <h3 className="font-bold text-lg text-slate-800 dark:text-slate-200 flex items-center gap-2"><Icons.Image className="text-orange-500"/> Beheer Weekpromoties</h3>
-                                <label className="px-4 py-2 rounded-xl text-white font-bold transition-colors shadow-md bg-gradient-to-r from-orange-500 to-rose-500 hover:-translate-y-0.5 cursor-pointer flex items-center gap-2">
+                                <label className="shrink-0 whitespace-nowrap px-4 py-2 rounded-xl text-white font-bold transition-colors shadow-md bg-gradient-to-r from-orange-500 to-rose-500 hover:-translate-y-0.5 cursor-pointer flex items-center gap-2">
                                     <input type="file" multiple className="hidden" accept="image/*" onChange={handlePromoUpload} disabled={uploading}/>
-                                    {uploading ? <><Icons.Loader className="animate-spin"/> Uploaden...</> : '+ Foto\'s Uploaden'}
+                                    {uploading ? <><Icons.Loader className="animate-spin"/> Uploaden...</> : '+ Foto\'s'}
                                 </label>
                             </div>
 
@@ -664,7 +682,7 @@ const CatalogsTab = ({ isAdmin }) => {
                     <div className="flex flex-col gap-8">
                         
                         {/* SECTIE 1: BLADEREN (CATALOGEN / LEAFLETS) */}
-                        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-4 sm:p-6 rounded-3xl border border-white/40 dark:border-slate-700 shadow-glass dark:shadow-glass-dark flex flex-col gap-6 w-full">
+                        <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-glass dark:shadow-glass-dark flex flex-col gap-6 w-full">
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                                 <h3 className="font-black text-xl text-emerald-800 dark:text-emerald-400 flex items-center gap-2"><Icons.BookReader/> Bladeren</h3>
                                 {catalogs.length > 0 && (
@@ -697,7 +715,7 @@ const CatalogsTab = ({ isAdmin }) => {
                         </div>
 
                         {/* SECTIE 2: WEEKPROMOTIES (ONDER DE CATALOGEN) */}
-                        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-4 sm:p-6 rounded-3xl border border-white/40 dark:border-slate-700 shadow-glass dark:shadow-glass-dark flex flex-col gap-6 w-full">
+                        <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-glass dark:shadow-glass-dark flex flex-col gap-6 w-full">
                             <h3 className="font-black text-xl text-orange-600 dark:text-orange-400 flex items-center gap-2"><Icons.Image/> Weekpromoties</h3>
                             
                             {promotions.length === 0 ? (
@@ -754,22 +772,27 @@ const CatalogsTab = ({ isAdmin }) => {
 
             useEffect(() => {
                 if(!targetUid) return;
-                const unsub = window.db.collection('users').doc(targetUid).collection('customers').orderBy('name').onSnapshot(snap => {
-                    setCustomers(snap.docs.map(d => ({id: d.id, ...d.data()})));
-                });
+                const unsub = window.db.collection('users').doc(targetUid).collection('customers').onSnapshot(snap => {
+                    setCustomers(snap.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b) => (a.name||'').localeCompare(b.name||'', 'nl')));
+                }, err => { console.error(err); window.showAlert("Klanten laden mislukt: " + err.message); });
                 return () => unsub();
             }, [targetUid]);
 
+            const emptyCustomer = { name: '', email: '', phone: '', address: '', note: '' };
             const handleSave = async () => {
-                if(!input.name) return;
-                if(editingId) {
-                    await window.db.collection('users').doc(targetUid).collection('customers').doc(editingId).update(input);
-                    setEditingId(null);
-                } else {
-                    await window.db.collection('users').doc(targetUid).collection('customers').add(input);
-                }
-                setInput({ name: '', email: '', phone: '', address: '', note: '' });
+                if(!input.name.trim()) return window.showAlert("Vul minstens een naam in.");
+                const data = { name: input.name.trim(), email: input.email||'', phone: input.phone||'', address: input.address||'', note: input.note||'' };
+                try {
+                    if(editingId) {
+                        await window.db.collection('users').doc(targetUid).collection('customers').doc(editingId).update(data);
+                        setEditingId(null);
+                    } else {
+                        await window.db.collection('users').doc(targetUid).collection('customers').add(data);
+                    }
+                    setInput(emptyCustomer);
+                } catch(e) { window.showAlert("Opslaan mislukt: " + e.message); }
             };
+            const cancelEdit = () => { setEditingId(null); setInput(emptyCustomer); };
 
             const handleDelete = (id) => { 
                 window.showConfirm("Weet je zeker dat je deze klant wilt verwijderen?", async () => {
@@ -777,11 +800,12 @@ const CatalogsTab = ({ isAdmin }) => {
                 });
             };
             
-            const filtered = customers.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()));
+            const q = searchTerm.toLowerCase();
+            const filtered = customers.filter(c => [c.name, c.email, c.phone, c.address, c.note].some(v => (v||'').toLowerCase().includes(q)));
 
             return (
                 <div className="space-y-6">
-                    <div className={`p-6 rounded-3xl shadow-glass dark:shadow-glass-dark border transition-all duration-300 ${editingId ? 'bg-amber-50/80 dark:bg-amber-900/20 backdrop-blur-md border-amber-200 dark:border-amber-700' : 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-white/40 dark:border-slate-700'}`}>
+                    <div className={`p-6 rounded-3xl shadow-glass dark:shadow-glass-dark border transition-all duration-300 ${editingId ? 'bg-amber-50/80 dark:bg-amber-900/20 backdrop-blur-md border-amber-200 dark:border-amber-700' : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800'}`}>
                         <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-slate-700 dark:text-slate-200"><Icons.AddressBook className="text-purple-500"/> {editingId ? 'Klant Wijzigen' : 'Nieuwe Klant'}</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <input value={input.name} onChange={e=>setInput({...input, name:e.target.value})} placeholder="Naam" className="bg-slate-50/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-600 dark:text-white p-3 rounded-2xl outline-none focus:ring-2 focus:ring-purple-500/30 transition-all"/>
@@ -790,22 +814,26 @@ const CatalogsTab = ({ isAdmin }) => {
                             <input value={input.address} onChange={e=>setInput({...input, address:e.target.value})} placeholder="Adres" className="bg-slate-50/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-600 dark:text-white p-3 rounded-2xl outline-none focus:ring-2 focus:ring-purple-500/30 transition-all"/>
                             <input value={input.note} onChange={e=>setInput({...input, note:e.target.value})} placeholder="Notitie" className="md:col-span-2 bg-slate-50/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-600 dark:text-white p-3 rounded-2xl outline-none focus:ring-2 focus:ring-purple-500/30 transition-all"/>
                         </div>
-                        <button onClick={handleSave} className={`w-full mt-6 py-3.5 text-white font-bold rounded-2xl shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 ${editingId?'bg-gradient-to-r from-amber-500 to-amber-600 shadow-amber-500/30':'bg-gradient-to-r from-purple-500 to-indigo-600 shadow-purple-500/30'}`}>{editingId ? 'Wijziging Opslaan' : 'Klant Toevoegen'}</button>
+                        <div className="flex gap-3 mt-6">
+                            <button onClick={handleSave} className={`flex-grow py-3.5 text-white font-bold rounded-2xl shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 ${editingId?'bg-gradient-to-r from-amber-500 to-amber-600 shadow-amber-500/30':'bg-gradient-to-r from-purple-500 to-indigo-600 shadow-purple-500/30'}`}>{editingId ? 'Wijziging Opslaan' : 'Klant Toevoegen'}</button>
+                            {editingId && <button onClick={cancelEdit} className="px-5 py-3.5 font-bold rounded-2xl bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">Annuleren</button>}
+                        </div>
                     </div>
 
-                    <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-6 rounded-3xl border border-white/40 dark:border-slate-700 shadow-glass dark:shadow-glass-dark">
+                    <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-glass dark:shadow-glass-dark">
                         <input className="w-full mb-6 p-3 bg-slate-50/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-600 dark:text-white rounded-2xl outline-none focus:ring-2 focus:ring-purple-500/30 transition-all" placeholder="Zoek klant..." value={searchTerm} onChange={e=>setSearchTerm(e.target.value)}/>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {filtered.map(c => (
-                                <div key={c.id} className="bg-white dark:bg-[#1e293b]/80 border border-slate-100 dark:border-slate-700/50 p-4 rounded-2xl hover:shadow-lg dark:hover:shadow-purple-500/10 hover:-translate-y-1 relative group transition-all duration-300">
-                                    <div className="font-bold text-slate-800 dark:text-slate-100 text-lg mb-1">{c.name}</div>
+                                <div key={c.id} className="bg-white dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50 p-4 rounded-2xl hover:shadow-lg dark:hover:shadow-purple-500/10 hover:-translate-y-1 relative group transition-all duration-300">
+                                    <div className="font-bold text-slate-800 dark:text-slate-100 text-lg mb-1 pr-20 break-words">{c.name || <span className="italic text-slate-400">Naamloos</span>}</div>
                                     <div className="text-sm text-slate-500 dark:text-slate-400 space-y-1.5 mt-2">
-                                        {c.email && <div className="flex items-center gap-2"><Icons.Envelope className="text-purple-400"/> {c.email}</div>}
-                                        {c.phone && <div className="flex items-center gap-2"><Icons.Phone className="text-purple-400"/> {c.phone}</div>}
+                                        {c.email && <a href={`mailto:${c.email}`} className="flex items-center gap-2 hover:text-purple-600 break-all"><Icons.Envelope className="text-purple-400"/> {c.email}</a>}
+                                        {c.phone && <a href={`tel:${c.phone}`} className="flex items-center gap-2 hover:text-purple-600"><Icons.Phone className="text-purple-400"/> {c.phone}</a>}
                                         {c.address && <div className="flex items-center gap-2"><Icons.MapPin className="text-purple-400"/> {c.address}</div>}
+                                        {c.note && <div className="text-xs italic text-slate-400 mt-1">{c.note}</div>}
                                     </div>
-                                    <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={()=>{setInput(c);setEditingId(c.id);window.scrollTo({top:0,behavior:'smooth'})}} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-amber-500 transition-colors"><Icons.Edit/></button>
+                                    <div className="absolute top-3 right-3 flex gap-2 hover-reveal">
+                                        <button onClick={()=>{setInput({ ...emptyCustomer, name: c.name||'', email: c.email||'', phone: c.phone||'', address: c.address||'', note: c.note||'' });setEditingId(c.id);window.scrollTo({top:0,behavior:'smooth'})}} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-amber-500 transition-colors"><Icons.Edit/></button>
                                         <button onClick={()=>handleDelete(c.id)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-red-500 transition-colors"><Icons.Trash/></button>
                                     </div>
                                 </div>
@@ -1030,7 +1058,7 @@ const CatalogsTab = ({ isAdmin }) => {
                         const remaining = Math.max(0, goal.amount - currentProgress);
                         
                         return (
-                            <div key={goal.id} className={`bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-3xl border border-white/40 dark:border-indigo-900/50 shadow-glass dark:shadow-glass-dark p-5 relative overflow-hidden flex flex-col group transition-all hover:shadow-[0_8px_30px_rgba(79,70,229,0.15)] ${goal.colSpan === 2 ? 'md:col-span-2' : ''}`}>
+                            <div key={goal.id} className={`bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-indigo-900/50 shadow-glass dark:shadow-glass-dark p-5 relative overflow-hidden flex flex-col group transition-all hover:shadow-[0_8px_30px_rgba(79,70,229,0.15)] ${goal.colSpan === 2 ? 'md:col-span-2' : ''}`}>
                                 <div className="flex justify-between items-start mb-4 relative z-10">
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 rounded-2xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0 border border-indigo-200 dark:border-indigo-800">
@@ -1183,7 +1211,7 @@ const CatalogsTab = ({ isAdmin }) => {
 
             return (
                 <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
-                    <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-3xl shadow-glass border border-white/50 dark:border-slate-700 w-full max-w-lg overflow-hidden modal-content flex flex-col max-h-[90vh]" onClick={e=>e.stopPropagation()}>
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-glass border border-white/50 dark:border-slate-700 w-full max-w-lg overflow-hidden modal-content flex flex-col max-h-[90vh]" onClick={e=>e.stopPropagation()}>
                         
                         <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center shrink-0">
                             <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 flex items-center gap-2">
@@ -1363,22 +1391,27 @@ const CatalogsTab = ({ isAdmin }) => {
 
             useEffect(() => {
                 if(!targetUid) return;
-                const unsub = window.db.collection('users').doc(targetUid).collection('recipes').orderBy('name').onSnapshot(snap => {
-                    setRecipes(snap.docs.map(d => ({id: d.id, ...d.data()})));
-                });
+                const unsub = window.db.collection('users').doc(targetUid).collection('recipes').onSnapshot(snap => {
+                    setRecipes(snap.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b) => (a.name||'').localeCompare(b.name||'', 'nl')));
+                }, err => { console.error(err); window.showAlert("Recepten laden mislukt: " + err.message); });
                 return () => unsub();
             }, [targetUid]);
 
+            const emptyRecipe = { name: '', product: '', ingredients: '', instructions: '', image: '' };
             const handleSave = async () => {
-                if(!input.name) return;
-                if(editingId) {
-                    await window.db.collection('users').doc(targetUid).collection('recipes').doc(editingId).update(input);
-                    setEditingId(null);
-                } else {
-                    await window.db.collection('users').doc(targetUid).collection('recipes').add(input);
-                }
-                setInput({ name: '', product: '', ingredients: '', instructions: '', image: '' });
+                if(!input.name.trim()) return window.showAlert("Vul minstens de naam van het recept in.");
+                const data = { name: input.name.trim(), product: input.product||'', ingredients: input.ingredients||'', instructions: input.instructions||'', image: input.image||'' };
+                try {
+                    if(editingId) {
+                        await window.db.collection('users').doc(targetUid).collection('recipes').doc(editingId).update(data);
+                        setEditingId(null);
+                    } else {
+                        await window.db.collection('users').doc(targetUid).collection('recipes').add(data);
+                    }
+                    setInput(emptyRecipe);
+                } catch(e) { window.showAlert("Opslaan mislukt: " + e.message); }
             };
+            const cancelEdit = () => { setEditingId(null); setInput(emptyRecipe); };
 
             const handleDelete = (id) => { 
                 window.showConfirm("Recept verwijderen?", async () => {
@@ -1392,14 +1425,17 @@ const CatalogsTab = ({ isAdmin }) => {
                 setUploading(true);
                 try {
                     const url = await window.uploadToImgBB(file);
-                    setInput({...input, image: url});
-                } catch (error) { window.showAlert("Upload fout: " + error.message); } finally { setUploading(false); }
+                    setInput(prev => ({...prev, image: url}));
+                } catch (error) { window.showAlert("Upload fout: " + error.message); } finally { setUploading(false); e.target.value = ''; }
             };
 
-            const filtered = recipes.filter(r => r.name.toLowerCase().includes(searchTerm.toLowerCase()) || (r.product||'').toLowerCase().includes(searchTerm.toLowerCase()));
+            const filtered = recipes.filter(r => (r.name||'').toLowerCase().includes(searchTerm.toLowerCase()) || (r.product||'').toLowerCase().includes(searchTerm.toLowerCase()));
 
-            const printRecipe = (recipe) => {
+            const printRecipe = (r) => {
+                const esc = (v) => String(v || '').replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+                const recipe = { name: esc(r.name), product: esc(r.product), image: esc(r.image), ingredients: esc(r.ingredients), instructions: esc(r.instructions) };
                 const printWindow = window.open('', '_blank');
+                if (!printWindow) return window.showAlert("Je browser blokkeerde het printvenster. Sta pop-ups toe voor deze site.");
                 printWindow.document.write(`
                     <html>
                     <head>
@@ -1437,12 +1473,12 @@ const CatalogsTab = ({ isAdmin }) => {
 
             return (
                 <div className="space-y-6">
-                     <div className={`p-6 rounded-3xl shadow-glass dark:shadow-glass-dark border transition-all duration-300 ${editingId ? 'bg-amber-50/80 dark:bg-amber-900/20 backdrop-blur-md border-amber-200 dark:border-amber-700' : 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-white/40 dark:border-slate-700'}`}>
+                     <div className={`p-6 rounded-3xl shadow-glass dark:shadow-glass-dark border transition-all duration-300 ${editingId ? 'bg-amber-50/80 dark:bg-amber-900/20 backdrop-blur-md border-amber-200 dark:border-amber-700' : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800'}`}>
                         <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-slate-700 dark:text-slate-200"><Icons.BookOpen className="text-orange-500"/> {editingId ? 'Recept Wijzigen' : 'Nieuwe Recept'}</h3>
                         <div className="grid grid-cols-1 gap-4">
                             <div className="flex flex-col sm:flex-row gap-4">
                                  <label className="w-32 h-32 border border-dashed border-slate-300 dark:border-slate-600 rounded-2xl bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-center cursor-pointer hover:bg-orange-50 dark:hover:bg-slate-700 shrink-0 relative overflow-hidden transition-colors">
-                                    <input type="file" className="hidden" onChange={handleImageUpload}/>
+                                    <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload}/>
                                     {uploading ? <Icons.Loader className="text-orange-500 text-2xl"/> : (input.image ? <img src={input.image} className="w-full h-full object-cover"/> : <div className="text-center text-slate-400 font-medium text-xs"><Icons.Image className="text-3xl mb-2 text-slate-300"/><br/>Foto Toevoegen</div>)}
                                 </label>
                                 <div className="flex-grow space-y-4">
@@ -1453,29 +1489,32 @@ const CatalogsTab = ({ isAdmin }) => {
                             <textarea value={input.ingredients} onChange={e=>setInput({...input, ingredients:e.target.value})} placeholder="Ingrediënten (elk op een nieuwe regel)" className="bg-slate-50/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-600 dark:text-white p-4 rounded-2xl outline-none focus:ring-2 focus:ring-orange-500/30 transition-all h-32 custom-scroll" />
                             <textarea value={input.instructions} onChange={e=>setInput({...input, instructions:e.target.value})} placeholder="Bereiding..." className="bg-slate-50/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-600 dark:text-white p-4 rounded-2xl outline-none focus:ring-2 focus:ring-orange-500/30 transition-all h-32 custom-scroll" />
                         </div>
-                        <button onClick={handleSave} className={`w-full mt-6 py-3.5 text-white font-bold rounded-2xl shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 ${editingId?'bg-gradient-to-r from-amber-500 to-amber-600 shadow-amber-500/30':'bg-gradient-to-r from-orange-500 to-rose-500 shadow-orange-500/30'}`}>{editingId ? 'Wijziging Opslaan' : 'Recept Toevoegen'}</button>
+                        <div className="flex gap-3 mt-6">
+                            <button onClick={handleSave} disabled={uploading} className={`flex-grow py-3.5 text-white font-bold rounded-2xl shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 disabled:opacity-60 ${editingId?'bg-gradient-to-r from-amber-500 to-amber-600 shadow-amber-500/30':'bg-gradient-to-r from-orange-500 to-rose-500 shadow-orange-500/30'}`}>{editingId ? 'Wijziging Opslaan' : 'Recept Toevoegen'}</button>
+                            {editingId && <button onClick={cancelEdit} className="px-5 py-3.5 font-bold rounded-2xl bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">Annuleren</button>}
+                        </div>
                     </div>
 
-                    <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-6 rounded-3xl border border-white/40 dark:border-slate-700 shadow-glass dark:shadow-glass-dark">
+                    <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-glass dark:shadow-glass-dark">
                         <input className="w-full mb-6 p-3 bg-slate-50/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-600 dark:text-white rounded-2xl outline-none focus:ring-2 focus:ring-orange-500/30 transition-all" placeholder="Zoek recept..." value={searchTerm} onChange={e=>setSearchTerm(e.target.value)}/>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {filtered.map(r => (
                                 <div 
                                     key={r.id} 
                                     onClick={() => setViewingRecipe(r)}
-                                    className="bg-white dark:bg-[#1e293b]/80 border border-slate-100 dark:border-slate-700/50 rounded-2xl overflow-hidden flex flex-col hover:shadow-xl dark:hover:shadow-orange-500/10 hover:-translate-y-1 relative group cursor-pointer transition-all duration-300"
+                                    className="bg-white dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50 rounded-2xl overflow-hidden flex flex-col hover:shadow-xl dark:hover:shadow-orange-500/10 hover:-translate-y-1 relative group cursor-pointer transition-all duration-300"
                                 >
                                     <div className="h-40 bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden border-b border-slate-100 dark:border-slate-700/50 relative">
                                         {r.image ? <img src={r.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"/> : <Icons.Utensils className="text-slate-300 dark:text-slate-600 text-4xl"/>}
                                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                                     </div>
                                     <div className="p-4 flex-grow flex flex-col">
-                                        <h4 className="font-bold text-slate-800 dark:text-slate-100 text-lg line-clamp-1">{r.name}</h4>
+                                        <h4 className="font-bold text-slate-800 dark:text-slate-100 text-lg line-clamp-1">{r.name || 'Naamloos'}</h4>
                                         {r.product && <div className="text-[10px] text-orange-600 dark:text-orange-400 font-bold mb-3 uppercase tracking-wider bg-orange-50 dark:bg-orange-900/30 inline-block px-2 py-1 rounded-lg w-fit">{r.product}</div>}
                                         <div className="text-sm text-slate-500 dark:text-slate-400 line-clamp-3 whitespace-pre-line mt-auto leading-relaxed">{r.ingredients}</div>
                                     </div>
-                                     <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={(e)=>{e.stopPropagation(); setInput(r);setEditingId(r.id);window.scrollTo({top:0,behavior:'smooth'})}} className="w-9 h-9 rounded-full bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-amber-500 shadow-lg"><Icons.Edit/></button>
+                                     <div className="absolute top-3 right-3 flex gap-2 hover-reveal">
+                                        <button onClick={(e)=>{e.stopPropagation(); setInput({ ...emptyRecipe, name: r.name||'', product: r.product||'', ingredients: r.ingredients||'', instructions: r.instructions||'', image: r.image||'' });setEditingId(r.id);window.scrollTo({top:0,behavior:'smooth'})}} className="w-9 h-9 rounded-full bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-amber-500 shadow-lg"><Icons.Edit/></button>
                                         <button onClick={(e)=>{e.stopPropagation(); handleDelete(r.id)}} className="w-9 h-9 rounded-full bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-red-500 shadow-lg"><Icons.Trash/></button>
                                     </div>
                                 </div>
@@ -1561,7 +1600,7 @@ const CatalogsTab = ({ isAdmin }) => {
 
             useEffect(() => {
                 if(!targetUid) return;
-                const unsubStock = window.db.collection('users').doc(targetUid).collection('stock').orderBy('createdAt', 'desc').onSnapshot(snap => { setItems(snap.docs.map(d => ({id: d.id, ...d.data()}))); setLoading(false); });
+                const unsubStock = window.db.collection('users').doc(targetUid).collection('stock').onSnapshot(snap => { setItems(snap.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b) => (b.createdAt||0) - (a.createdAt||0))); setLoading(false); }, err => { console.error(err); setLoading(false); window.showAlert("Voorraad laden mislukt: " + err.message); });
                 const unsubCats = window.db.collection('users').doc(targetUid).collection('settings').doc('categories').onSnapshot(doc => { 
                     if(doc.exists && doc.data().list) {
                         setCategories(doc.data().list.map(c => typeof c === 'string' ? {name:c, color: CATEGORY_COLORS[16]} : c)); 
@@ -1580,8 +1619,9 @@ const CatalogsTab = ({ isAdmin }) => {
             }, [searchTerm, filterCategory, filterStatus, filterLocation, sortBy, filterVintedOnly]);
 
             const handleSaveItem = async () => {
-                if(!newItem.name) return window.showAlert("Vul een productnaam in.");
-                const itemData = { ...newItem, price: Number(newItem.price)||0, quantity: Number(newItem.quantity)||0, vinted: Number(newItem.vinted)||0, updatedAt: Date.now() };
+                if(!String(newItem.name||'').trim()) return window.showAlert("Vul een productnaam in.");
+                const { id: _ignoreId, ...rest } = newItem;
+                const itemData = { ...rest, name: String(newItem.name).trim(), price: Number(newItem.price)||0, quantity: Number(newItem.quantity)||0, vinted: Number(newItem.vinted)||0, updatedAt: Date.now() };
                 try {
                     if (editingId) { 
                         await window.db.collection('users').doc(targetUid).collection('stock').doc(editingId).update(itemData); 
@@ -1682,7 +1722,7 @@ const CatalogsTab = ({ isAdmin }) => {
                                 }
                             }
 
-                            const nameMatches = items.filter(item => item.name.toLowerCase() === itemName.toLowerCase());
+                            const nameMatches = items.filter(item => (item.name||'').toLowerCase() === itemName.toLowerCase());
                             
                             if (nameMatches.length > 0) {
                                 let bestMatch = nameMatches.find(item => 
@@ -1785,7 +1825,7 @@ const CatalogsTab = ({ isAdmin }) => {
                     await window.db.collection('users').doc(targetUid).collection('stock').doc(id).delete(); 
                 });
             };
-            const updateQuantity = async (id, current, change) => { if(current+change >= 0) await window.db.collection('users').doc(targetUid).collection('stock').doc(id).update({ quantity: current+change }); };
+            const updateQuantity = async (id, current, change) => { current = Number(current)||0; if(current+change >= 0) await window.db.collection('users').doc(targetUid).collection('stock').doc(id).update({ quantity: current+change }); };
             
             const handleImageUpload = async (e) => {
                 const file = e.target.files[0];
@@ -1793,8 +1833,8 @@ const CatalogsTab = ({ isAdmin }) => {
                 setUploading(true);
                 try {
                     const url = await window.uploadToImgBB(file);
-                    setNewItem({...newItem, image: url});
-                } catch (error) { window.showAlert("Upload fout: " + error.message); } finally { setUploading(false); }
+                    setNewItem(prev => ({...prev, image: url}));
+                } catch (error) { window.showAlert("Upload fout: " + error.message); } finally { setUploading(false); e.target.value = ''; }
             };
 
             const openManager = (type) => {
@@ -1819,7 +1859,7 @@ const CatalogsTab = ({ isAdmin }) => {
                 setEditingItemType(type);
                 setEditingItemIndex(index);
                 setEditName(item.name);
-                const colorIndex = CATEGORY_COLORS.findIndex(c => c.bg === item.color.bg);
+                const colorIndex = CATEGORY_COLORS.findIndex(c => c.bg === item.color?.bg);
                 setEditColor(colorIndex !== -1 ? colorIndex : 16);
             };
 
@@ -1830,18 +1870,19 @@ const CatalogsTab = ({ isAdmin }) => {
                 });
             };
 
+            const sq = searchTerm.toLowerCase();
             const filteredItems = items.filter(item => {
-                return (item.name.toLowerCase().includes(searchTerm.toLowerCase()) || (item.location||'').toLowerCase().includes(searchTerm.toLowerCase())) &&
+                return ((item.name||'').toLowerCase().includes(sq) || (item.location||'').toLowerCase().includes(sq) || (item.category||'').toLowerCase().includes(sq)) &&
                        (filterCategory === 'Alles' || item.category === filterCategory) &&
                        (filterStatus === 'Alles' || item.status === filterStatus) &&
                        (filterLocation === 'Alles' || item.location === filterLocation) &&
                        (!filterVintedOnly || (item.vinted && Number(item.vinted) > 0)); 
             }).sort((a,b) => {
-                if(sortBy==='name') return a.name.localeCompare(b.name);
-                if(sortBy==='price-desc') return b.price - a.price;
-                if(sortBy==='price-asc') return a.price - b.price;
-                if(sortBy==='qty-desc') return b.quantity - a.quantity;
-                if(sortBy==='qty-asc') return a.quantity - b.quantity;
+                if(sortBy==='name') return (a.name||'').localeCompare(b.name||'', 'nl');
+                if(sortBy==='price-desc') return (Number(b.price)||0) - (Number(a.price)||0);
+                if(sortBy==='price-asc') return (Number(a.price)||0) - (Number(b.price)||0);
+                if(sortBy==='qty-desc') return (Number(b.quantity)||0) - (Number(a.quantity)||0);
+                if(sortBy==='qty-asc') return (Number(a.quantity)||0) - (Number(b.quantity)||0);
                 if(sortBy==='vinted-desc') return (Number(b.vinted)||0) - (Number(a.vinted)||0); 
                 if(sortBy==='vinted-asc') return (Number(a.vinted)||0) - (Number(b.vinted)||0); 
                 return 0;
@@ -1894,7 +1935,7 @@ const CatalogsTab = ({ isAdmin }) => {
                             <div className="max-h-40 overflow-y-auto space-y-1.5 custom-scroll pr-2">
                                 {(showCatManager?categories:locations).map((it, idx) => (
                                     <div key={idx} className="flex justify-between items-center bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-colors">
-                                        <span className="flex items-center gap-3 text-slate-800 dark:text-slate-200 font-medium"><span className={`w-4 h-4 rounded-full ${it.color.bg} border border-slate-200 dark:border-slate-700`}></span>{it.name}</span>
+                                        <span className="flex items-center gap-3 text-slate-800 dark:text-slate-200 font-medium"><span className={`w-4 h-4 rounded-full ${(it.color||CATEGORY_COLORS[16]).bg} border border-slate-200 dark:border-slate-700`}></span>{it.name}</span>
                                         <div className="flex gap-1">
                                             <button onClick={()=>{startEditConfig(showCatManager?'category':'location', idx, it)}} className="w-8 h-8 rounded-lg text-slate-400 hover:bg-white dark:hover:bg-slate-800 hover:text-emerald-600 flex items-center justify-center transition-all"><Icons.Edit/></button>
                                             <button onClick={()=>deleteConfig(showCatManager?'cat':'loc', idx)} className="w-8 h-8 rounded-lg text-slate-400 hover:bg-white dark:hover:bg-slate-800 hover:text-red-500 flex items-center justify-center transition-all"><Icons.Trash/></button>
@@ -1907,7 +1948,7 @@ const CatalogsTab = ({ isAdmin }) => {
 
                     {/* INPUT CARD - Alleen zichtbaar als het slotje OPEN is */}
                     {!isLocked && (
-                        <div className={`p-6 rounded-3xl shadow-glass dark:shadow-glass-dark border transition-all duration-300 animate-in ${editingId ? 'bg-amber-50/80 dark:bg-amber-900/20 backdrop-blur-md border-amber-200 dark:border-amber-700' : 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-white/40 dark:border-slate-700'}`}>
+                        <div className={`p-6 rounded-3xl shadow-glass dark:shadow-glass-dark border transition-all duration-300 animate-in ${editingId ? 'bg-amber-50/80 dark:bg-amber-900/20 backdrop-blur-md border-amber-200 dark:border-amber-700' : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800'}`}>
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                                 <h3 className={`font-bold text-xl flex items-center gap-3 ${editingId ? 'text-amber-800 dark:text-amber-400' : 'text-emerald-800 dark:text-emerald-400'}`}>
                                     <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-white ${editingId ? 'bg-gradient-to-br from-amber-400 to-amber-600' : 'bg-gradient-to-br from-emerald-400 to-emerald-600'}`}>
@@ -1915,7 +1956,7 @@ const CatalogsTab = ({ isAdmin }) => {
                                     </div>
                                     {editingId ? 'Product Wijzigen' : 'Nieuw Product'}
                                 </h3>
-                                <button onClick={() => {setEditingId(null); setIsLocked(true);}} className="text-slate-400 hover:text-slate-600 font-bold text-sm bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors">Annuleren</button>
+                                <button onClick={() => {setEditingId(null); setIsLocked(true); setNewItem({ name: '', category: '', location: '', quantity: 1, price: 0, status: 'zolder', image: '', vinted: 0 });}} className="text-slate-400 hover:text-slate-600 font-bold text-sm bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors">Annuleren</button>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1962,7 +2003,7 @@ const CatalogsTab = ({ isAdmin }) => {
                                     <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Afbeelding</label>
                                     <div className="flex flex-col sm:flex-row gap-3">
                                         <label className="sm:w-1/4 h-[46px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl cursor-pointer flex items-center justify-center gap-2 hover:bg-emerald-50 dark:hover:bg-slate-700 hover:border-emerald-300 transition-all text-sm font-bold text-emerald-600 shadow-sm">
-                                            <input type="file" className="hidden" onChange={handleImageUpload}/>
+                                            <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload}/>
                                             {uploading ? <Icons.Loader/> : <><Icons.Upload/> Uploaden</>}
                                         </label>
                                         <input type="text" placeholder="Of plak een link naar een afbeelding..." value={newItem.image} onChange={(e)=>setNewItem({...newItem, image: e.target.value})} className="sm:w-3/4 px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 dark:text-white rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all text-sm shadow-sm"/>
@@ -1986,7 +2027,7 @@ const CatalogsTab = ({ isAdmin }) => {
                     )}
 
                     {/* LIJST MET ITEMS */}
-                    <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-5 rounded-3xl border border-white/40 dark:border-slate-700 shadow-glass dark:shadow-glass-dark space-y-5">
+                    <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-glass dark:shadow-glass-dark space-y-5">
                         {/* ZOEKBALK */}
                         <div className="relative">
                             <input className="w-full pl-12 pr-4 py-4 rounded-2xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all font-medium shadow-sm text-base" placeholder="Zoek op naam, bak of categorie..." value={searchTerm} onChange={e=>setSearchTerm(e.target.value)}/>
@@ -2035,31 +2076,31 @@ const CatalogsTab = ({ isAdmin }) => {
                         </div>
                         
                         {/* TOTAAL BLOK */}
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-                            <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/30 dark:to-teal-900/30 border border-emerald-100 dark:border-emerald-800/50 rounded-2xl p-5 flex justify-between items-center shadow-sm">
+                        <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4">
+                            <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/30 dark:to-teal-900/30 border border-emerald-100 dark:border-emerald-800/50 rounded-2xl p-3 sm:p-5 flex justify-between items-center shadow-sm">
                                 <div>
-                                    <p className="text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-widest mb-1">Totale Waarde</p>
-                                    <h2 className="text-xl sm:text-3xl font-black text-emerald-800 dark:text-emerald-300">{formatEuro(totalStockValue)}</h2>
+                                    <p className="text-[9px] sm:text-xs leading-tight text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-widest mb-1">Totale Waarde</p>
+                                    <h2 className="text-base sm:text-3xl font-black text-emerald-800 dark:text-emerald-300">{formatEuro(totalStockValue)}</h2>
                                 </div>
-                                <div className="w-12 h-12 rounded-2xl bg-white dark:bg-emerald-800 shadow-sm flex items-center justify-center text-emerald-500 dark:text-emerald-200 text-xl border border-emerald-50 dark:border-emerald-700 shrink-0">
+                                <div className="hidden sm:flex w-12 h-12 rounded-2xl bg-white dark:bg-emerald-800 shadow-sm flex items-center justify-center text-emerald-500 dark:text-emerald-200 text-xl border border-emerald-50 dark:border-emerald-700 shrink-0">
                                     <Icons.Euro/>
                                 </div>
                             </div>
-                            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 border border-blue-100 dark:border-blue-800/50 rounded-2xl p-5 flex justify-between items-center shadow-sm">
+                            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 border border-blue-100 dark:border-blue-800/50 rounded-2xl p-3 sm:p-5 flex justify-between items-center shadow-sm">
                                 <div>
-                                    <p className="text-[10px] sm:text-xs text-blue-600 dark:text-blue-400 font-bold uppercase tracking-widest mb-1">Totaal Aantal</p>
-                                    <h2 className="text-xl sm:text-3xl font-black text-blue-800 dark:text-blue-300">{totalStockCount} <span className="text-sm sm:text-lg font-bold text-blue-600/70">stuks</span></h2>
+                                    <p className="text-[9px] sm:text-xs leading-tight text-blue-600 dark:text-blue-400 font-bold uppercase tracking-widest mb-1">Totaal Aantal</p>
+                                    <h2 className="text-base sm:text-3xl font-black text-blue-800 dark:text-blue-300">{totalStockCount} <span className="text-xs sm:text-lg font-bold text-blue-600/70">stuks</span></h2>
                                 </div>
-                                <div className="w-12 h-12 rounded-2xl bg-white dark:bg-blue-800 shadow-sm flex items-center justify-center text-blue-500 dark:text-blue-200 text-xl border border-blue-50 dark:border-blue-700 shrink-0">
+                                <div className="hidden sm:flex w-12 h-12 rounded-2xl bg-white dark:bg-blue-800 shadow-sm flex items-center justify-center text-blue-500 dark:text-blue-200 text-xl border border-blue-50 dark:border-blue-700 shrink-0">
                                     <Icons.Hash/>
                                 </div>
                             </div>
-                            <div className="bg-gradient-to-br from-purple-50 to-fuchsia-50 dark:from-purple-900/30 dark:to-fuchsia-900/30 border border-purple-100 dark:border-purple-800/50 rounded-2xl p-5 flex justify-between items-center shadow-sm">
+                            <div className="bg-gradient-to-br from-purple-50 to-fuchsia-50 dark:from-purple-900/30 dark:to-fuchsia-900/30 border border-purple-100 dark:border-purple-800/50 rounded-2xl p-3 sm:p-5 flex justify-between items-center shadow-sm">
                                 <div>
-                                    <p className="text-[10px] sm:text-xs text-purple-600 dark:text-purple-400 font-bold uppercase tracking-widest mb-1">Verschillende Producten</p>
-                                    <h2 className="text-xl sm:text-3xl font-black text-purple-800 dark:text-purple-300">{totalUniqueProducts} <span className="text-sm sm:text-lg font-bold text-purple-600/70">soorten</span></h2>
+                                    <p className="text-[9px] sm:text-xs leading-tight text-purple-600 dark:text-purple-400 font-bold uppercase tracking-widest mb-1">Verschillende Producten</p>
+                                    <h2 className="text-base sm:text-3xl font-black text-purple-800 dark:text-purple-300">{totalUniqueProducts} <span className="text-xs sm:text-lg font-bold text-purple-600/70">soorten</span></h2>
                                 </div>
-                                <div className="w-12 h-12 rounded-2xl bg-white dark:bg-purple-800 shadow-sm flex items-center justify-center text-purple-500 dark:text-purple-200 text-xl border border-purple-50 dark:border-purple-700 shrink-0">
+                                <div className="hidden sm:flex w-12 h-12 rounded-2xl bg-white dark:bg-purple-800 shadow-sm flex items-center justify-center text-purple-500 dark:text-purple-200 text-xl border border-purple-50 dark:border-purple-700 shrink-0">
                                     <Icons.Layers/>
                                 </div>
                             </div>
@@ -2073,7 +2114,7 @@ const CatalogsTab = ({ isAdmin }) => {
                                     const locColor = getLocationColor(item.location);
                                     
                                     return (
-                                        <div key={item.id} className="bg-white dark:bg-[#1e293b]/80 backdrop-blur-sm border border-slate-100 dark:border-slate-700/50 rounded-2xl p-4 flex gap-4 relative hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:hover:shadow-[0_8px_30px_rgba(16,185,129,0.05)] hover:-translate-y-1 transition-all duration-300 group">
+                                        <div key={item.id} className="bg-white dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50 rounded-2xl p-4 flex gap-4 relative hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:hover:shadow-[0_8px_30px_rgba(16,185,129,0.05)] hover:-translate-y-1 transition-all duration-300 group">
                                             <div onClick={() => item.image && (item.image.startsWith('http') || item.image.startsWith('data:image')) && setPreviewImage(item.image)} className={`w-20 h-20 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center overflow-hidden border border-slate-100 dark:border-slate-700 shrink-0 relative ${item.image && (item.image.startsWith('http') || item.image.startsWith('data:image')) ? 'cursor-pointer' : ''}`}>
                                                 {item.image && (item.image.startsWith('http') || item.image.startsWith('data:image')) ? <img src={item.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"/> : <Icons.Package className="text-slate-300 dark:text-slate-600 text-3xl"/>}
                                             </div>
@@ -2084,7 +2125,7 @@ const CatalogsTab = ({ isAdmin }) => {
                                                             {item.category && <span className={`text-[9px] px-2 py-0.5 rounded-md uppercase font-bold tracking-wider ${catColor.bg} ${catColor.text} border border-white/20`}>{item.category}</span>}
                                                             <span className={`text-[9px] px-2 py-0.5 rounded-md uppercase font-bold tracking-wider ${item.status==='zolder'?'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300':'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300'}`}>{item.status}</span>
                                                         </div>
-                                                        <div className="font-bold text-slate-800 dark:text-slate-100 text-base leading-tight break-words pr-2">{item.name}</div>
+                                                        <div className="font-bold text-slate-800 dark:text-slate-100 text-base leading-tight break-words pr-2">{item.name || 'Naamloos'}</div>
                                                     </div>
                                                     <div className="text-right flex flex-col items-end shrink-0 pl-2 border-l border-slate-100 dark:border-slate-700">
                                                         <div className="font-black text-emerald-600 dark:text-emerald-400 text-lg leading-none">{formatEuro(item.price)}</div>
@@ -2111,15 +2152,15 @@ const CatalogsTab = ({ isAdmin }) => {
                                                     </div>
                                                     
                                                     <div className="flex flex-col items-end gap-2">
-                                                        <div className={`flex items-center border border-slate-200 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-800 shadow-sm overflow-hidden h-8 ${isLocked ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                        <div className={`flex items-center border border-slate-200 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-800 shadow-sm overflow-hidden h-9 ${isLocked ? 'opacity-50 pointer-events-none' : ''}`}>
                                                             <button onClick={()=>updateQuantity(item.id,item.quantity,-1)} className="w-8 h-full flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 dark:text-slate-200 transition-colors font-bold text-slate-500" disabled={isLocked}>-</button>
                                                             <span className="w-8 h-full flex items-center justify-center font-mono font-black text-sm bg-white dark:bg-slate-900 dark:text-white border-x border-slate-200 dark:border-slate-600">{item.quantity}</span>
                                                             <button onClick={()=>updateQuantity(item.id,item.quantity,1)} className="w-8 h-full flex items-center justify-center hover:bg-emerald-100 text-emerald-600 dark:hover:bg-emerald-900/50 dark:text-emerald-400 transition-colors font-bold" disabled={isLocked}>+</button>
                                                         </div>
                                                         {!isLocked && (
-                                                            <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity absolute top-2 right-2 sm:static sm:opacity-100 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm sm:bg-transparent p-1 sm:p-0 rounded-lg shadow-sm sm:shadow-none">
-                                                                <button onClick={()=>{setNewItem(item);setEditingId(item.id);setIsLocked(false);window.scrollTo({top:0,behavior:'smooth'})}} className="w-7 h-7 rounded-md bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-colors"><Icons.Edit className="text-xs"/></button>
-                                                                <button onClick={()=>deleteItem(item.id)} className="w-7 h-7 rounded-md bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"><Icons.Trash className="text-xs"/></button>
+                                                            <div className="flex gap-1.5">
+                                                                <button onClick={()=>{setNewItem({ name: item.name||'', category: item.category||'', location: item.location||'', quantity: item.quantity ?? 1, price: item.price ?? 0, status: item.status||'zolder', image: item.image||'', vinted: item.vinted ?? 0 });setEditingId(item.id);setIsLocked(false);window.scrollTo({top:0,behavior:'smooth'})}} className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-colors"><Icons.Edit className="text-xs"/></button>
+                                                                <button onClick={()=>deleteItem(item.id)} className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"><Icons.Trash className="text-xs"/></button>
                                                             </div>
                                                         )}
                                                     </div>
@@ -2204,9 +2245,9 @@ const CatalogsTab = ({ isAdmin }) => {
                         const d = doc.data();
                         if (d.userId && !usersMap[d.userId]) usersMap[d.userId] = { uid: d.userId, name: d.userName || 'Onbekend', email: d.userEmail, photo: d.userPhoto };
                     });
-                    setUsersList(Object.values(usersMap));
+                    setUsersList(Object.values(usersMap).sort((a,b) => (a.name||'').localeCompare(b.name||'', 'nl')));
                     setLoading(false);
-                });
+                }, err => { console.error(err); setLoading(false); window.showAlert("Gebruikers laden mislukt: " + err.message); });
                 return () => unsub();
             }, [isOpen, selectedYear]);
 
@@ -2228,9 +2269,10 @@ const CatalogsTab = ({ isAdmin }) => {
 
             return (
                 <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
-                    <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-3xl shadow-glass border border-white/40 dark:border-slate-700 w-full max-w-md overflow-hidden modal-content" onClick={e=>e.stopPropagation()}>
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-glass border border-slate-200/80 dark:border-slate-800 w-full max-w-md overflow-hidden modal-content" onClick={e=>e.stopPropagation()}>
                         <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center"><h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 flex items-center gap-2"><Icons.Shield className="text-amber-500"/> Beheer Gebruikers</h3><button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors text-slate-400"><Icons.X/></button></div>
                         <div className="p-5 max-h-[60vh] overflow-y-auto space-y-3 custom-scroll">
+                            {!loading && usersList.length === 0 && <p className="text-center text-slate-400 py-8 text-sm">Geen gebruikers gevonden voor {selectedYear}.</p>}
                             {loading ? <Icons.Loader className="mx-auto block text-amber-500 text-2xl py-10"/> : usersList.map(u => (
                                 <div key={u.uid} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all">
                                     <div className="flex items-center gap-4 p-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors" onClick={() => onSelectUser(u)}>
@@ -2247,7 +2289,7 @@ const CatalogsTab = ({ isAdmin }) => {
                                     {editingUserPerms === u.uid && (
                                         <div className="bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 p-4 animate-in">
                                             <div className="flex justify-between items-center mb-3">
-                                                <span className="font-bold text-[10px] text-slate-500 uppercase tracking-widest">Toegang voor {u.name.split(' ')[0]}</span>
+                                                <span className="font-bold text-[10px] text-slate-500 uppercase tracking-widest">Toegang voor {(u.name||'').split(' ')[0]}</span>
                                                 <button onClick={()=>setEditingUserPerms(null)} className="text-slate-400 hover:text-slate-600"><Icons.X className="w-3"/></button>
                                             </div>
                                             <div className="flex flex-wrap gap-2">
@@ -2315,19 +2357,19 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             return (
                 <React.Fragment>
                     <tr onClick={()=>setExpanded(!expanded)} className={`cursor-pointer border-b border-emerald-100/50 dark:border-slate-800 transition-colors duration-300 ${expanded?'bg-emerald-50/50 dark:bg-emerald-900/10 hover:bg-emerald-50 dark:hover:bg-emerald-900/20':'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}>
-                        <td className="px-3 py-4 sm:p-5 font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2 sm:gap-3">
+                        <td className="px-3 py-3.5 sm:px-5 font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-2 sm:gap-3">
                             <div className={`w-6 h-6 sm:w-8 sm:h-8 shrink-0 rounded-full flex items-center justify-center transition-colors ${expanded ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400' : 'bg-slate-100 text-slate-400 dark:bg-slate-800'}`}>
                                 {expanded ? <Icons.ChevronUp className="text-[10px] sm:text-base"/> : <Icons.ChevronDown className="text-[10px] sm:text-base"/>}
                             </div>
                             <div className="flex-grow min-w-0">
-                                <div className="text-sm sm:text-lg flex items-center gap-2 truncate">
+                                <div className="text-[15px] sm:text-base flex items-center gap-2 truncate">
                                     {month}
                                 </div>
                                 {earnedLevels > 0 && <div className="text-[9px] sm:text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider bg-emerald-100 dark:bg-emerald-900/30 inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded mt-1"><Icons.Gift className="w-2 h-2 sm:w-2.5 sm:h-2.5"/> {earnedLevels} Cadeaus</div>}
                             </div>
                         </td>
-                        <td className="px-3 py-4 sm:p-5 font-black text-sm sm:text-2xl text-slate-800 dark:text-white whitespace-nowrap">{formatCurrency(total)}</td>
-                        <td className="px-3 py-4 sm:p-5 font-black text-sm sm:text-2xl text-right text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-600 font-mono whitespace-nowrap">{formatCurrency(profit)}</td>
+                        <td className="px-3 py-4 sm:px-5 font-bold text-[15px] sm:text-lg text-right text-slate-800 dark:text-white whitespace-nowrap tabular-nums">{formatCurrency(total)}</td>
+                        <td className="px-3 py-4 sm:px-5 font-bold text-[15px] sm:text-lg text-right text-emerald-600 dark:text-emerald-400 whitespace-nowrap tabular-nums">{formatCurrency(profit)}</td>
                     </tr>
                     {expanded && (
                         <tr>
@@ -2352,7 +2394,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                                                     const dateRange = weekInfo.label.split('(')[1].replace(')', '');
 
                                                     return (
-                                                        <div key={w} className="flex flex-col gap-2 bg-white dark:bg-[#1e293b] p-3 sm:p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50 shadow-glass transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:hover:shadow-[0_8px_30px_rgba(16,185,129,0.05)] hover:-translate-y-0.5">
+                                                        <div key={w} className="flex flex-col gap-2 bg-white dark:bg-slate-800/60 p-3 sm:p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50 shadow-glass transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:hover:shadow-[0_8px_30px_rgba(16,185,129,0.05)] hover:-translate-y-0.5">
                                                             <div className="flex justify-between items-center text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500 mb-1">
                                                                 <span className="font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Week {weekInfo.weekNumber}</span>
                                                                 <span className="bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 px-2 py-1 rounded-md font-medium text-slate-500">{dateRange}</span>
@@ -2375,7 +2417,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                                                     const weekVal = Number(data[`week${w}`]) || 0;
                                                     const weekProfit = weekVal * 0.29184;
                                                     return (
-                                                        <div key={w} className="flex items-center gap-2 sm:gap-4 bg-white dark:bg-[#1e293b] p-3 sm:p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50 shadow-glass transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:hover:shadow-[0_8px_30px_rgba(16,185,129,0.05)] hover:-translate-y-0.5">
+                                                        <div key={w} className="flex items-center gap-2 sm:gap-4 bg-white dark:bg-slate-800/60 p-3 sm:p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50 shadow-glass transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:hover:shadow-[0_8px_30px_rgba(16,185,129,0.05)] hover:-translate-y-0.5">
                                                             <div className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex justify-center items-center text-sm sm:text-lg font-black border border-emerald-100 dark:border-emerald-800 shrink-0">{w}</div>
                                                             <div className="flex-grow">
                                                                 <input type="text" inputMode="decimal" placeholder="0.00" value={data[`week${w}`]||''} onClick={e=>e.stopPropagation()} onChange={e=>{ const val = e.target.value.replace(',', '.'); if (/^\d*\.?\d*$/.test(val)) updateMonthData(month,`week${w}`,val); }} className="w-full px-2 sm:px-3 py-2 sm:py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/30 text-sm sm:text-lg font-black font-mono transition-all"/>
@@ -2550,15 +2592,15 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
 
             const inputCls = "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 dark:text-white p-3 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all font-medium shadow-sm w-full";
 
-            const StatCard = ({ label, value, sub, color }) => (
-                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-4 rounded-2xl border border-white/40 dark:border-slate-700 shadow-glass dark:shadow-glass-dark">
+            const statCard = (label, value, sub, color) => (
+                <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-glass dark:shadow-glass-dark">
                     <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{label}</div>
                     <div className={`text-2xl font-black mt-1 ${color}`}>{value}</div>
                     {sub && <div className="text-xs text-slate-400 mt-0.5">{sub}</div>}
                 </div>
             );
 
-            const RequestCard = ({ item }) => (
+            const renderCard = (item) => (
                 <div className={`p-4 rounded-2xl border flex gap-4 items-start shadow-sm hover:shadow-md transition-shadow ${item.completed ? 'bg-emerald-50/70 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-800/50' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700'}`}>
                     <div onClick={() => item.image && setPreviewImage(item.image)} className={`w-16 h-16 rounded-xl shrink-0 overflow-hidden flex items-center justify-center border border-slate-100 dark:border-slate-700 ${item.image ? 'cursor-pointer bg-white' : 'bg-slate-50 dark:bg-slate-900'}`}>
                         {item.image ? <img src={item.image} className="w-full h-full object-cover"/> : <Icons.Gift className={`text-2xl ${item.completed ? 'text-emerald-300 dark:text-emerald-700' : 'text-slate-300 dark:text-slate-600'}`}/>}
@@ -2589,7 +2631,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             return (
                 <div className="space-y-6">
                     {/* FORMULIER */}
-                    <div className={`p-6 rounded-3xl shadow-glass dark:shadow-glass-dark border transition-all duration-300 ${editingId ? 'bg-amber-50/80 dark:bg-amber-900/20 backdrop-blur-md border-amber-200 dark:border-amber-700' : 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-white/40 dark:border-slate-700'}`}>
+                    <div className={`p-6 rounded-3xl shadow-glass dark:shadow-glass-dark border transition-all duration-300 ${editingId ? 'bg-amber-50/80 dark:bg-amber-900/20 backdrop-blur-md border-amber-200 dark:border-amber-700' : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800'}`}>
                         <h3 className={`font-bold text-lg mb-4 flex items-center gap-2 ${editingId ? 'text-amber-800 dark:text-amber-400' : 'text-emerald-800 dark:text-emerald-400'}`}>
                             {editingId ? <Icons.Edit className="text-amber-500"/> : <Icons.Plus className="text-emerald-500"/>} {editingId ? 'Wens Wijzigen' : 'Nieuwe Wens Toevoegen'}
                         </h3>
@@ -2623,20 +2665,20 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
 
                     {/* OVERZICHT */}
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                        <StatCard label="Totaal wensen" value={list.length} color="text-slate-800 dark:text-white"/>
-                        <StatCard label="Nog te zoeken" value={openRequests.length} color="text-amber-600 dark:text-amber-400"/>
-                        <StatCard label="Gevonden" value={foundRequests.length} sub={`${foundPct}% van alle wensen`} color="text-emerald-600 dark:text-emerald-400"/>
-                        <StatCard label="Gevonden deze maand" value={foundThisMonth} color="text-teal-600 dark:text-teal-400"/>
+                        {statCard("Totaal wensen", list.length, null, "text-slate-800 dark:text-white")}
+                        {statCard("Nog te zoeken", openRequests.length, null, "text-amber-600 dark:text-amber-400")}
+                        {statCard("Gevonden", foundRequests.length, `${foundPct}% van alle wensen`, "text-emerald-600 dark:text-emerald-400")}
+                        {statCard("Gevonden deze maand", foundThisMonth, null, "text-teal-600 dark:text-teal-400")}
                     </div>
 
                     {/* LIJST */}
-                    <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-4 sm:p-6 rounded-3xl border border-white/40 dark:border-slate-700 shadow-glass dark:shadow-glass-dark">
+                    <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-glass dark:shadow-glass-dark">
                         <div className="flex flex-col sm:flex-row gap-3 sm:items-center mb-5">
-                            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl shrink-0">
-                                <button onClick={() => setView('open')} className={`flex-1 px-4 py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${view === 'open' ? 'bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-300 shadow' : 'text-slate-500'}`}>
-                                    <Icons.Search/> Nog te zoeken <span className="bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 text-xs px-2 py-0.5 rounded-lg">{openRequests.length}</span>
+                            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl shrink-0 w-full sm:w-auto">
+                                <button onClick={() => setView('open')} className={`flex-1 whitespace-nowrap px-3 sm:px-4 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${view === 'open' ? 'bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-300 shadow' : 'text-slate-500'}`}>
+                                    <Icons.Search/> Te zoeken <span className="bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 text-xs px-2 py-0.5 rounded-lg">{openRequests.length}</span>
                                 </button>
-                                <button onClick={() => setView('found')} className={`flex-1 px-4 py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${view === 'found' ? 'bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-300 shadow' : 'text-slate-500'}`}>
+                                <button onClick={() => setView('found')} className={`flex-1 whitespace-nowrap px-3 sm:px-4 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${view === 'found' ? 'bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-300 shadow' : 'text-slate-500'}`}>
                                     <Icons.CheckCircle/> Gevonden <span className="bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 text-xs px-2 py-0.5 rounded-lg">{foundRequests.length}</span>
                                 </button>
                             </div>
@@ -2653,7 +2695,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                         )}
 
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                            {shown.map(item => <RequestCard key={item.id} item={item}/>)}
+                            {shown.map(item => <React.Fragment key={item.id}>{renderCard(item)}</React.Fragment>)}
                         </div>
                     </div>
 
@@ -2680,9 +2722,9 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                 setUploading(true);
                 try {
                     const url = await window.uploadToImgBB(file);
-                    setNewItem({ ...newItem, image: url });
+                    setNewItem(prev => ({ ...prev, image: url }));
                 } catch (error) { window.showAlert("Upload fout: " + error.message); } 
-                finally { setUploading(false); }
+                finally { setUploading(false); e.target.value = ''; }
             };
 
             const addLevel = () => {
@@ -2717,7 +2759,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                                 <input type="text" placeholder="Label (bv. PS 1)" value={newItem.label} onChange={e=>setNewItem({...newItem, label: e.target.value})} className="p-2.5 rounded-lg border border-amber-200 dark:border-amber-700 bg-white dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-amber-500/30 text-sm"/>
                                 
                                 <label className="p-2.5 rounded-lg border border-amber-200 dark:border-amber-700 bg-white dark:bg-slate-800 text-amber-600 dark:text-amber-400 text-sm cursor-pointer flex items-center justify-center font-bold hover:bg-amber-100 transition-colors">
-                                    <input type="file" className="hidden" onChange={handleImageUpload}/>
+                                    <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload}/>
                                     {uploading ? <Icons.Loader className="animate-spin"/> : (newItem.image ? 'Foto OK ✓' : '+ Foto')}
                                 </label>
                             </div>
@@ -2726,7 +2768,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
 
                         <div className="max-h-48 overflow-y-auto custom-scroll space-y-2 pr-1">
                             {levels.length === 0 ? <p className="text-center text-sm text-slate-500 py-4">Geen persoonlijke beloningen ingesteld.</p> :
-                                levels.sort((a,b)=>Number(a.amount)-Number(b.amount)).map(l => (
+                                [...levels].sort((a,b)=>Number(a.amount)-Number(b.amount)).map(l => (
                                     <div key={l.id} className="flex items-center justify-between bg-slate-50 dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700">
                                         <div className="flex items-center gap-3 min-w-0">
                                             {l.image ? <img src={l.image} className="w-10 h-10 rounded-lg object-cover bg-white"/> : <div className="w-10 h-10 rounded-lg bg-slate-200 dark:bg-slate-700 flex items-center justify-center"><Icons.Gift className="text-slate-400"/></div>}
@@ -2765,11 +2807,12 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                 setUploading(true);
                 try {
                     const url = await window.uploadToImgBB(file);
-                    setNewItem({ ...newItem, image: url });
+                    setNewItem(prev => ({ ...prev, image: url }));
                 } catch (error) {
                     window.showAlert("Upload fout: " + error.message);
                 } finally {
                     setUploading(false);
+                    e.target.value = '';
                 }
             };
 
@@ -2809,7 +2852,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                                 <input type="text" placeholder="Label (bv. PS 1)" value={newItem.label} onChange={e=>setNewItem({...newItem, label: e.target.value})} className="p-2.5 rounded-lg border border-blue-200 dark:border-blue-700 bg-white dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/30 text-sm"/>
                                 
                                 <label className="p-2.5 rounded-lg border border-blue-200 dark:border-blue-700 bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 text-sm cursor-pointer flex items-center justify-center font-bold hover:bg-blue-100 transition-colors">
-                                    <input type="file" className="hidden" onChange={handleImageUpload}/>
+                                    <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload}/>
                                     {uploading ? <Icons.Loader className="animate-spin"/> : (newItem.image ? 'Foto OK ✓' : '+ Foto')}
                                 </label>
                             </div>
@@ -2818,7 +2861,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
 
                         <div className="max-h-48 overflow-y-auto custom-scroll space-y-2 pr-1">
                             {levels.length === 0 ? <p className="text-center text-sm text-slate-500 py-4">Geen globale PS ingesteld voor {selectedMonth}</p> :
-                                levels.sort((a,b)=>Number(a.amount)-Number(b.amount)).map(l => (
+                                [...levels].sort((a,b)=>Number(a.amount)-Number(b.amount)).map(l => (
                                     <div key={l.id} className="flex items-center justify-between bg-slate-50 dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700">
                                         <div className="flex items-center gap-3 min-w-0">
                                             {l.image ? <img src={l.image} className="w-10 h-10 rounded-lg object-cover bg-white"/> : <div className="w-10 h-10 rounded-lg bg-slate-200 dark:bg-slate-700 flex items-center justify-center"><Icons.Gift className="text-slate-400"/></div>}
@@ -2837,279 +2880,398 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             );
         };        
         
+        class ErrorBoundary extends React.Component {
+            constructor(props) { super(props); this.state = { error: null }; }
+            static getDerivedStateFromError(error) { return { error }; }
+            componentDidCatch(error, info) { console.error('Onderdeel gecrasht:', error, info); }
+            render() {
+                if (this.state.error) {
+                    return (
+                        <div className="bg-white dark:bg-slate-900 border border-red-200 dark:border-red-900/50 rounded-3xl p-8 text-center shadow-glass">
+                            <div className="w-14 h-14 mx-auto rounded-2xl bg-red-50 dark:bg-red-900/30 text-red-500 flex items-center justify-center text-2xl mb-4"><i className="fa-solid fa-triangle-exclamation"></i></div>
+                            <h3 className="font-bold text-lg text-slate-800 dark:text-white">Er ging iets mis in dit onderdeel</h3>
+                            <p className="text-sm text-slate-500 mt-1 mb-5">Je gegevens zijn veilig. Probeer het opnieuw of kies een ander tabblad.</p>
+                            <button onClick={() => this.setState({ error: null })} className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold">Opnieuw proberen</button>
+                            <pre className="mt-5 text-[11px] text-slate-400 whitespace-pre-wrap break-words">{String(this.state.error && this.state.error.message || this.state.error)}</pre>
+                        </div>
+                    );
+                }
+                return this.props.children;
+            }
+        }
+
+        const TABS = [
+            { id: 'overview',  label: 'Overzicht', short: 'Overzicht', icon: 'fa-chart-line',     perm: null,            subtitle: 'Je verkoop, winst, beloningen en doelen' },
+            { id: 'catalogs',  label: 'Catalogen', short: 'Catalogen', icon: 'fa-book-open-reader', perm: 'showCatalogs', subtitle: 'De nieuwste catalogi, leaflets en weekpromoties' },
+            { id: 'requests',  label: 'Wensen',    short: 'Wensen',    icon: 'fa-gift',           perm: 'showRequests',  subtitle: 'Wat je klanten zoeken en wat je al gevonden hebt' },
+            { id: 'stock',     label: 'Voorraad',  short: 'Voorraad',  icon: 'fa-box',            perm: 'showStock',     subtitle: 'Je eigen producten, op zolder of in gebruik' },
+            { id: 'recipes',   label: 'Recepten',  short: 'Recepten',  icon: 'fa-utensils',       perm: 'showRecipes',   subtitle: 'Je receptenverzameling' },
+            { id: 'customers', label: 'Klanten',   short: 'Klanten',   icon: 'fa-address-book',   perm: 'showCustomers', subtitle: 'Je klantenlijst met contactgegevens' },
+        ];
+
+        const PROFIT_RATE = 0.29184;
+        const sumMonth = (d) => { let t = 0; for (let i = 1; i <= 10; i++) t += Number((d || {})[`week${i}`]) || 0; return t; };
+        const currentMonthName = () => {
+            const m = new Date().getMonth();
+            if (m <= 5) return MONTHS[m];
+            if (m <= 7) return MONTHS[6];
+            return MONTHS[m - 1];
+        };
+
+        const OverviewStats = ({ monthlyData, selectedYear, formatCurrency }) => {
+            const totals = MONTHS.map(m => ({ month: m, total: sumMonth(monthlyData[m]) }));
+            const yearTotal = totals.reduce((a, b) => a + b.total, 0);
+            const best = totals.reduce((a, b) => (b.total > a.total ? b : a), { month: null, total: 0 });
+            const isCurrentYear = selectedYear === new Date().getFullYear();
+            const curName = currentMonthName();
+            const curTotal = sumMonth(monthlyData[curName]);
+            const activeMonths = totals.filter(t => t.total > 0).length;
+            const avg = activeMonths ? yearTotal / activeMonths : 0;
+
+            const cards = [
+                { label: `Omzet ${selectedYear}`, value: formatCurrency(yearTotal), icon: 'fa-euro-sign', tint: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' },
+                { label: `Winst ${selectedYear}`, value: formatCurrency(yearTotal * PROFIT_RATE), icon: 'fa-sack-dollar', tint: 'bg-teal-50 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400' },
+                isCurrentYear
+                    ? { label: `Deze maand (${curName})`, value: formatCurrency(curTotal), sub: `Winst ${formatCurrency(curTotal * PROFIT_RATE)}`, icon: 'fa-calendar-day', tint: 'bg-sky-50 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400' }
+                    : { label: 'Gemiddeld per actieve maand', value: formatCurrency(avg), icon: 'fa-calendar-days', tint: 'bg-sky-50 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400' },
+                { label: 'Beste maand', value: best.month ? formatCurrency(best.total) : '–', sub: best.month || 'Nog geen verkoop', icon: 'fa-trophy', tint: 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' },
+            ];
+
+            return (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                    {cards.map(c => (
+                        <div key={c.label} className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-glass dark:shadow-glass-dark">
+                            <div className="flex items-start justify-between gap-2">
+                                <div className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 leading-tight">{c.label}</div>
+                                <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shrink-0 ${c.tint}`}><i className={`fa-solid ${c.icon} text-sm`}></i></div>
+                            </div>
+                            <div className="text-lg sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-2 tracking-tight">{c.value}</div>
+                            {c.sub && <div className="text-[11px] sm:text-xs text-slate-400 mt-0.5 truncate">{c.sub}</div>}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
         function DashboardPage() {
             const [user, setUser] = useState(null);
             const [loading, setLoading] = useState(true);
             const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
             const [monthlyData, setMonthlyData] = useState({});
             const [globalPsData, setGlobalPsData] = useState({});
-            
-            const [activeTab, setActiveTab] = useState('overview');
+
+            const [activeTab, setActiveTabState] = useState(() => { try { return localStorage.getItem('tl-tab') || 'overview'; } catch (e) { return 'overview'; } });
+            const setActiveTab = (t) => { setActiveTabState(t); try { localStorage.setItem('tl-tab', t); } catch (e) {} window.scrollTo({ top: 0 }); };
             const [showAdminModal, setShowAdminModal] = useState(false);
             const [showGlobalPsModal, setShowGlobalPsModal] = useState(false);
-            const [showCustomGoalsModal, setShowCustomGoalsModal] = useState(false); 
-            const [customGoals, setCustomGoals] = useState([]); 
-            const [viewingUser, setViewingUser] = useState(null); 
+            const [showCustomGoalsModal, setShowCustomGoalsModal] = useState(false);
+            const [customGoals, setCustomGoals] = useState([]);
+            const [viewingUser, setViewingUser] = useState(null);
             const [showProfileMenu, setShowProfileMenu] = useState(false);
-            const [darkMode, setDarkMode] = useState(localStorage.getItem('theme') === 'dark');
-            const [showMobileMenu, setShowMobileMenu] = useState(false); 
-            const [userPermissions, setUserPermissions] = useState({ showStock: true, showRequests: true, showCustomers: true, showRecipes: true, showClub: true, showCatalogs: true });
+            const [darkMode, setDarkMode] = useState(() => { try { return localStorage.getItem('theme') === 'dark'; } catch (e) { return false; } });
+            const defaultPerms = { showStock: true, showRequests: true, showCustomers: true, showRecipes: true, showClub: true, showCatalogs: true };
+            const [userPermissions, setUserPermissions] = useState(defaultPerms);
 
             useEffect(() => {
                 const unsub = window.auth.onAuthStateChanged(u => {
-                    if (!u) window.location.href = 'index.html'; 
+                    if (!u) window.location.href = 'index.html';
                     else { setUser(u); setLoading(false); }
                 });
                 return () => unsub();
             }, []);
 
             useEffect(() => {
-                if (darkMode) { document.documentElement.classList.add('dark'); localStorage.setItem('theme', 'dark'); } 
-                else { document.documentElement.classList.remove('dark'); localStorage.setItem('theme', 'light'); }
+                document.documentElement.classList.toggle('dark', darkMode);
+                try { localStorage.setItem('theme', darkMode ? 'dark' : 'light'); } catch (e) {}
+                const meta = document.querySelector('meta[name="theme-color"]');
+                if (meta) meta.setAttribute('content', darkMode ? '#0b1120' : '#059669');
             }, [darkMode]);
 
             const targetUid = viewingUser ? viewingUser.uid : (user ? user.uid : null);
-            const isAdmin = user && ADMIN_EMAILS.includes(user.email);
+            const isAdmin = !!(user && ADMIN_EMAILS.includes(user.email));
 
             useEffect(() => {
                 if (!targetUid || !window.db) return;
-                
+                const logErr = (what) => (err) => console.error(what + ' laden mislukt:', err);
+
                 const unsubData = window.db.collection('users').doc(targetUid).collection('years').doc(String(selectedYear)).collection('months')
                     .onSnapshot(snap => {
                         const d = {};
                         snap.forEach(doc => d[doc.id] = doc.data());
                         setMonthlyData(d);
-                    });
+                    }, logErr('Maanddata'));
 
                 const unsubPerms = window.db.collection('users').doc(targetUid).collection('settings').doc('config')
                     .onSnapshot(doc => {
-                        if (doc.exists) setUserPermissions({...{showStock:true, showRequests:true, showCustomers:true, showRecipes:true, showClub:true, showCatalogs:true}, ...doc.data()});
-                        else setUserPermissions({ showStock: true, showRequests: true, showCustomers: true, showRecipes: true, showClub: true, showCatalogs: true }); 
-                    });
+                        setUserPermissions(doc.exists ? { ...defaultPerms, ...doc.data() } : defaultPerms);
+                    }, logErr('Rechten'));
 
                 const unsubGoals = window.db.collection('users').doc(targetUid).collection('settings').doc('custom_goals')
                     .onSnapshot(doc => {
-                        if (doc.exists) setCustomGoals(doc.data().list || []);
-                        else setCustomGoals([]);
-                    });
-                    
+                        setCustomGoals(doc.exists ? (doc.data().list || []) : []);
+                    }, logErr('Doelen'));
+
                 const unsubGlobalPs = window.db.collection('settings').doc(`global_ps_${selectedYear}`)
                     .onSnapshot(doc => {
-                        if (doc.exists) setGlobalPsData(doc.data());
-                        else setGlobalPsData({});
-                    });
+                        setGlobalPsData(doc.exists ? doc.data() : {});
+                    }, logErr('Globale PS'));
 
                 return () => { unsubData(); unsubPerms(); unsubGoals(); unsubGlobalPs(); };
             }, [targetUid, selectedYear]);
 
             const availableWeeks = React.useMemo(() => buildAvailableWeeks(selectedYear, monthlyData), [selectedYear, monthlyData]);
-            
+
             const updateMonthData = async (month, field, value) => {
-                if(!targetUid) return;
-                await window.db.collection('users').doc(targetUid).collection('years').doc(String(selectedYear)).collection('months').doc(month).set({
-                    [field]: value, userId: targetUid, userName: viewingUser ? viewingUser.name : user.displayName, yearId: selectedYear, monthId: month
-                }, { merge: true });
+                if (!targetUid) return;
+                try {
+                    await window.db.collection('users').doc(targetUid).collection('years').doc(String(selectedYear)).collection('months').doc(month).set({
+                        [field]: value, userId: targetUid, userName: viewingUser ? viewingUser.name : (user.displayName || user.email || 'Onbekend'), yearId: selectedYear, monthId: month
+                    }, { merge: true });
+                } catch (e) { window.showAlert("Opslaan mislukt: " + e.message); }
             };
 
             const updateCustomGoals = async (newGoalsList) => {
-                if(!targetUid) return;
-                await window.db.collection('users').doc(targetUid).collection('settings').doc('custom_goals').set({ list: newGoalsList }, { merge: true });
+                if (!targetUid) return;
+                try { await window.db.collection('users').doc(targetUid).collection('settings').doc('custom_goals').set({ list: newGoalsList }, { merge: true }); }
+                catch (e) { window.showAlert("Opslaan mislukt: " + e.message); }
             };
 
             const updateGlobalPsData = async (month, newLevels) => {
-                await window.db.collection('settings').doc(`global_ps_${selectedYear}`).set({ [month]: newLevels }, { merge: true });
+                try { await window.db.collection('settings').doc(`global_ps_${selectedYear}`).set({ [month]: newLevels }, { merge: true }); }
+                catch (e) { window.showAlert("Opslaan mislukt: " + e.message); }
             };
 
-            const formatCurrency = (val) => new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(val || 0);
+            const formatCurrency = (val) => new Intl.NumberFormat('nl-BE', { style: 'currency', currency: 'EUR' }).format(val || 0);
 
-            if (loading) return <div className="h-screen flex flex-col items-center justify-center text-emerald-600 bg-slate-50 dark:bg-slate-900"><Icons.Loader className="text-5xl mb-4"/><div className="font-bold text-lg">Applicatie laden...</div></div>;
+            const visibleTabs = TABS.filter(t => !t.perm || userPermissions[t.perm] || isAdmin);
+            const currentTab = visibleTabs.find(t => t.id === activeTab) || visibleTabs[0];
+            useEffect(() => { if (!loading && currentTab && currentTab.id !== activeTab) setActiveTabState(currentTab.id); }, [loading, currentTab && currentTab.id, activeTab]);
+            const isLockedForUser = (t) => t.perm && !userPermissions[t.perm];
+
+            if (loading) return <div className="h-screen flex flex-col items-center justify-center text-emerald-600"><Icons.Loader className="text-4xl mb-4"/><div className="font-semibold">Tupper Life wordt geladen...</div></div>;
+
+            const yearOptions = [0, 1, 2, 3, 4].map(i => new Date().getFullYear() - 2 + i);
+            const yearTotal = MONTHS.reduce((acc, m) => acc + sumMonth(monthlyData[m]), 0);
+
+            const yearSelect = (
+                <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} className="bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 font-semibold pl-3 pr-8 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-emerald-500/30 shadow-sm cursor-pointer text-sm">
+                    {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+            );
 
             return (
-                <div className="relative">
+                <div className="relative min-h-screen">
                     <GlobalDialogs />
-                    <header className={`${viewingUser ? 'bg-amber-500/80 dark:bg-amber-900/80 border-amber-600/30' : 'bg-white/80 dark:bg-slate-900/80 border-slate-200/50 dark:border-slate-800/50'} backdrop-blur-xl border-b shadow-[0_4px_30px_rgba(0,0,0,0.05)] sticky top-0 z-30 transition-all duration-500`}>
-                        <div className="max-w-7xl mx-auto px-5 py-3 relative flex items-center justify-between">
-                            <button onClick={() => setShowMobileMenu(!showMobileMenu)} className={`sm:hidden text-2xl ${viewingUser ? 'text-white' : 'text-slate-600 dark:text-slate-300'}`}>
-                                <Icons.Bars />
+
+                    {/* ===== KOP ===== */}
+                    <header className="sticky top-0 z-30 bg-white/95 dark:bg-[#0b1120]/95 border-b border-slate-200/70 dark:border-slate-800">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-4">
+                            <button onClick={() => setActiveTab('overview')} className="flex items-center gap-3 shrink-0 select-none">
+                                <img src="apple-touch-icon.png" alt="" className="w-9 h-9 rounded-xl shadow-sm bg-white object-cover"/>
+                                <div className="text-left leading-tight">
+                                    <div className="font-extrabold text-[17px] text-slate-900 dark:text-white tracking-tight">Tupper Life</div>
+                                    <div className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 -mt-0.5">by Kaat</div>
+                                </div>
                             </button>
-                            <h1 className={`font-black text-xl flex items-center gap-3 select-none absolute left-1/2 transform -translate-x-1/2 sm:static sm:translate-x-0 ${viewingUser ? 'text-white drop-shadow-md' : 'text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-500 dark:from-emerald-400 dark:to-teal-300'}`}>
-                                {viewingUser ? <Icons.Shield className="text-white"/> : <img src="favicon-32x32.png" className="w-8 h-8 bg-white rounded-xl shadow-sm"/>}
-                                <span className="hidden sm:inline">Tupper Life {viewingUser ? '(ADMIN)' : 'by Kaat'}</span>
-                                <span className="sm:hidden">{viewingUser ? 'ADMIN' : 'Tupper Life'}</span>
-                            </h1>
-                            <div className="relative">
-                                <button onClick={()=>setShowProfileMenu(!showProfileMenu)} className={`w-10 h-10 rounded-2xl flex items-center justify-center shadow-sm transition-transform hover:scale-105 border ${viewingUser ? 'bg-white/20 border-white/40 text-white' : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'}`}>
-                                    {user.photoURL ? <img src={user.photoURL} className="w-full h-full rounded-2xl object-cover"/> : <Icons.User/>}
+
+                            <nav className="hidden lg:flex items-center gap-1 ml-6 overflow-x-auto no-scrollbar">
+                                {visibleTabs.map(t => (
+                                    <button key={t.id} onClick={() => setActiveTab(t.id)} className={`whitespace-nowrap px-3.5 py-2 rounded-xl text-sm font-semibold transition-colors flex items-center gap-2 ${currentTab.id === t.id ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800'}`}>
+                                        <i className={`fa-solid ${t.icon} text-[13px]`}></i> {t.label}
+                                        {isLockedForUser(t) && <Icons.Lock className="text-[10px] opacity-50"/>}
+                                    </button>
+                                ))}
+                            </nav>
+
+                            <div className="relative ml-auto">
+                                <button onClick={() => setShowProfileMenu(!showProfileMenu)} className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 hover:ring-4 hover:ring-emerald-500/15 transition-all" aria-label="Profielmenu">
+                                    {user.photoURL ? <img src={user.photoURL} className="w-full h-full object-cover" referrerPolicy="no-referrer"/> : <Icons.User/>}
                                 </button>
                                 {showProfileMenu && (
                                     <React.Fragment>
-                                        <div className="fixed inset-0 z-10" onClick={()=>setShowProfileMenu(false)}></div>
-                                        <div className="absolute right-0 mt-3 w-64 bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-3xl shadow-glass dark:shadow-glass-dark border border-white/50 dark:border-slate-700 z-20 py-2 overflow-hidden animate-in">
-                                            <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
-                                                {user.photoURL ? <img src={user.photoURL} className="w-10 h-10 rounded-xl object-cover border border-slate-200 dark:border-slate-600"/> : <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center"><Icons.User/></div>}
+                                        <div className="fixed inset-0 z-10" onClick={() => setShowProfileMenu(false)}></div>
+                                        <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 z-20 py-2 overflow-hidden modal-content">
+                                            <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
+                                                {user.photoURL ? <img src={user.photoURL} referrerPolicy="no-referrer" className="w-10 h-10 rounded-full object-cover"/> : <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center"><Icons.User/></div>}
                                                 <div className="min-w-0">
-                                                    <div className="text-sm font-black truncate text-slate-800 dark:text-white">{user.displayName}</div>
-                                                    <div className="text-[10px] text-slate-500 font-medium truncate">{user.email}</div>
+                                                    <div className="text-sm font-bold truncate text-slate-800 dark:text-white">{user.displayName || 'Mijn account'}</div>
+                                                    <div className="text-xs text-slate-500 truncate">{user.email}</div>
                                                 </div>
                                             </div>
-                                            
-                                            <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors" onClick={()=>setDarkMode(!darkMode)}>
-                                                <span className="text-sm font-bold flex items-center gap-3 text-slate-700 dark:text-slate-200"><Icons.Moon className="text-slate-400 text-lg"/> Donkere modus</span>
-                                                <div className={`w-12 h-6 rounded-full relative transition-colors duration-300 shadow-inner ${darkMode ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-600'}`}>
-                                                    <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform duration-300 shadow-sm ${darkMode ? 'translate-x-6' : ''}`}></div>
-                                                </div>
-                                            </div>
-                                            
-                                            <button onClick={()=>{setShowCustomGoalsModal(true);setShowProfileMenu(false)}} className="w-full text-left px-5 py-3.5 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-bold flex gap-3 items-center border-b border-slate-100 dark:border-slate-700 transition-colors">
-                                                <Icons.Target className="text-lg"/> Mijn Doelen
+                                            <button onClick={() => setDarkMode(!darkMode)} className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                                                <span className="text-sm font-semibold flex items-center gap-3 text-slate-700 dark:text-slate-200"><i className={`fa-solid ${darkMode ? 'fa-moon' : 'fa-sun'} w-5 text-slate-400`}></i> Donkere modus</span>
+                                                <span className={`w-11 h-6 rounded-full relative transition-colors ${darkMode ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-600'}`}>
+                                                    <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform shadow-sm ${darkMode ? 'translate-x-5' : ''}`}></span>
+                                                </span>
                                             </button>
-                                            
-                                            {isAdmin && <button onClick={()=>{setShowGlobalPsModal(true);setShowProfileMenu(false)}} className="w-full text-left px-5 py-3.5 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-bold flex gap-3 items-center border-b border-slate-100 dark:border-slate-700 transition-colors"><Icons.Gift className="text-lg"/> Globale PS</button>}
-                                            {isAdmin && <button onClick={()=>{setShowAdminModal(true);setShowProfileMenu(false)}} className="w-full text-left px-5 py-3.5 hover:bg-amber-50 dark:hover:bg-amber-900/30 text-amber-600 dark:text-amber-400 font-bold flex gap-3 items-center border-b border-slate-100 dark:border-slate-700 transition-colors"><Icons.Users className="text-lg"/> Beheer Gebruikers</button>}
-                                            <button onClick={()=>window.auth.signOut()} className="w-full text-left px-5 py-3.5 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 flex gap-3 items-center transition-colors"><Icons.LogOut className="text-lg"/> Uitloggen</button>
+                                            <button onClick={() => { setShowCustomGoalsModal(true); setShowProfileMenu(false); }} className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-semibold text-slate-700 dark:text-slate-200 flex gap-3 items-center"><i className="fa-solid fa-bullseye w-5 text-indigo-500"></i> Mijn doelen</button>
+                                            {isAdmin && <button onClick={() => { setShowGlobalPsModal(true); setShowProfileMenu(false); }} className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-semibold text-slate-700 dark:text-slate-200 flex gap-3 items-center"><i className="fa-solid fa-gift w-5 text-blue-500"></i> Globale PS (admin)</button>}
+                                            {isAdmin && <button onClick={() => { setShowAdminModal(true); setShowProfileMenu(false); }} className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-semibold text-slate-700 dark:text-slate-200 flex gap-3 items-center"><i className="fa-solid fa-users w-5 text-amber-500"></i> Beheer gebruikers</button>}
+                                            <div className="border-t border-slate-100 dark:border-slate-800 mt-1 pt-1">
+                                                <button onClick={() => window.auth.signOut()} className="w-full text-left px-4 py-3 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm font-semibold text-red-600 dark:text-red-400 flex gap-3 items-center"><i className="fa-solid fa-right-from-bracket w-5"></i> Uitloggen</button>
+                                            </div>
                                         </div>
                                     </React.Fragment>
                                 )}
                             </div>
                         </div>
-                        {viewingUser && <div className="bg-amber-100 dark:bg-amber-900 text-amber-900 dark:text-amber-100 text-center text-xs font-bold py-1.5 flex justify-center items-center gap-2 shadow-inner"><span>Je bekijkt nu het account van: <strong className="uppercase">{viewingUser.name}</strong></span> <button onClick={()=>setViewingUser(null)} className="underline ml-2 hover:text-amber-700 transition-colors">Afsluiten</button></div>}
-                    </header>
-
-                    {showMobileMenu && (
-                        <div className="sm:hidden bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 shadow-glass absolute w-full z-20 animate-in rounded-b-3xl">
-                            <div className="flex flex-col p-4 gap-2">
-                                {['overview', 'catalogs', 'requests', 'stock', 'recipes', 'customers'].map(tab => {
-                                    if(tab === 'requests' && !userPermissions.showRequests && !isAdmin) return null;
-                                    if(tab === 'stock' && !userPermissions.showStock && !isAdmin) return null;
-                                    if(tab === 'recipes' && !userPermissions.showRecipes && !isAdmin) return null;
-                                    if(tab === 'customers' && !userPermissions.showCustomers && !isAdmin) return null;
-                                    if(tab === 'catalogs' && !userPermissions.showCatalogs && !isAdmin) return null;
-
-                                    const labels = { overview: 'Overzicht', requests: 'Wensen', stock: 'Voorraad', recipes: 'Recepten', customers: 'Klanten', catalogs: 'Catalogen & Leaflets' };
-                                    const icons = { 
-                                        overview: <Icons.Layers className="mr-2"/>, 
-                                        requests: !userPermissions.showRequests ? <Icons.Lock className="opacity-50 ml-auto"/> : <Icons.Gift className="mr-2"/>, 
-                                        stock: !userPermissions.showStock ? <Icons.Lock className="opacity-50 ml-auto"/> : <Icons.Box className="mr-2"/>, 
-                                        recipes: !userPermissions.showRecipes ? <Icons.Lock className="opacity-50 ml-auto"/> : <Icons.BookOpen className="mr-2"/>, 
-                                        customers: !userPermissions.showCustomers ? <Icons.Lock className="opacity-50 ml-auto"/> : <Icons.Users className="mr-2"/>,
-                                        catalogs: !userPermissions.showCatalogs ? <Icons.Lock className="opacity-50 ml-auto"/> : <Icons.BookReader className="mr-2"/> 
-                                    };
-                                    
-                                    return (
-                                        <button key={tab} onClick={()=>{setActiveTab(tab); setShowMobileMenu(false)}} className={`text-left px-5 py-4 rounded-2xl text-base font-bold transition-all flex items-center ${activeTab===tab?'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/30':'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
-                                            {icons[tab]} {labels[tab]}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
-
-                    {}
-                    <div className="max-w-7xl mx-auto p-4 sm:p-6 animate-in">
-                        <div className="hidden sm:flex flex-row gap-3 items-center justify-between bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-2.5 rounded-3xl border border-white/50 dark:border-slate-700/50 shadow-glass mb-8">
-                            <div className="flex gap-2 w-auto overflow-x-auto custom-scroll">
-                                {['overview', 'catalogs', 'requests', 'stock', 'recipes', 'customers'].map(tab => {
-                                    if(tab === 'requests' && !userPermissions.showRequests && !isAdmin) return null;
-                                    if(tab === 'stock' && !userPermissions.showStock && !isAdmin) return null;
-                                    if(tab === 'recipes' && !userPermissions.showRecipes && !isAdmin) return null;
-                                    if(tab === 'customers' && !userPermissions.showCustomers && !isAdmin) return null;
-                                    if(tab === 'catalogs' && !userPermissions.showCatalogs && !isAdmin) return null;
-
-                                    const labels = { overview: 'Overzicht', requests: 'Wensen', stock: 'Voorraad', recipes: 'Recepten', customers: 'Klanten', catalogs: 'Catalogen' };
-                                    const icons = { 
-                                        overview: <Icons.Layers/>, 
-                                        requests: !userPermissions.showRequests ? <Icons.Lock className="ml-1 opacity-50"/> : <Icons.Gift/>, 
-                                        stock: !userPermissions.showStock ? <Icons.Lock className="ml-1 opacity-50"/> : <Icons.Box/>, 
-                                        recipes: !userPermissions.showRecipes ? <Icons.Lock className="ml-1 opacity-50"/> : <Icons.BookOpen/>, 
-                                        customers: !userPermissions.showCustomers ? <Icons.Lock className="ml-1 opacity-50"/> : <Icons.Users/>,
-                                        catalogs: !userPermissions.showCatalogs ? <Icons.Lock className="ml-1 opacity-50"/> : <Icons.BookReader/>
-                                    };
-                                    
-                                    return (
-                                        <button key={tab} onClick={()=>setActiveTab(tab)} className={`whitespace-nowrap px-5 py-3 rounded-2xl text-sm font-bold transition-all duration-300 flex items-center gap-2 ${activeTab===tab?'bg-gradient-to-r from-emerald-500 to-teal-500 shadow-lg shadow-emerald-500/30 text-white translate-y-[-2px]':'text-slate-500 dark:text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-slate-800'}`}>
-                                            {icons[tab]} {labels[tab]}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                            
-                            {activeTab === 'overview' && (
-                                <select value={selectedYear} onChange={e=>setSelectedYear(Number(e.target.value))} className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 font-bold px-5 py-3 rounded-2xl border border-emerald-200/50 dark:border-emerald-800/50 outline-none cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-800/50 transition-colors shadow-sm ml-2">
-                                    {[0,1,2,3,4].map(i => <option key={i} value={new Date().getFullYear()-2+i}>{new Date().getFullYear()-2+i}</option>)}
-                                </select>
-                            )}
-                        </div>
-
-                        <div className="sm:hidden flex items-center justify-between bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-4 rounded-3xl border border-white/50 dark:border-slate-700/50 shadow-glass mb-6">
-                            <span className="font-black text-xl text-slate-800 dark:text-white flex items-center gap-2">
-                                {activeTab === 'overview' && <><Icons.Layers className="text-emerald-500"/> Overzicht</>}
-                                {activeTab === 'catalogs' && <><Icons.BookReader className="text-emerald-500"/> Catalogen</>}
-                                {activeTab === 'requests' && <><Icons.Gift className="text-emerald-500"/> Wensen</>}
-                                {activeTab === 'stock' && <><Icons.Box className="text-emerald-500"/> Voorraad</>}
-                                {activeTab === 'recipes' && <><Icons.BookOpen className="text-emerald-500"/> Recepten</>}
-                                {activeTab === 'customers' && <><Icons.Users className="text-emerald-500"/> Klanten</>}
-                            </span>
-                            {activeTab === 'overview' && (
-                                <select value={selectedYear} onChange={e=>setSelectedYear(Number(e.target.value))} className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 font-bold px-3 py-2 rounded-xl border border-emerald-200 dark:border-emerald-800/50 outline-none text-sm shadow-sm">
-                                    {[0,1,2,3,4].map(i => <option key={i} value={new Date().getFullYear()-2+i}>{new Date().getFullYear()-2+i}</option>)}
-                                </select>
-                            )}
-                        </div>
-
-                        {activeTab === 'overview' && (
-                            <div className="space-y-8">
-                                {(userPermissions.showClub || isAdmin) && (
-                                    <ClubTab targetUid={targetUid} monthlyData={monthlyData} selectedYear={selectedYear} formatCurrency={formatCurrency} />
-                                )}
-
-                                <CustomGoalsDisplay customGoals={customGoals} monthlyData={monthlyData} selectedYear={selectedYear} formatCurrency={formatCurrency} availableWeeks={availableWeeks} />
-
-                                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-3xl shadow-glass dark:shadow-glass-dark border border-white/40 dark:border-slate-700 overflow-hidden w-full">
-                                    <div className="w-full overflow-x-auto custom-scroll pb-2">
-                                        <table className="w-full text-left border-collapse min-w-full">
-                                            <thead className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700/50 backdrop-blur-sm">
-                                                <tr>
-                                                    <th className="px-2 sm:px-4 py-3 sm:py-5 text-xs sm:text-sm uppercase tracking-widest text-slate-500 dark:text-slate-400 font-black whitespace-nowrap">Maand</th>
-                                                    <th className="px-2 sm:px-4 py-3 sm:py-5 text-xs sm:text-sm uppercase tracking-widest text-slate-500 dark:text-slate-400 font-black whitespace-nowrap text-right">Verkoop</th>
-                                                    <th className="px-2 sm:px-4 py-3 sm:py-5 text-xs sm:text-sm uppercase tracking-widest text-slate-500 dark:text-slate-400 font-black whitespace-nowrap text-right">Winst</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {MONTHS.map((m, index) => <MonthRow key={m} month={m} monthIndex={index} year={selectedYear} data={monthlyData[m]||{}} updateMonthData={updateMonthData} formatCurrency={formatCurrency} user={user} globalPs={globalPsData[m] || []} />)}
-                                            </tbody>
-                                            <tfoot className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-[0_-4px_20px_rgba(16,185,129,0.2)]">
-                                                <tr>
-                                                    <td className="px-2 sm:px-4 py-3 sm:py-5 font-black text-sm sm:text-lg uppercase tracking-widest whitespace-nowrap">
-                                                        <span className="sm:hidden">Totaal</span>
-                                                        <span className="hidden sm:inline">Totaal Jaar</span>
-                                                    </td>
-                                                    <td className="px-2 sm:px-4 py-3 sm:py-5 font-black text-base sm:text-2xl whitespace-nowrap text-right">{formatCurrency(MONTHS.reduce((acc,m)=>{let t=0;for(let i=1;i<=10;i++)t+=Number((monthlyData[m]||{})[`week${i}`])||0;return acc+t},0))}</td>
-                                                    <td className="px-2 sm:px-4 py-3 sm:py-5 font-black text-base sm:text-2xl text-right font-mono whitespace-nowrap">{formatCurrency(MONTHS.reduce((acc,m)=>{let t=0;for(let i=1;i<=10;i++)t+=Number((monthlyData[m]||{})[`week${i}`])||0;return acc+(t*0.29184)},0))}</td>
-                                                </tr>
-                                            </tfoot>
-                                        </table>
-                                    </div>
-                                </div>
+                        {viewingUser && (
+                            <div className="bg-amber-400 text-amber-950 text-xs sm:text-sm font-semibold py-2 px-4 flex justify-center items-center gap-3">
+                                <span><i className="fa-solid fa-user-shield mr-1.5"></i>Je bekijkt het account van <strong>{viewingUser.name}</strong></span>
+                                <button onClick={() => setViewingUser(null)} className="bg-amber-950/10 hover:bg-amber-950/20 px-2.5 py-1 rounded-lg font-bold">Afsluiten</button>
                             </div>
                         )}
+                    </header>
 
-                        {activeTab === 'catalogs' && ((userPermissions.showCatalogs || isAdmin) ? <CatalogsTab isAdmin={isAdmin} /> : <div className="text-center py-20 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md rounded-3xl border border-white dark:border-slate-700 shadow-glass text-slate-400 font-bold text-lg"><Icons.Lock className="text-4xl mb-3 mx-auto block opacity-50"/> Deze module is uitgeschakeld voor u.</div>)}
-                        {activeTab === 'requests' && ((userPermissions.showRequests || isAdmin) ? <RequestsTab targetUid={targetUid}/> : <div className="text-center py-20 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md rounded-3xl border border-white dark:border-slate-700 shadow-glass text-slate-400 font-bold text-lg"><Icons.Lock className="text-4xl mb-3 mx-auto block opacity-50"/> Deze module is uitgeschakeld voor u.</div>)}
-                        {activeTab === 'stock' && ((userPermissions.showStock || isAdmin) ? <StockTab targetUid={targetUid} user={user}/> : <div className="text-center py-20 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md rounded-3xl border border-white dark:border-slate-700 shadow-glass text-slate-400 font-bold text-lg"><Icons.Lock className="text-4xl mb-3 mx-auto block opacity-50"/> Deze module is uitgeschakeld voor u.</div>)}
-                        {activeTab === 'recipes' && ((userPermissions.showRecipes || isAdmin) ? <RecipesTab targetUid={targetUid}/> : <div className="text-center py-20 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md rounded-3xl border border-white dark:border-slate-700 shadow-glass text-slate-400 font-bold text-lg"><Icons.Lock className="text-4xl mb-3 mx-auto block opacity-50"/> Deze module is uitgeschakeld voor u.</div>)}
-                        {activeTab === 'customers' && ((userPermissions.showCustomers || isAdmin) ? <CustomersTab targetUid={targetUid}/> : <div className="text-center py-20 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md rounded-3xl border border-white dark:border-slate-700 shadow-glass text-slate-400 font-bold text-lg"><Icons.Lock className="text-4xl mb-3 mx-auto block opacity-50"/> Deze module is uitgeschakeld voor u.</div>)}
-                    </div>
+                    {/* ===== INHOUD ===== */}
+                    <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-5 sm:pt-8 pb-28 lg:pb-12">
+                        <div className="flex items-end justify-between gap-3 mb-5 sm:mb-7">
+                            <div className="min-w-0">
+                                <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+                                    {currentTab.label}
+                                    {isLockedForUser(currentTab) && <span className="text-[11px] font-bold uppercase tracking-wider bg-slate-200 dark:bg-slate-800 text-slate-500 px-2 py-1 rounded-lg"><Icons.Lock className="mr-1"/>uit voor gebruiker</span>}
+                                </h2>
+                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{currentTab.subtitle}</p>
+                            </div>
+                            {currentTab.id === 'overview' && (
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <button onClick={() => setShowCustomGoalsModal(true)} className="hidden sm:flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 shadow-sm"><i className="fa-solid fa-bullseye"></i> Mijn doelen</button>
+                                    {yearSelect}
+                                </div>
+                            )}
+                        </div>
 
-                    <AdminUserModal isOpen={showAdminModal} onClose={()=>setShowAdminModal(false)} selectedYear={selectedYear} onSelectUser={(u)=>{setViewingUser(u);setShowAdminModal(false)}}/>
-                    <CustomGoalsModal isOpen={showCustomGoalsModal} onClose={()=>setShowCustomGoalsModal(false)} customGoals={customGoals} updateCustomGoals={updateCustomGoals} formatCurrency={formatCurrency} availableWeeks={availableWeeks} />
-                    <GlobalPsAdminModal isOpen={showGlobalPsModal} onClose={()=>setShowGlobalPsModal(false)} selectedYear={selectedYear} globalPsData={globalPsData} updateGlobalPsData={updateGlobalPsData} />
+                        <ErrorBoundary key={currentTab.id + (viewingUser ? viewingUser.uid : '')}>
+                            {currentTab.id === 'overview' && (
+                                <div className="space-y-6 sm:space-y-8">
+                                    <OverviewStats monthlyData={monthlyData} selectedYear={selectedYear} formatCurrency={formatCurrency} />
+
+                                    {(userPermissions.showClub || isAdmin) && (
+                                        <ClubTab targetUid={targetUid} monthlyData={monthlyData} selectedYear={selectedYear} formatCurrency={formatCurrency} />
+                                    )}
+
+                                    <CustomGoalsDisplay customGoals={customGoals} monthlyData={monthlyData} selectedYear={selectedYear} formatCurrency={formatCurrency} availableWeeks={availableWeeks} />
+                                    <button onClick={() => setShowCustomGoalsModal(true)} className="sm:hidden w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-semibold text-indigo-600 dark:text-indigo-400 shadow-sm"><i className="fa-solid fa-bullseye"></i> Mijn doelen beheren</button>
+
+                                    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-glass dark:shadow-glass-dark border border-slate-200/80 dark:border-slate-800 overflow-hidden w-full">
+                                        <div className="px-4 sm:px-6 pt-5 pb-3 flex items-center justify-between">
+                                            <h3 className="font-bold text-slate-800 dark:text-white">Maanden {selectedYear}</h3>
+                                            <span className="text-xs text-slate-400">Tik op een maand om je verkoop in te vullen</span>
+                                        </div>
+                                        <div className="w-full overflow-x-auto custom-scroll">
+                                            <table className="w-full text-left border-collapse min-w-full">
+                                                <thead className="border-y border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40">
+                                                    <tr>
+                                                        <th className="px-3 sm:px-5 py-3 text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-bold">Maand</th>
+                                                        <th className="px-3 sm:px-5 py-3 text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-bold text-right">Verkoop</th>
+                                                        <th className="px-3 sm:px-5 py-3 text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-bold text-right">Winst</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {MONTHS.map((m, index) => <MonthRow key={m} month={m} monthIndex={index} year={selectedYear} data={monthlyData[m] || {}} updateMonthData={updateMonthData} formatCurrency={formatCurrency} user={user} globalPs={globalPsData[m] || []} />)}
+                                                </tbody>
+                                                <tfoot className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white">
+                                                    <tr>
+                                                        <td className="px-3 sm:px-5 py-4 font-extrabold text-sm sm:text-base uppercase tracking-wider">Totaal {selectedYear}</td>
+                                                        <td className="px-3 sm:px-5 py-4 font-extrabold text-base sm:text-xl text-right whitespace-nowrap">{formatCurrency(yearTotal)}</td>
+                                                        <td className="px-3 sm:px-5 py-4 font-extrabold text-base sm:text-xl text-right whitespace-nowrap">{formatCurrency(yearTotal * PROFIT_RATE)}</td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {currentTab.id === 'catalogs' && <CatalogsTab isAdmin={isAdmin} />}
+                            {currentTab.id === 'requests' && <RequestsTab targetUid={targetUid}/>}
+                            {currentTab.id === 'stock' && <StockTab targetUid={targetUid} user={user}/>}
+                            {currentTab.id === 'recipes' && <RecipesTab targetUid={targetUid}/>}
+                            {currentTab.id === 'customers' && <CustomersTab targetUid={targetUid}/>}
+                        </ErrorBoundary>
+                    </main>
+
+                    {/* ===== MENUBALK ONDERAAN (GSM & TABLET) ===== */}
+                    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-[#0b1120]/95 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 pb-safe">
+                        <div className="flex max-w-xl mx-auto">
+                            {visibleTabs.map(t => {
+                                const active = currentTab.id === t.id;
+                                return (
+                                    <button key={t.id} onClick={() => setActiveTab(t.id)} className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-1 pt-2.5 pb-2 transition-colors ${active ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`}>
+                                        <span className={`w-12 h-7 rounded-full flex items-center justify-center transition-colors ${active ? 'bg-emerald-50 dark:bg-emerald-900/40' : ''}`}><i className={`fa-solid ${t.icon} text-[17px]`}></i></span>
+                                        <span className={`text-[10.5px] leading-none truncate max-w-full px-0.5 ${active ? 'font-bold' : 'font-medium'}`}>{t.short}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </nav>
+
+                    <AdminUserModal isOpen={showAdminModal} onClose={() => setShowAdminModal(false)} selectedYear={selectedYear} onSelectUser={(u) => { setViewingUser(u); setShowAdminModal(false); }}/>
+                    <CustomGoalsModal isOpen={showCustomGoalsModal} onClose={() => setShowCustomGoalsModal(false)} customGoals={customGoals} updateCustomGoals={updateCustomGoals} formatCurrency={formatCurrency} availableWeeks={availableWeeks} />
+                    <GlobalPsAdminModal isOpen={showGlobalPsModal} onClose={() => setShowGlobalPsModal(false)} selectedYear={selectedYear} globalPsData={globalPsData} updateGlobalPsData={updateGlobalPsData} />
                 </div>
             );
         }
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<DashboardPage />);
+    </script>
+
+    <!-- LADER: vertaalt de app één keer en bewaart het resultaat -->
+    <script>
+        (function () {
+            var BABEL_URL = 'https://unpkg.com/@babel/standalone@7.23.6/babel.min.js';
+            var showError = function (msg) {
+                var box = document.getElementById('debug-console');
+                if (!box) return;
+                var p = document.createElement('pre');
+                p.style.whiteSpace = 'pre-wrap';
+                p.textContent = msg;
+                box.appendChild(p);
+                box.style.display = 'block';
+            };
+            window.addEventListener('error', function (e) { if (e && e.message) showError(e.message); });
+
+            if (typeof React === 'undefined' || typeof ReactDOM === 'undefined' || typeof firebase === 'undefined' || !window.db) {
+                showError('Niet alle onderdelen konden geladen worden. Controleer je internetverbinding en vernieuw de pagina.');
+                return;
+            }
+
+            var src = document.getElementById('app-source').textContent;
+            var h = 5381;
+            for (var i = 0; i < src.length; i++) { h = ((h << 5) + h + src.charCodeAt(i)) | 0; }
+            var key = 'v1-' + src.length + '-' + (h >>> 0).toString(36);
+
+            var run = function (code) {
+                var s = document.createElement('script');
+                s.text = code;
+                document.body.appendChild(s);
+            };
+
+            var cached = null;
+            try { if (localStorage.getItem('tl-app-key') === key) cached = localStorage.getItem('tl-app-code'); } catch (e) {}
+            if (cached) { run(cached); return; }
+
+            var b = document.createElement('script');
+            b.src = BABEL_URL;
+            b.onload = function () {
+                var out;
+                try {
+                    out = Babel.transform(src, { presets: ['react'], sourceType: 'script' }).code;
+                } catch (err) {
+                    showError('Fout in de app-code: ' + err.message);
+                    return;
+                }
+                try {
+                    localStorage.removeItem('tl-app-code');
+                    localStorage.setItem('tl-app-code', out);
+                    localStorage.setItem('tl-app-key', key);
+                } catch (e) { /* opslag vol of uitgeschakeld: gewoon verder */ }
+                run(out);
+            };
+            b.onerror = function () { showError('De vertaler (Babel) kon niet geladen worden. Controleer je internetverbinding.'); };
+            document.head.appendChild(b);
+        })();
     </script>
 </body>
 </html>

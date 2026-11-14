@@ -2,167 +2,133 @@
 <html lang="nl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inloggen - Tupperware Tracker</title>
-    
-    <!-- 1. Stijlen -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Inloggen - Tupper Life by Kaat</title>
 
-    <!-- 2. React (De motor) -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    
-    <!-- 3. Babel (De vertaler) -->
-    <script src="https://unpkg.com/@babel/standalone@7.23.6/babel.min.js"></script>
-    
-    <!-- 4. Icoontjes -->
-    <script src="https://unpkg.com/lucide-react@0.344.0/dist/umd/lucide-react.js"></script>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#059669">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Tupper Life">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 
-    <!-- 5. Firebase (De database) -->
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-
-    <!-- 6. JOUW EIGEN BESTAND (Zorg dat deze in dezelfde map staat!) -->
     <script src="firebase-setup.js"></script>
 
     <style>
-        .loading-text { font-family: sans-serif; text-align: center; margin-top: 50px; color: #666; }
-        .error-box { background: #fee2e2; color: #991b1b; padding: 20px; margin: 20px; border-radius: 8px; border: 1px solid #f87171; font-family: sans-serif; display: none; }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; min-height: 100%; }
+        body {
+            font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            color: #0f172a;
+            background: radial-gradient(ellipse at top, #d1fae5 0%, #f8fafc 55%) fixed;
+            display: flex; align-items: center; justify-content: center;
+            min-height: 100vh; padding: 24px;
+        }
+        @media (prefers-color-scheme: dark) {
+            body { color: #f1f5f9; background: radial-gradient(ellipse at top, #064e3b 0%, #0b1120 55%) fixed; }
+            .card { background: #111827 !important; border-color: #1f2937 !important; }
+            .sub { color: #94a3b8 !important; }
+        }
+        .card {
+            width: 100%; max-width: 380px; background: #fff; border: 1px solid #e2e8f0;
+            border-radius: 28px; padding: 36px 28px 28px; text-align: center;
+            box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 20px 50px -20px rgba(5,150,105,.35);
+            animation: fade .4s cubic-bezier(.16,1,.3,1);
+        }
+        @keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+        .logo { height: 150px; width: auto; max-width: 100%; object-fit: contain; margin: 0 auto 18px; display: block; }
+        h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 6px; }
+        h1 span { color: #059669; }
+        .sub { color: #64748b; font-size: 15px; margin: 0 0 26px; }
+        .btn {
+            width: 100%; display: flex; align-items: center; justify-content: center; gap: 12px;
+            background: #059669; color: #fff; border: 0; border-radius: 16px; padding: 15px 20px;
+            font: 600 16px 'Inter', system-ui, sans-serif; cursor: pointer;
+            box-shadow: 0 8px 20px -8px rgba(5,150,105,.7); transition: transform .15s, background .15s;
+        }
+        .btn:hover { background: #047857; }
+        .btn:active { transform: scale(.98); }
+        .btn[disabled] { opacity: .7; cursor: default; }
+        .btn svg { width: 20px; height: 20px; background: #fff; border-radius: 50%; padding: 2px; }
+        .error { display: none; margin-bottom: 16px; padding: 12px 14px; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; border-radius: 12px; font-size: 14px; text-align: left; }
+        .spinner { width: 34px; height: 34px; border: 3px solid #a7f3d0; border-top-color: #059669; border-radius: 50%; animation: spin .8s linear infinite; margin: 10px auto; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .hidden { display: none !important; }
+        .foot { margin-top: 20px; font-size: 12px; color: #94a3b8; }
     </style>
 </head>
-<body class="bg-slate-50 font-sans text-slate-800">
+<body>
+    <main class="card">
+        <img src="logonieuw.png" alt="Tupper Life logo" class="logo" onerror="this.style.display='none'">
+        <h1>Tupper Life <span>by Kaat</span></h1>
+        <p class="sub">Welkom! Log in om verder te gaan.</p>
 
-    <!-- Loading Scherm -->
-    <div id="root">
-        <div class="loading-text">
-            <h1>De app wordt geladen...</h1>
-            <p>Blijft dit staan? Dan is er iets mis met de installatie.</p>
-        </div>
-    </div>
+        <div id="error" class="error"></div>
+        <div id="loading" class="spinner"></div>
 
-    <!-- Error Box -->
-    <div id="script-error" class="error-box">
-        <h2 style="font-weight: bold; margin-bottom: 10px;">⚠️ STOP! Er is een probleem:</h2>
-        <ul id="error-list" style="list-style-type: disc; padding-left: 20px;"></ul>
-        <p style="margin-top: 10px; font-size: 0.9em;">Controleer of je internet hebt en of <strong>firebase-setup.js</strong> in dezelfde map staat.</p>
-    </div>
+        <button id="login" class="btn hidden" type="button">
+            <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+            <span>Inloggen met Google</span>
+        </button>
 
-    <!-- Scripts Checker -->
+        <p class="foot">Je gegevens worden veilig bewaard in je eigen account.</p>
+    </main>
+
     <script>
-        window.onload = function() {
-            var errors = [];
-            if (typeof React === 'undefined') errors.push("React kon niet geladen worden (Check internet).");
-            if (typeof ReactDOM === 'undefined') errors.push("ReactDOM kon niet geladen worden.");
-            if (typeof Babel === 'undefined') errors.push("Babel kon niet geladen worden.");
-            if (typeof firebase === 'undefined') errors.push("Firebase kon niet geladen worden.");
-            if (typeof firebase !== 'undefined' && !window.auth) {
-                errors.push("Het bestand <strong>firebase-setup.js</strong> wordt niet gevonden of bevat een fout.");
+        (function () {
+            var errBox = document.getElementById('error');
+            var btn = document.getElementById('login');
+            var spinner = document.getElementById('loading');
+
+            function showError(msg) { errBox.innerHTML = msg; errBox.style.display = 'block'; }
+            function ready() { spinner.classList.add('hidden'); btn.classList.remove('hidden'); btn.disabled = false; }
+
+            if (typeof firebase === 'undefined' || !window.auth) {
+                spinner.classList.add('hidden');
+                showError('De app kon niet geladen worden. Controleer je internetverbinding en vernieuw de pagina.');
+                return;
             }
 
-            if (errors.length > 0) {
-                var list = document.getElementById('error-list');
-                errors.forEach(function(err) {
-                    var li = document.createElement('li');
-                    li.innerHTML = err;
-                    list.appendChild(li);
-                });
-                document.getElementById('script-error').style.display = 'block';
-                document.getElementById('root').style.display = 'none';
-            }
-        };
-    </script>
+            // Komt de gebruiker terug na inloggen via doorverwijzing (gsm)? Dan foutmeldingen tonen.
+            window.auth.getRedirectResult().catch(function (err) {
+                console.error(err);
+                ready();
+                showError('Inloggen mislukt: ' + (err.message || err.code));
+            });
 
-    <!-- DE ECHTE APP -->
-    <script type="text/babel">
-        const { useState, useEffect } = React;
-        const LucideIcons = window.lucideReact || window.lucide || {};
-        const { LogIn, Loader2 } = LucideIcons;
+            window.auth.onAuthStateChanged(function (user) {
+                if (user) window.location.replace('dashboard.html');
+                else ready();
+            });
 
-        function LoginPage() {
-            const [error, setError] = useState('');
-            const [loading, setLoading] = useState(true);
-
-            useEffect(() => {
-                if (!window.auth) {
-                    setLoading(false);
+            btn.addEventListener('click', function () {
+                errBox.style.display = 'none';
+                if (window.location.protocol === 'file:') {
+                    showError('Google-inloggen werkt niet rechtstreeks vanuit een map. Open de app via de website.');
                     return;
                 }
-
-                const unsubscribe = window.auth.onAuthStateChanged((user) => {
-                    if (user) {
-                        window.location.href = 'dashboard.html';
-                    } else {
-                        setLoading(false);
+                btn.disabled = true;
+                window.auth.signInWithPopup(window.googleProvider).catch(function (err) {
+                    console.error(err);
+                    var popupProblem = ['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment', 'auth/cancelled-popup-request'].indexOf(err.code) !== -1;
+                    if (popupProblem) {
+                        // Pop-up geblokkeerd (vaak op gsm of in de app op het startscherm): dan via doorverwijzing.
+                        return window.auth.signInWithRedirect(window.googleProvider);
                     }
+                    btn.disabled = false;
+                    if (err.code !== 'auth/popup-closed-by-user') showError('Inloggen mislukt: ' + (err.message || err.code));
                 });
-                return () => unsubscribe();
-            }, []);
-
-            const handleGoogleLogin = async () => {
-                try {
-                    setError('');
-                    await window.auth.signInWithPopup(window.googleProvider);
-                } catch (err) {
-                    console.error("Login Error:", err);
-                    if (window.location.protocol === 'file:') {
-                        setError("Google Inloggen werkt niet direct vanuit een map. Zet de bestanden op GitHub of gebruik een lokale server.");
-                    } else {
-                        setError("Inloggen mislukt: " + err.message);
-                    }
-                }
-            };
-
-            if (loading) {
-                return (
-                    <div className="h-screen flex items-center justify-center text-emerald-600">
-                        {Loader2 ? <Loader2 className="w-10 h-10 animate-spin" /> : "Laden..."}
-                    </div>
-                );
-            }
-
-            return (
-                <div className="flex flex-col items-center justify-center min-h-screen text-center px-4">
-                    <div className="bg-white p-8 rounded-2xl shadow-lg border border-emerald-100 max-w-sm w-full animate-in">
-                        
-                        {/* LOGO GEDEELTE */}
-                        <div className="flex justify-center mb-6">
-                            {/* Zorg dat je foto 'logonieuw.png' heet en in dezelfde map staat! */}
-                            <img 
-                                src="logonieuw.png" 
-                                alt="Tupperware Logo" 
-                                className="h-48 w-auto object-contain" 
-                                onError={(e) => {
-                                    e.target.style.display = 'none'; // Verberg als foto niet bestaat
-                                    // Fallback tekst als foto mist
-                                    e.target.parentNode.innerHTML = '<div class="text-emerald-600 font-bold p-4 bg-emerald-50 rounded-full">LOGO</div>';
-                                }}
-                            />
-                        </div>
-                        
-                        <h2 className="text-2xl font-bold text-emerald-700 mb-2">Tupperware Tracker</h2>
-                        <p className="text-slate-500 mb-6">Welkom! Log in om verder te gaan.</p>
-                        
-                        {error && (
-                            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm text-left">
-                                {error}
-                            </div>
-                        )}
-
-                        <button 
-                            onClick={handleGoogleLogin} 
-                            className="w-full flex items-center justify-center gap-3 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-semibold transition-all shadow-md hover:shadow-lg active:scale-95"
-                        >
-                            {LogIn && <LogIn className="w-5 h-5" />}
-                            <span>Inloggen met Google</span>
-                        </button>
-                    </div>
-                </div>
-            );
-        }
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<LoginPage />);
+            });
+        })();
     </script>
 </body>
 </html>
