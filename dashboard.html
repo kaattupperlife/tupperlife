@@ -378,7 +378,7 @@
             { name: 'Steen', bg: 'bg-stone-100 dark:bg-stone-800', text: 'text-stone-700 dark:text-stone-200' },
         ];
 
-const CatalogsTab = ({ isAdmin, section = 'view' }) => {
+const CatalogsTab = ({ isAdmin, section = 'view', showPromotions = true }) => {
             const [catalogs, setCatalogs] = useState([]);
             const [promotions, setPromotions] = useState([]);
             const [selectedItem, setSelectedItem] = useState(null);
@@ -765,7 +765,7 @@ const CatalogsTab = ({ isAdmin, section = 'view' }) => {
                         </div>
 
                         {/* SECTIE 2: WEEKPROMOTIES — klapt pas open na een keuze */}
-                        <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-glass dark:shadow-glass-dark flex flex-col gap-5 w-full">
+                        {showPromotions && <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-glass dark:shadow-glass-dark flex flex-col gap-5 w-full">
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                                 <h3 className="font-black text-xl text-orange-600 dark:text-orange-400 flex items-center gap-2"><Icons.Image/> Weekpromoties</h3>
                                 {promotions.length > 0 && (
@@ -802,7 +802,7 @@ const CatalogsTab = ({ isAdmin, section = 'view' }) => {
                                     ))}
                                 </div>
                             ) : null}
-                        </div>
+                        </div>}
 
                     </div>}
 
@@ -1618,7 +1618,7 @@ const CatalogsTab = ({ isAdmin, section = 'view' }) => {
             );
         };
 
-        const StockTab = ({ targetUid, user }) => {
+        const StockTab = ({ targetUid, user, showCsvImport = true }) => {
             const [items, setItems] = useState([]);
             const [categories, setCategories] = useState([]); 
             const [locations, setLocations] = useState([]); 
@@ -1965,9 +1965,9 @@ const CatalogsTab = ({ isAdmin, section = 'view' }) => {
                 <div className="space-y-6">
                     {/* TOP CONTROLS */}
                     <div className="flex flex-wrap gap-3 justify-end items-center mb-4">
-                        <button onClick={() => setShowImportModal(true)} className="px-4 py-2 rounded-xl text-white font-bold transition-colors shadow-md flex items-center gap-2 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 hover:-translate-y-0.5">
+                        {showCsvImport && <button onClick={() => setShowImportModal(true)} className="px-4 py-2 rounded-xl text-white font-bold transition-colors shadow-md flex items-center gap-2 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 hover:-translate-y-0.5">
                             <Icons.Upload/> CSV Import
-                        </button>
+                        </button>}
                         <button onClick={()=>openManager('category')} className="px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-slate-700 hover:text-emerald-600 transition-colors flex items-center gap-2 shadow-sm"><Icons.Settings className="text-emerald-500"/> Categorieën</button>
                         <button onClick={()=>openManager('location')} className="px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-slate-700 hover:text-emerald-600 transition-colors flex items-center gap-2 shadow-sm"><Icons.Settings className="text-emerald-500"/> Locaties</button>
                         <button onClick={() => setIsLocked(!isLocked)} className={`px-5 py-2 rounded-xl font-bold transition-all shadow-md flex items-center gap-2 hover:-translate-y-0.5 ${isLocked ? 'bg-gradient-to-r from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-500' : 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-emerald-500/30'}`}>
@@ -2283,15 +2283,35 @@ const CatalogsTab = ({ isAdmin, section = 'view' }) => {
             );
         };
 
+        // ===== RECHTEN =====
+        // Ontbreekt een recht in de database, dan staat het standaard AAN.
+        const PERMISSIONS = [
+            { key: 'showCatalogs',   label: 'Catalogen',        icon: 'fa-book-open-reader', group: 'Tabbladen' },
+            { key: 'showRequests',   label: 'Wensen',           icon: 'fa-gift',             group: 'Tabbladen' },
+            { key: 'showStock',      label: 'Voorraad',         icon: 'fa-box',              group: 'Tabbladen' },
+            { key: 'showRecipes',    label: 'Recepten',         icon: 'fa-utensils',         group: 'Tabbladen' },
+            { key: 'showCustomers',  label: 'Klanten',          icon: 'fa-address-book',     group: 'Tabbladen' },
+            { key: 'canEditSales',   label: 'Verkoop invullen', icon: 'fa-pen',              group: 'Overzicht' },
+            { key: 'showStats',      label: 'Kerncijfers',      icon: 'fa-chart-simple',     group: 'Overzicht' },
+            { key: 'showClub',       label: 'Club Gold',        icon: 'fa-crown',            group: 'Overzicht' },
+            { key: 'showGoals',      label: 'Doelen',           icon: 'fa-bullseye',         group: 'Overzicht' },
+            { key: 'showPs',         label: 'PS-beloningen',    icon: 'fa-award',            group: 'Overzicht' },
+            { key: 'showPromotions', label: 'Weekpromoties',    icon: 'fa-images',           group: 'Extra' },
+            { key: 'showCsvImport',  label: 'CSV-import',       icon: 'fa-file-csv',         group: 'Extra' },
+        ];
+        const DEFAULT_PERMS = PERMISSIONS.reduce((o, p) => { o[p.key] = true; return o; }, {});
+        const PERM_GROUPS = ['Tabbladen', 'Overzicht', 'Extra'];
+
         const AdminUserModal = ({ isOpen, onClose, selectedYear, onSelectUser, inline = false }) => {
             const [usersList, setUsersList] = useState([]);
             const [loading, setLoading] = useState(true);
-            const [editingUserPerms, setEditingUserPerms] = useState(null); 
-            const [perms, setPerms] = useState({ showStock: true, showRequests: true, showCustomers: true, showRecipes: true, showClub: true, showCatalogs: true });
+            const [permsByUser, setPermsByUser] = useState({});
+            const [search, setSearch] = useState('');
+            const [openUid, setOpenUid] = useState(null);
 
             useEffect(() => {
                 if (!isOpen) return;
-                const unsub = window.db.collectionGroup('months').where('yearId', '==', selectedYear).onSnapshot(snapshot => {
+                const unsub = window.db.collectionGroup('months').where('yearId', 'in', [selectedYear, selectedYear - 1]).onSnapshot(snapshot => {
                     const usersMap = {};
                     snapshot.forEach(doc => {
                         const d = doc.data();
@@ -2303,84 +2323,89 @@ const CatalogsTab = ({ isAdmin, section = 'view' }) => {
                 return () => unsub();
             }, [isOpen, selectedYear]);
 
-            const openPermissions = async (e, user) => {
-                e.stopPropagation();
-                setEditingUserPerms(user.uid);
-                const doc = await window.db.collection('users').doc(user.uid).collection('settings').doc('config').get();
-                if (doc.exists) setPerms({...{showStock:true, showRequests:true, showCustomers:true, showRecipes:true, showClub:true, showCatalogs:true}, ...doc.data()});
-                else setPerms({ showStock: true, showRequests: true, showCustomers: true, showRecipes: true, showClub: true, showCatalogs: true });
-            };
+            // Rechten van elke gebruiker live volgen
+            useEffect(() => {
+                const unsubs = usersList.map(u => window.db.collection('users').doc(u.uid).collection('settings').doc('config').onSnapshot(doc => {
+                    setPermsByUser(prev => ({ ...prev, [u.uid]: { ...DEFAULT_PERMS, ...(doc.exists ? doc.data() : {}) } }));
+                }, err => console.error(err)));
+                return () => unsubs.forEach(f => f());
+            }, [usersList.map(u => u.uid).join(',')]);
 
-            const togglePerm = async (key) => {
-                const newPerms = { ...perms, [key]: !perms[key] };
-                setPerms(newPerms);
-                await window.db.collection('users').doc(editingUserPerms).collection('settings').doc('config').set(newPerms, { merge: true });
+            const savePerms = async (uid, newPerms) => {
+                setPermsByUser(prev => ({ ...prev, [uid]: newPerms }));
+                try { await window.db.collection('users').doc(uid).collection('settings').doc('config').set(newPerms, { merge: true }); }
+                catch (e) { window.showAlert("Rechten opslaan mislukt: " + e.message); }
             };
+            const togglePerm = (uid, key) => { const cur = permsByUser[uid] || DEFAULT_PERMS; savePerms(uid, { ...cur, [key]: !cur[key] }); };
+            const setAll = (uid, value) => savePerms(uid, PERMISSIONS.reduce((o, p) => { o[p.key] = value; return o; }, {}));
 
             if (!isOpen) return null;
 
-            return (
-                <div className={inline ? '' : "fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm"} onClick={inline ? undefined : onClose}>
-                    <div className={`bg-white dark:bg-slate-900 rounded-3xl shadow-glass border border-slate-200/80 dark:border-slate-800 w-full overflow-hidden ${inline ? '' : 'max-w-md modal-content'}`} onClick={e=>e.stopPropagation()}>
-                        <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center gap-3">
-                            <div>
-                                <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 flex items-center gap-2"><Icons.Shield className="text-amber-500"/> Gebruikers & rechten</h3>
-                                {inline && <p className="text-xs text-slate-400 mt-0.5">Tik op een gebruiker om het account te bekijken, of op het tandwiel voor de rechten.</p>}
-                            </div>
-                            {!inline && <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors text-slate-400"><Icons.X/></button>}
-                        </div>
-                        <div className={`p-5 space-y-3 ${inline ? '' : 'max-h-[60vh] overflow-y-auto custom-scroll'}`}>
-                            {!loading && usersList.length === 0 && <p className="text-center text-slate-400 py-8 text-sm">Geen gebruikers gevonden voor {selectedYear}.</p>}
-                            {loading ? <Icons.Loader className="mx-auto block text-amber-500 text-2xl py-10"/> : usersList.map(u => (
-                                <div key={u.uid} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all">
-                                    <div className="flex items-center gap-4 p-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors" onClick={() => onSelectUser(u)}>
-                                        <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 overflow-hidden shrink-0 shadow-sm">{u.photo?<img src={u.photo} className="w-full h-full object-cover"/>:<Icons.User className="m-3 text-slate-400 text-lg"/>}</div>
-                                        <div className="flex-grow min-w-0">
-                                            <div className="font-bold text-slate-800 dark:text-slate-100 text-base truncate">{u.name}</div>
-                                            <div className="text-xs text-slate-400 font-mono mt-0.5">{u.uid.slice(0,8)}...</div>
-                                        </div>
-                                        <button onClick={(e)=>openPermissions(e, u)} className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-slate-600 flex items-center justify-center transition-all shadow-sm shrink-0" title="Rechten Beheren">
-                                            <Icons.Settings/>
-                                        </button>
-                                    </div>
-                                    
-                                    {editingUserPerms === u.uid && (
-                                        <div className="bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 p-4 animate-in">
-                                            <div className="flex justify-between items-center mb-3">
-                                                <span className="font-bold text-[10px] text-slate-500 uppercase tracking-widest">Toegang voor {(u.name||'').split(' ')[0]}</span>
-                                                <button onClick={()=>setEditingUserPerms(null)} className="text-slate-400 hover:text-slate-600"><Icons.X className="w-3"/></button>
-                                            </div>
-                                            <div className="flex flex-wrap gap-2">
-                                                <button onClick={()=>togglePerm('showStock')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all ${perms.showStock ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/50 shadow-sm' : 'bg-white dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'}`}>
-                                                    {perms.showStock ? <Icons.Unlock className="w-3"/> : <Icons.Lock className="w-3"/>} Voorraad
-                                                </button>
-                                                <button onClick={()=>togglePerm('showRequests')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all ${perms.showRequests ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/50 shadow-sm' : 'bg-white dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'}`}>
-                                                    {perms.showRequests ? <Icons.Unlock className="w-3"/> : <Icons.Lock className="w-3"/>} Wensen
-                                                </button>
-                                                <button onClick={()=>togglePerm('showRecipes')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all ${perms.showRecipes ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300 border-orange-200 dark:border-orange-800/50 shadow-sm' : 'bg-white dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'}`}>
-                                                    {perms.showRecipes ? <Icons.Unlock className="w-3"/> : <Icons.Lock className="w-3"/>} Recepten
-                                                </button>
-                                                <button onClick={()=>togglePerm('showCustomers')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all ${perms.showCustomers ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 border-purple-200 dark:border-purple-800/50 shadow-sm' : 'bg-white dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'}`}>
-                                                    {perms.showCustomers ? <Icons.Unlock className="w-3"/> : <Icons.Lock className="w-3"/>} Klanten
-                                                </button>
-                                                <button onClick={()=>togglePerm('showClub')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all ${perms.showClub ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300 border-amber-200 dark:border-amber-800/50 shadow-sm' : 'bg-white dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'}`}>
-                                                    {perms.showClub ? <Icons.Unlock className="w-3"/> : <Icons.Lock className="w-3"/>} Club/Gold
-                                                </button>
-                                                <button onClick={()=>togglePerm('showCatalogs')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all ${perms.showCatalogs ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/50 shadow-sm' : 'bg-white dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'}`}>
-                                                    {perms.showCatalogs ? <Icons.Unlock className="w-3"/> : <Icons.Lock className="w-3"/>} Catalogen
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
+            const q = search.trim().toLowerCase();
+            const shown = usersList.filter(u => !q || (u.name || '').toLowerCase().includes(q));
+
+            const content = (
+                <div className="space-y-4">
+                    {usersList.length > 4 && (
+                        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Zoek gebruiker..." className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/30"/>
+                    )}
+                    {loading && <div className="text-center py-10"><Icons.Loader className="text-amber-500 text-2xl"/></div>}
+                    {!loading && shown.length === 0 && <p className="text-center text-slate-400 py-8 text-sm">Geen gebruikers gevonden voor {selectedYear}.</p>}
+                    {shown.map(u => {
+                        const perms = permsByUser[u.uid] || DEFAULT_PERMS;
+                        const offCount = PERMISSIONS.filter(p => !perms[p.key]).length;
+                        const expanded = openUid === u.uid || shown.length <= 3;
+                        return (
+                            <div key={u.uid} className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl shadow-glass overflow-hidden">
+                                <div className="flex items-center gap-3 p-4 sm:p-5">
+                                    <div className="w-11 h-11 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden shrink-0 flex items-center justify-center">{u.photo ? <img src={u.photo} className="w-full h-full object-cover"/> : <Icons.User className="text-slate-400"/>}</div>
+                                    <button onClick={() => setOpenUid(expanded && shown.length > 3 ? null : u.uid)} className="flex-grow min-w-0 text-left">
+                                        <div className="font-bold text-slate-800 dark:text-slate-100 truncate">{u.name}</div>
+                                        <div className={`text-xs font-semibold ${offCount ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{offCount ? `${offCount} ${offCount === 1 ? 'onderdeel' : 'onderdelen'} uitgeschakeld` : 'Alles ingeschakeld'}</div>
+                                    </button>
+                                    <button onClick={() => onSelectUser(u)} className="shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-semibold hover:bg-slate-200 dark:hover:bg-slate-700"><i className="fa-solid fa-arrow-up-right-from-square text-xs"></i><span className="hidden sm:inline">App openen</span></button>
+                                    {shown.length > 3 && <button onClick={() => setOpenUid(expanded ? null : u.uid)} className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Rechten tonen"><Icons.ChevronDown className={`transition-transform ${expanded ? 'rotate-180' : ''}`}/></button>}
                                 </div>
-                            ))}
-                        </div>
-                    </div>
+                                {expanded && (
+                                    <div className="px-4 sm:px-5 pb-5 pt-1 border-t border-slate-100 dark:border-slate-800 space-y-4">
+                                        {PERM_GROUPS.map(g => (
+                                            <div key={g}>
+                                                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mt-3 mb-2">{g}</div>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                                    {PERMISSIONS.filter(p => p.group === g).map(p => {
+                                                        const on = !!perms[p.key];
+                                                        return (
+                                                            <button key={p.key} onClick={() => togglePerm(u.uid, p.key)} role="switch" aria-checked={on} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-colors ${on ? 'bg-emerald-50/60 dark:bg-emerald-900/15 border-emerald-200 dark:border-emerald-800/60' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700'}`}>
+                                                                <i className={`fa-solid ${p.icon} w-4 text-center ${on ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}></i>
+                                                                <span className={`flex-grow text-sm font-semibold ${on ? 'text-slate-800 dark:text-slate-100' : 'text-slate-400 line-through decoration-slate-300'}`}>{p.label}</span>
+                                                                <span className={`w-10 h-6 rounded-full relative transition-colors shrink-0 ${on ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}><span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform shadow-sm ${on ? 'translate-x-4' : ''}`}></span></span>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        ))}
+                                        <div className="flex gap-2 pt-1">
+                                            <button onClick={() => setAll(u.uid, true)} className="px-3 py-2 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 hover:bg-emerald-100">Alles aan</button>
+                                            <button onClick={() => window.showConfirm(`Alle onderdelen uitschakelen voor ${u.name}?`, () => setAll(u.uid, false))} className="px-3 py-2 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 hover:bg-slate-200">Alles uit</button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            );
+
+            if (inline) return content;
+            return (
+                <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
+                    <div className="bg-slate-50 dark:bg-slate-950 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-5 modal-content" onClick={e => e.stopPropagation()}>{content}</div>
                 </div>
             );
         };
 
-const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurrency, user, globalPs }) => {
+const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurrency, user, globalPs, showPs = true, canEdit = true }) => {
             const [expanded, setExpanded] = useState(false);
             const [isModalOpen, setIsModalOpen] = useState(false);
             
@@ -2423,7 +2448,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                                 <div className="text-[15px] sm:text-base flex items-center gap-2 truncate">
                                     {month}
                                 </div>
-                                {earnedLevels > 0 && <div className="text-[9px] sm:text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider bg-emerald-100 dark:bg-emerald-900/30 inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded mt-1"><Icons.Gift className="w-2 h-2 sm:w-2.5 sm:h-2.5"/> {earnedLevels} Cadeaus</div>}
+                                {showPs && earnedLevels > 0 && <div className="text-[9px] sm:text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider bg-emerald-100 dark:bg-emerald-900/30 inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded mt-1"><Icons.Gift className="w-2 h-2 sm:w-2.5 sm:h-2.5"/> {earnedLevels} Cadeaus</div>}
                             </div>
                         </td>
                         <td className="px-3 py-4 sm:px-5 font-bold text-[15px] sm:text-lg text-right text-slate-800 dark:text-white whitespace-nowrap tabular-nums">{formatCurrency(total)}</td>
@@ -2439,7 +2464,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                                                 {useCalendar ? <Icons.Calendar className="text-emerald-500 text-sm sm:text-base" /> : <Icons.Euro className="text-emerald-500 text-sm sm:text-base"/>}
                                                 {useCalendar ? `Verkoopkalender (${year})` : 'Verkoop'}
                                             </span>
-                                            {!useCalendar && (
+                                            {!useCalendar && canEdit && (
                                                 <div className="flex bg-white dark:bg-slate-800 rounded-xl p-1 border border-slate-200 dark:border-slate-700 shadow-sm">{[4,5].map(n=><button key={n} onClick={(e)=>{e.stopPropagation();updateMonthData(month,'weeks',n)}} className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-colors ${manualWeeks===n?'bg-emerald-500 text-white shadow-sm':'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>{n}</button>)}</div>
                                             )}
                                         </div>
@@ -2460,7 +2485,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                                                             <div className="flex items-center gap-2 sm:gap-4">
                                                                 <div className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex justify-center items-center text-xs sm:text-sm font-black border border-emerald-100 dark:border-emerald-800 shrink-0">W{weekInfo.weekNumber}</div>
                                                                 <div className="flex-grow">
-                                                                    <input type="text" inputMode="decimal" placeholder="0.00" value={data[`week${w}`]||''} onClick={e=>e.stopPropagation()} onChange={e=>{ const val = e.target.value.replace(',', '.'); if (/^\d*\.?\d*$/.test(val)) updateMonthData(month,`week${w}`,val); }} className="w-full px-2 sm:px-3 py-2 sm:py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/30 text-sm sm:text-lg font-black font-mono transition-all"/>
+                                                                    <input type="text" inputMode="decimal" placeholder="0.00" readOnly={!canEdit} value={data[`week${w}`]||''} onClick={e=>e.stopPropagation()} onChange={e=>{ if (!canEdit) return; const val = e.target.value.replace(',', '.'); if (/^\d*\.?\d*$/.test(val)) updateMonthData(month,`week${w}`,val); }} className="w-full px-2 sm:px-3 py-2 sm:py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/30 text-sm sm:text-lg font-black font-mono transition-all"/>
                                                                 </div>
                                                                 <div className="text-right shrink-0 min-w-[60px] sm:min-w-[80px]">
                                                                     <div className="text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-widest mb-0.5">Winst</div>
@@ -2478,7 +2503,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                                                         <div key={w} className="flex items-center gap-2 sm:gap-4 bg-white dark:bg-slate-800/60 p-3 sm:p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50 shadow-glass transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:hover:shadow-[0_8px_30px_rgba(16,185,129,0.05)] hover:-translate-y-0.5">
                                                             <div className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex justify-center items-center text-sm sm:text-lg font-black border border-emerald-100 dark:border-emerald-800 shrink-0">{w}</div>
                                                             <div className="flex-grow">
-                                                                <input type="text" inputMode="decimal" placeholder="0.00" value={data[`week${w}`]||''} onClick={e=>e.stopPropagation()} onChange={e=>{ const val = e.target.value.replace(',', '.'); if (/^\d*\.?\d*$/.test(val)) updateMonthData(month,`week${w}`,val); }} className="w-full px-2 sm:px-3 py-2 sm:py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/30 text-sm sm:text-lg font-black font-mono transition-all"/>
+                                                                <input type="text" inputMode="decimal" placeholder="0.00" readOnly={!canEdit} value={data[`week${w}`]||''} onClick={e=>e.stopPropagation()} onChange={e=>{ if (!canEdit) return; const val = e.target.value.replace(',', '.'); if (/^\d*\.?\d*$/.test(val)) updateMonthData(month,`week${w}`,val); }} className="w-full px-2 sm:px-3 py-2 sm:py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/30 text-sm sm:text-lg font-black font-mono transition-all"/>
                                                             </div>
                                                             <div className="text-right shrink-0 min-w-[60px] sm:min-w-[80px]">
                                                                 <div className="text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-widest mb-0.5">Winst</div>
@@ -2490,7 +2515,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                                             )}
                                         </div>
                                     </div>
-                                    <div className="space-y-4 sm:space-y-5">
+                                    {showPs && <div className="space-y-4 sm:space-y-5">
                                         <div className="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-700/50">
                                             <span className="text-[10px] sm:text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2"><Icons.Gift className="text-amber-500 text-sm sm:text-base"/> PS Beloningen</span>
                                             <button onClick={(e)=>{e.stopPropagation();setIsModalOpen(true)}} className="flex items-center gap-2 text-xs px-3 sm:px-4 py-1.5 sm:py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl font-bold shadow-sm transition-all hover:shadow-md"><Icons.Settings className="w-3"/> Instellen</button>
@@ -2521,7 +2546,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                                                 })
                                             }
                                         </div>
-                                    </div>
+                                    </div>}
                                 </div>
                             </td>
                         </tr>
@@ -3197,7 +3222,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             const [cameFromAdmin, setCameFromAdmin] = useState(false);
             const [showProfileMenu, setShowProfileMenu] = useState(false);
             const [darkMode, setDarkMode] = useState(() => { try { return localStorage.getItem('theme') === 'dark'; } catch (e) { return false; } });
-            const defaultPerms = { showStock: true, showRequests: true, showCustomers: true, showRecipes: true, showClub: true, showCatalogs: true };
+            const defaultPerms = DEFAULT_PERMS;
             const [userPermissions, setUserPermissions] = useState(defaultPerms);
 
             useEffect(() => {
@@ -3223,6 +3248,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
 
             const targetUid = viewingUser ? viewingUser.uid : (user ? user.uid : null);
             const isAdmin = !!(user && isAdminEmail(user.email));
+            const can = (key) => isAdmin || userPermissions[key] !== false;
 
             useEffect(() => {
                 if (!targetUid || !window.db) return;
@@ -3369,7 +3395,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                                                     <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform shadow-sm ${darkMode ? 'translate-x-5' : ''}`}></span>
                                                 </span>
                                             </button>
-                                            <button onClick={() => { setShowCustomGoalsModal(true); setShowProfileMenu(false); }} className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-semibold text-slate-700 dark:text-slate-200 flex gap-3 items-center"><i className="fa-solid fa-bullseye w-5 text-indigo-500"></i> Mijn doelen</button>
+                                            {can('showGoals') && <button onClick={() => { setShowCustomGoalsModal(true); setShowProfileMenu(false); }} className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-semibold text-slate-700 dark:text-slate-200 flex gap-3 items-center"><i className="fa-solid fa-bullseye w-5 text-indigo-500"></i> Mijn doelen</button>}
                                             {isAdmin && <a href="beheer.html" className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-semibold text-slate-700 dark:text-slate-200 flex gap-3 items-center"><i className="fa-solid fa-screwdriver-wrench w-5 text-amber-500"></i> Naar de beheer-app</a>}
                                             <div className="border-t border-slate-100 dark:border-slate-800 mt-1 pt-1">
                                                 <button onClick={() => window.auth.signOut()} className="w-full text-left px-4 py-3 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm font-semibold text-red-600 dark:text-red-400 flex gap-3 items-center"><i className="fa-solid fa-right-from-bracket w-5"></i> Uitloggen</button>
@@ -3403,12 +3429,12 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                             )}
                             {currentTab.id === 'overview' && (
                                 <div className="flex items-center gap-2 shrink-0">
-                                    <button onClick={() => setShowStats(!showStats)} title={showStats ? 'Kerncijfers verbergen' : 'Kerncijfers tonen'} className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl border text-sm font-semibold shadow-sm transition-colors ${showStats ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
+                                    {can('showStats') && <button onClick={() => setShowStats(!showStats)} title={showStats ? 'Kerncijfers verbergen' : 'Kerncijfers tonen'} className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl border text-sm font-semibold shadow-sm transition-colors ${showStats ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
                                         <i className="fa-solid fa-chart-simple text-emerald-500"></i>
                                         <span className="hidden sm:inline">Kerncijfers</span>
                                         <Icons.ChevronDown className={`hidden sm:inline text-xs transition-transform ${showStats ? 'rotate-180' : ''}`}/>
-                                    </button>
-                                    <button onClick={() => setShowCustomGoalsModal(true)} className="hidden sm:flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 shadow-sm"><i className="fa-solid fa-bullseye"></i> Mijn doelen</button>
+                                    </button>}
+                                    {can('showGoals') && <button onClick={() => setShowCustomGoalsModal(true)} className="hidden sm:flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 shadow-sm"><i className="fa-solid fa-bullseye"></i> Mijn doelen</button>}
                                     {yearSelect}
                                 </div>
                             )}
@@ -3417,19 +3443,19 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                         <ErrorBoundary key={currentTab.id + (viewingUser ? viewingUser.uid : '')}>
                             {currentTab.id === 'overview' && (
                                 <div className="space-y-6 sm:space-y-8">
-                                    {showStats && <OverviewStats monthlyData={monthlyData} selectedYear={selectedYear} formatCurrency={formatCurrency} />}
+                                    {showStats && can('showStats') && <OverviewStats monthlyData={monthlyData} selectedYear={selectedYear} formatCurrency={formatCurrency} />}
 
-                                    {(userPermissions.showClub || isAdmin) && (
+                                    {can('showClub') && (
                                         <ClubTab targetUid={targetUid} monthlyData={monthlyData} selectedYear={selectedYear} formatCurrency={formatCurrency} />
                                     )}
 
-                                    <CustomGoalsDisplay customGoals={customGoals} monthlyData={monthlyData} selectedYear={selectedYear} formatCurrency={formatCurrency} availableWeeks={availableWeeks} />
-                                    <button onClick={() => setShowCustomGoalsModal(true)} className="sm:hidden w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-semibold text-indigo-600 dark:text-indigo-400 shadow-sm"><i className="fa-solid fa-bullseye"></i> Mijn doelen beheren</button>
+                                    {can('showGoals') && <CustomGoalsDisplay customGoals={customGoals} monthlyData={monthlyData} selectedYear={selectedYear} formatCurrency={formatCurrency} availableWeeks={availableWeeks} />}
+                                    {can('showGoals') && <button onClick={() => setShowCustomGoalsModal(true)} className="sm:hidden w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-semibold text-indigo-600 dark:text-indigo-400 shadow-sm"><i className="fa-solid fa-bullseye"></i> Mijn doelen beheren</button>}
 
                                     <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-glass dark:shadow-glass-dark border border-slate-200/80 dark:border-slate-800 overflow-hidden w-full">
                                         <div className="px-4 sm:px-6 pt-5 pb-3 flex items-center justify-between">
                                             <h3 className="font-bold text-slate-800 dark:text-white">Maanden {selectedYear}</h3>
-                                            <span className="text-xs text-slate-400">Tik op een maand om je verkoop in te vullen</span>
+                                            <span className="text-xs text-slate-400">{can('canEditSales') ? 'Tik op een maand om je verkoop in te vullen' : 'Tik op een maand om je verkoop te bekijken'}</span>
                                         </div>
                                         <div className="w-full overflow-x-auto custom-scroll">
                                             <table className="w-full text-left border-collapse min-w-full">
@@ -3441,7 +3467,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {MONTHS.map((m, index) => <MonthRow key={m} month={m} monthIndex={index} year={selectedYear} data={monthlyData[m] || {}} updateMonthData={updateMonthData} formatCurrency={formatCurrency} user={user} globalPs={globalPsData[m] || []} />)}
+                                                    {MONTHS.map((m, index) => <MonthRow key={m} month={m} monthIndex={index} year={selectedYear} data={monthlyData[m] || {}} updateMonthData={updateMonthData} formatCurrency={formatCurrency} user={user} globalPs={globalPsData[m] || []} showPs={can('showPs')} canEdit={can('canEditSales')} />)}
                                                 </tbody>
                                                 <tfoot className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white">
                                                     <tr>
@@ -3456,9 +3482,9 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                                 </div>
                             )}
 
-                            {currentTab.id === 'catalogs' && <CatalogsTab isAdmin={isAdmin} />}
+                            {currentTab.id === 'catalogs' && <CatalogsTab isAdmin={isAdmin} showPromotions={can('showPromotions')} />}
                             {currentTab.id === 'requests' && <RequestsTab targetUid={targetUid}/>}
-                            {currentTab.id === 'stock' && <StockTab targetUid={targetUid} user={user}/>}
+                            {currentTab.id === 'stock' && <StockTab targetUid={targetUid} user={user} showCsvImport={can('showCsvImport')}/>}
                             {currentTab.id === 'recipes' && <RecipesTab targetUid={targetUid}/>}
                             {currentTab.id === 'customers' && <CustomersTab targetUid={targetUid}/>}
                             {currentTab.id === 'admin' && isAdmin && <AdminPage users={adminUserOptions} formatCurrency={formatCurrency} section={adminSection} setSection={setAdminSection} selectedYear={selectedYear} globalPsData={globalPsData} updateGlobalPsData={updateGlobalPsData} isAdmin={isAdmin} onSelectUser={(u) => { setViewingUser(u); setActiveTab('overview'); }} />}
