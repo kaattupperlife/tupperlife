@@ -376,7 +376,7 @@
             { name: 'Steen', bg: 'bg-stone-100 dark:bg-stone-800', text: 'text-stone-700 dark:text-stone-200' },
         ];
 
-const CatalogsTab = ({ isAdmin }) => {
+const CatalogsTab = ({ isAdmin, section = 'view' }) => {
             const [catalogs, setCatalogs] = useState([]);
             const [promotions, setPromotions] = useState([]);
             const [selectedItem, setSelectedItem] = useState(null);
@@ -605,9 +605,9 @@ const CatalogsTab = ({ isAdmin }) => {
             return (
                 <div className="space-y-6">
                     {/* ADMIN BEHEER: knoppen, met het beheer achter elke knop */}
-                    {isAdmin && (
+                    {isAdmin && section === 'admin' && (
                         <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-glass dark:shadow-glass-dark">
-                            <h3 className="font-bold text-base text-slate-800 dark:text-slate-200 flex items-center gap-2 mb-3"><Icons.Settings className="text-emerald-500"/> Beheer (admin)</h3>
+                            <h3 className="font-bold text-base text-slate-800 dark:text-slate-200 flex items-center gap-2 mb-3"><Icons.BookReader className="text-emerald-500"/> Catalogen, leaflets & weekpromoties</h3>
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
                                 {ADMIN_PANELS.map(pnl => {
                                     const active = adminPanel === pnl.id;
@@ -723,7 +723,7 @@ const CatalogsTab = ({ isAdmin }) => {
                     )}
 
                     {/* GEBRUIKER WEERGAVE (ONDER ELKAAR) */}
-                    <div className="flex flex-col gap-8">
+                    {section !== 'admin' && <div className="flex flex-col gap-8">
                         
                         {/* SECTIE 1: BLADEREN — klapt pas open na een keuze */}
                         <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-glass dark:shadow-glass-dark flex flex-col gap-5 w-full">
@@ -802,7 +802,7 @@ const CatalogsTab = ({ isAdmin }) => {
                             ) : null}
                         </div>
 
-                    </div>
+                    </div>}
 
                     {/* MODAL VOOR VERGROOTTE AFBEELDING */}
                     {previewImage && (
@@ -2282,7 +2282,7 @@ const CatalogsTab = ({ isAdmin }) => {
             );
         };
 
-        const AdminUserModal = ({ isOpen, onClose, selectedYear, onSelectUser }) => {
+        const AdminUserModal = ({ isOpen, onClose, selectedYear, onSelectUser, inline = false }) => {
             const [usersList, setUsersList] = useState([]);
             const [loading, setLoading] = useState(true);
             const [editingUserPerms, setEditingUserPerms] = useState(null); 
@@ -2319,10 +2319,16 @@ const CatalogsTab = ({ isAdmin }) => {
             if (!isOpen) return null;
 
             return (
-                <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
-                    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-glass border border-slate-200/80 dark:border-slate-800 w-full max-w-md overflow-hidden modal-content" onClick={e=>e.stopPropagation()}>
-                        <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center"><h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 flex items-center gap-2"><Icons.Shield className="text-amber-500"/> Beheer Gebruikers</h3><button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors text-slate-400"><Icons.X/></button></div>
-                        <div className="p-5 max-h-[60vh] overflow-y-auto space-y-3 custom-scroll">
+                <div className={inline ? '' : "fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm"} onClick={inline ? undefined : onClose}>
+                    <div className={`bg-white dark:bg-slate-900 rounded-3xl shadow-glass border border-slate-200/80 dark:border-slate-800 w-full overflow-hidden ${inline ? '' : 'max-w-md modal-content'}`} onClick={e=>e.stopPropagation()}>
+                        <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center gap-3">
+                            <div>
+                                <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 flex items-center gap-2"><Icons.Shield className="text-amber-500"/> Gebruikers & rechten</h3>
+                                {inline && <p className="text-xs text-slate-400 mt-0.5">Tik op een gebruiker om het account te bekijken, of op het tandwiel voor de rechten.</p>}
+                            </div>
+                            {!inline && <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors text-slate-400"><Icons.X/></button>}
+                        </div>
+                        <div className={`p-5 space-y-3 ${inline ? '' : 'max-h-[60vh] overflow-y-auto custom-scroll'}`}>
                             {!loading && usersList.length === 0 && <p className="text-center text-slate-400 py-8 text-sm">Geen gebruikers gevonden voor {selectedYear}.</p>}
                             {loading ? <Icons.Loader className="mx-auto block text-amber-500 text-2xl py-10"/> : usersList.map(u => (
                                 <div key={u.uid} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all">
@@ -2859,7 +2865,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             );
         };
 
-        const GlobalPsAdminModal = ({ isOpen, onClose, selectedYear, globalPsData, updateGlobalPsData }) => {
+        const GlobalPsAdminModal = ({ isOpen, onClose, selectedYear, globalPsData, updateGlobalPsData, inline = false }) => {
             const [selectedMonth, setSelectedMonth] = useState(MONTHS[0]);
             const [levels, setLevels] = useState([]);
             const [newItem, setNewItem] = useState({ amount: '', name: '', label: '', image: '' });
@@ -2919,11 +2925,11 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             if (!isOpen) return null;
 
             return (
-                <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
-                    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-700 w-full max-w-lg overflow-hidden flex flex-col p-6 animate-in" onClick={e=>e.stopPropagation()}>
+                <div className={inline ? '' : "fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm"} onClick={inline ? undefined : onClose}>
+                    <div className={`bg-white dark:bg-slate-900 rounded-3xl border w-full overflow-hidden flex flex-col p-5 sm:p-6 ${inline ? 'shadow-glass border-slate-200/80 dark:border-slate-800' : 'shadow-xl border-slate-200 dark:border-slate-700 max-w-lg animate-in'}`} onClick={e=>e.stopPropagation()}>
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2"><Icons.Gift className="text-blue-500"/> Globale PS {selectedYear} (Admin)</h3>
-                            <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><Icons.X/></button>
+                            <h3 className="font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2"><Icons.Gift className="text-blue-500"/> Globale PS {selectedYear}</h3>
+                            {!inline && <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><Icons.X/></button>}
                         </div>
 
                         <select value={selectedMonth} onChange={e=>{ setSelectedMonth(e.target.value); setEditingId(null); setNewItem({ amount: '', name: '', label: '', image: '' }); }} className="w-full mb-4 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/30">
@@ -2949,7 +2955,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                             </div>
                         </div>
 
-                        <div className="max-h-48 overflow-y-auto custom-scroll space-y-2 pr-1">
+                        <div className={`space-y-2 pr-1 ${inline ? '' : 'max-h-48 overflow-y-auto custom-scroll'}`}>
                             {levels.length === 0 ? <p className="text-center text-sm text-slate-500 py-4">Geen globale PS ingesteld voor {selectedMonth}</p> :
                                 [...levels].sort((a,b)=>Number(a.amount)-Number(b.amount)).map(l => (
                                     <div key={l.id} className="flex items-center justify-between bg-slate-50 dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700">
@@ -3000,6 +3006,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             { id: 'stock',     label: 'Voorraad',  short: 'Voorraad',  icon: 'fa-box',            perm: 'showStock',     subtitle: 'Je eigen producten, op zolder of in gebruik' },
             { id: 'recipes',   label: 'Recepten',  short: 'Recepten',  icon: 'fa-utensils',       perm: 'showRecipes',   subtitle: 'Je receptenverzameling' },
             { id: 'customers', label: 'Klanten',   short: 'Klanten',   icon: 'fa-address-book',   perm: 'showCustomers', subtitle: 'Je klantenlijst met contactgegevens' },
+            { id: 'admin',     label: 'Beheer',    short: 'Beheer',    icon: 'fa-screwdriver-wrench', perm: 'admin',     subtitle: 'Alles beheren op één plek: gebruikers, globale PS en catalogen' },
         ];
 
         const PROFIT_RATE = 0.29184;
@@ -3046,6 +3053,35 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             );
         };
 
+        const ADMIN_SECTIONS = [
+            { id: 'users',    label: 'Gebruikers',  icon: 'fa-users',            desc: 'Accounts bekijken en rechten instellen' },
+            { id: 'ps',       label: 'Globale PS',  icon: 'fa-gift',             desc: 'Beloningen voor iedereen, per maand' },
+            { id: 'catalogs', label: 'Catalogen',   icon: 'fa-book-open-reader', desc: 'Catalogen, leaflets en weekpromoties' },
+        ];
+
+        const AdminPage = ({ section, setSection, selectedYear, globalPsData, updateGlobalPsData, onSelectUser, isAdmin }) => (
+            <div className="space-y-5">
+                <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                    {ADMIN_SECTIONS.map(sct => {
+                        const active = section === sct.id;
+                        return (
+                            <button key={sct.id} onClick={() => setSection(sct.id)} className={`flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-3 p-3 sm:p-4 rounded-2xl border text-center sm:text-left transition-all ${active ? 'bg-gradient-to-br from-emerald-500 to-teal-500 border-transparent text-white shadow-md' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'}`}>
+                                <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${active ? 'bg-white/20' : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'}`}><i className={`fa-solid ${sct.icon}`}></i></span>
+                                <span className="min-w-0">
+                                    <span className={`block font-bold text-sm ${active ? '' : 'text-slate-800 dark:text-slate-100'}`}>{sct.label}</span>
+                                    <span className={`hidden sm:block text-xs mt-0.5 ${active ? 'text-white/80' : 'text-slate-400'}`}>{sct.desc}</span>
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
+
+                {section === 'users' && <AdminUserModal inline isOpen={true} onClose={() => {}} selectedYear={selectedYear} onSelectUser={onSelectUser} />}
+                {section === 'ps' && <GlobalPsAdminModal inline isOpen={true} onClose={() => {}} selectedYear={selectedYear} globalPsData={globalPsData} updateGlobalPsData={updateGlobalPsData} />}
+                {section === 'catalogs' && <CatalogsTab isAdmin={isAdmin} section="admin" />}
+            </div>
+        );
+
         function DashboardPage() {
             const [user, setUser] = useState(null);
             const [loading, setLoading] = useState(true);
@@ -3054,11 +3090,13 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             const [globalPsData, setGlobalPsData] = useState({});
 
             const [activeTab, setActiveTabState] = useState(() => { try { return localStorage.getItem('tl-tab') || 'overview'; } catch (e) { return 'overview'; } });
-            const setActiveTab = (t) => { setActiveTabState(t); try { localStorage.setItem('tl-tab', t); } catch (e) {} window.scrollTo({ top: 0 }); };
+            const setActiveTab = (t) => { setActiveTabState(t); setShowProfileMenu(false); try { localStorage.setItem('tl-tab', t); } catch (e) {} window.scrollTo({ top: 0 }); };
             const [showAdminModal, setShowAdminModal] = useState(false);
             const [showGlobalPsModal, setShowGlobalPsModal] = useState(false);
             const [showCustomGoalsModal, setShowCustomGoalsModal] = useState(false);
             const [showStats, setShowStats] = useState(false);
+            const [adminSection, setAdminSectionState] = useState(() => { try { return localStorage.getItem('tl-admin-section') || 'users'; } catch (e) { return 'users'; } });
+            const setAdminSection = (s) => { setAdminSectionState(s); try { localStorage.setItem('tl-admin-section', s); } catch (e) {} };
             const [customGoals, setCustomGoals] = useState([]);
             const [viewingUser, setViewingUser] = useState(null);
             const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -3149,10 +3187,10 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
 
             const formatCurrency = (val) => new Intl.NumberFormat('nl-BE', { style: 'currency', currency: 'EUR' }).format(val || 0);
 
-            const visibleTabs = TABS.filter(t => !t.perm || userPermissions[t.perm] || isAdmin);
+            const visibleTabs = TABS.filter(t => t.perm === 'admin' ? isAdmin : (!t.perm || userPermissions[t.perm] || isAdmin));
             const currentTab = visibleTabs.find(t => t.id === activeTab) || visibleTabs[0];
             useEffect(() => { if (!loading && currentTab && currentTab.id !== activeTab) setActiveTabState(currentTab.id); }, [loading, currentTab && currentTab.id, activeTab]);
-            const isLockedForUser = (t) => t.perm && !userPermissions[t.perm];
+            const isLockedForUser = (t) => t.perm && t.perm !== 'admin' && !userPermissions[t.perm];
 
             if (loading) return <div className="h-screen flex flex-col items-center justify-center text-emerald-600"><Icons.Loader className="text-4xl mb-4"/><div className="font-semibold">Tupper Life wordt geladen...</div></div>;
 
@@ -3227,8 +3265,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                                                 </span>
                                             </button>
                                             <button onClick={() => { setShowCustomGoalsModal(true); setShowProfileMenu(false); }} className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-semibold text-slate-700 dark:text-slate-200 flex gap-3 items-center"><i className="fa-solid fa-bullseye w-5 text-indigo-500"></i> Mijn doelen</button>
-                                            {isAdmin && <button onClick={() => { setShowGlobalPsModal(true); setShowProfileMenu(false); }} className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-semibold text-slate-700 dark:text-slate-200 flex gap-3 items-center"><i className="fa-solid fa-gift w-5 text-blue-500"></i> Globale PS (admin)</button>}
-                                            {isAdmin && <button onClick={() => { setShowAdminModal(true); setShowProfileMenu(false); }} className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-semibold text-slate-700 dark:text-slate-200 flex gap-3 items-center"><i className="fa-solid fa-users w-5 text-amber-500"></i> Beheer gebruikers</button>}
+                                            {isAdmin && <button onClick={() => { setActiveTab('admin'); setShowProfileMenu(false); }} className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-semibold text-slate-700 dark:text-slate-200 flex gap-3 items-center"><i className="fa-solid fa-screwdriver-wrench w-5 text-amber-500"></i> Beheer</button>}
                                             <div className="border-t border-slate-100 dark:border-slate-800 mt-1 pt-1">
                                                 <button onClick={() => window.auth.signOut()} className="w-full text-left px-4 py-3 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm font-semibold text-red-600 dark:text-red-400 flex gap-3 items-center"><i className="fa-solid fa-right-from-bracket w-5"></i> Uitloggen</button>
                                             </div>
@@ -3255,6 +3292,10 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                                 </h2>
                                 <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{currentTab.subtitle}</p>
                             </div>
+                            {currentTab.id === 'admin' && <div className="shrink-0">{yearSelect}</div>}
+                            {currentTab.id === 'catalogs' && isAdmin && (
+                                <button onClick={() => { setAdminSection('catalogs'); setActiveTab('admin'); }} className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm"><i className="fa-solid fa-screwdriver-wrench text-amber-500"></i> Beheren</button>
+                            )}
                             {currentTab.id === 'overview' && (
                                 <div className="flex items-center gap-2 shrink-0">
                                     <button onClick={() => setShowStats(!showStats)} title={showStats ? 'Kerncijfers verbergen' : 'Kerncijfers tonen'} className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl border text-sm font-semibold shadow-sm transition-colors ${showStats ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
@@ -3315,6 +3356,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                             {currentTab.id === 'stock' && <StockTab targetUid={targetUid} user={user}/>}
                             {currentTab.id === 'recipes' && <RecipesTab targetUid={targetUid}/>}
                             {currentTab.id === 'customers' && <CustomersTab targetUid={targetUid}/>}
+                            {currentTab.id === 'admin' && isAdmin && <AdminPage section={adminSection} setSection={setAdminSection} selectedYear={selectedYear} globalPsData={globalPsData} updateGlobalPsData={updateGlobalPsData} isAdmin={isAdmin} onSelectUser={(u) => { setViewingUser(u); setActiveTab('overview'); }} />}
                         </ErrorBoundary>
                     </main>
 
