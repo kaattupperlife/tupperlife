@@ -2296,6 +2296,7 @@ const CatalogsTab = ({ isAdmin, section = 'view', showPromotions = true }) => {
             { key: 'showClub',       label: 'Club Gold',        icon: 'fa-crown',            group: 'Overzicht' },
             { key: 'showGoals',      label: 'Doelen',           icon: 'fa-bullseye',         group: 'Overzicht' },
             { key: 'showPs',         label: 'PS-beloningen',    icon: 'fa-award',            group: 'Overzicht' },
+            { key: 'canEditPersonalPs', label: 'Persoonlijke PS instellen', icon: 'fa-sliders', group: 'Overzicht' },
             { key: 'showPromotions', label: 'Weekpromoties',    icon: 'fa-images',           group: 'Extra' },
             { key: 'showCsvImport',  label: 'CSV-import',       icon: 'fa-file-csv',         group: 'Extra' },
         ];
@@ -2405,7 +2406,7 @@ const CatalogsTab = ({ isAdmin, section = 'view', showPromotions = true }) => {
             );
         };
 
-const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurrency, user, globalPs, showPs = true, canEdit = true }) => {
+const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurrency, user, globalPs, showPs = true, canEdit = true, canEditPs = true }) => {
             const [expanded, setExpanded] = useState(false);
             const [isModalOpen, setIsModalOpen] = useState(false);
             
@@ -2518,7 +2519,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                                     {showPs && <div className="space-y-4 sm:space-y-5">
                                         <div className="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-700/50">
                                             <span className="text-[10px] sm:text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2"><Icons.Gift className="text-amber-500 text-sm sm:text-base"/> PS Beloningen</span>
-                                            <button onClick={(e)=>{e.stopPropagation();setIsModalOpen(true)}} className="flex items-center gap-2 text-xs px-3 sm:px-4 py-1.5 sm:py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl font-bold shadow-sm transition-all hover:shadow-md"><Icons.Settings className="w-3"/> Instellen</button>
+                                            {canEditPs && <button onClick={(e)=>{e.stopPropagation();setIsModalOpen(true)}} className="flex items-center gap-2 text-xs px-3 sm:px-4 py-1.5 sm:py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl font-bold shadow-sm transition-all hover:shadow-md"><Icons.Settings className="w-3"/> Instellen</button>}
                                         </div>
                                         <div className="space-y-3 sm:space-y-4">
                                             {allPs.length === 0 ? <div className="text-center py-10 bg-slate-50 dark:bg-slate-800/50 text-slate-400 dark:text-slate-500 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-3xl"><Icons.Gift className="text-3xl mb-3 opacity-30 mx-auto block"/><p className="font-medium text-sm">Nog geen beloningen ingesteld.</p></div> : 
@@ -2604,7 +2605,8 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                 return () => unsub();
             }, [targetUid]);
 
-            const resetForm = () => { setInput(emptyInput); setEditingId(null); };
+            const [showForm, setShowForm] = useState(false);
+            const resetForm = () => { setInput(emptyInput); setEditingId(null); setShowForm(false); };
 
             const handleSave = async () => {
                 if (!input.customer.trim() || !input.product.trim()) return window.showAlert("Vul minimaal de klantnaam en het product in.");
@@ -2630,6 +2632,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             const handleEdit = (item) => {
                 setInput({ customer: item.customer || '', product: item.product || '', note: item.note || '', image: item.image || '', email: item.email || '', phone: item.phone || '' });
                 setEditingId(item.id);
+                setShowForm(true);
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             };
 
@@ -2713,8 +2716,13 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
 
             return (
                 <div className="space-y-6">
-                    {/* FORMULIER */}
-                    <div className={`p-6 rounded-3xl shadow-glass dark:shadow-glass-dark border transition-all duration-300 ${editingId ? 'bg-amber-50/80 dark:bg-amber-900/20 backdrop-blur-md border-amber-200 dark:border-amber-700' : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800'}`}>
+                    {/* KNOP + FORMULIER */}
+                    {!showForm && !editingId && (
+                        <button onClick={() => setShowForm(true)} className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-extrabold shadow-lg shadow-emerald-500/30 hover:-translate-y-0.5 transition-all">
+                            <Icons.Plus/> Nieuwe wens toevoegen
+                        </button>
+                    )}
+                    {(showForm || editingId) && <div className={`p-6 rounded-3xl animate-in shadow-glass dark:shadow-glass-dark border transition-all duration-300 ${editingId ? 'bg-amber-50/80 dark:bg-amber-900/20 backdrop-blur-md border-amber-200 dark:border-amber-700' : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800'}`}>
                         <h3 className={`font-bold text-lg mb-4 flex items-center gap-2 ${editingId ? 'text-amber-800 dark:text-amber-400' : 'text-emerald-800 dark:text-emerald-400'}`}>
                             {editingId ? <Icons.Edit className="text-amber-500"/> : <Icons.Plus className="text-emerald-500"/>} {editingId ? 'Wens Wijzigen' : 'Nieuwe Wens Toevoegen'}
                         </h3>
@@ -2742,9 +2750,9 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                             <button onClick={handleSave} disabled={uploading} className={`flex-grow py-3.5 text-white font-extrabold rounded-2xl shadow-lg transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60 ${editingId ? 'bg-gradient-to-r from-amber-500 to-amber-600 shadow-amber-500/30' : 'bg-gradient-to-r from-emerald-500 to-teal-500 shadow-emerald-500/30'}`}>
                                 {editingId ? 'Wijziging Opslaan' : 'Wens Toevoegen'}
                             </button>
-                            {editingId && <button onClick={resetForm} className="px-5 py-3.5 font-bold rounded-2xl bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">Annuleren</button>}
+                            <button onClick={resetForm} className="px-5 py-3.5 font-bold rounded-2xl bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">Annuleren</button>
                         </div>
-                    </div>
+                    </div>}
 
                     {/* OVERZICHT */}
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -3467,7 +3475,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {MONTHS.map((m, index) => <MonthRow key={m} month={m} monthIndex={index} year={selectedYear} data={monthlyData[m] || {}} updateMonthData={updateMonthData} formatCurrency={formatCurrency} user={user} globalPs={globalPsData[m] || []} showPs={can('showPs')} canEdit={can('canEditSales')} />)}
+                                                    {MONTHS.map((m, index) => <MonthRow key={m} month={m} monthIndex={index} year={selectedYear} data={monthlyData[m] || {}} updateMonthData={updateMonthData} formatCurrency={formatCurrency} user={user} globalPs={globalPsData[m] || []} showPs={can('showPs')} canEdit={can('canEditSales')} canEditPs={can('canEditPersonalPs')} />)}
                                                 </tbody>
                                                 <tfoot className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white">
                                                     <tr>
