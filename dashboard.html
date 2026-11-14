@@ -157,6 +157,54 @@
             }
         };
 
+        // ===== ACTIVITEIT =====
+        // Houdt bij wat een gebruiker in haar EIGEN account doet (niet wat een beheerder voor haar doet).
+        window.logActivity = (targetUid, type, text) => {
+            try {
+                const me = window.auth && window.auth.currentUser;
+                if (!me || !targetUid || me.uid !== targetUid) return;
+                const key = type + '|' + text;
+                window.__actThrottle = window.__actThrottle || {};
+                const now = Date.now();
+                if (window.__actThrottle[key] && now - window.__actThrottle[key] < 120000) return; // zelfde actie max. 1x per 2 min
+                window.__actThrottle[key] = now;
+                const base = window.db.collection('users').doc(me.uid);
+                base.collection('activity').add({ ts: now, type, text }).catch(() => {});
+                base.collection('settings').doc('profile').set({ lastActive: now, lastAction: text, lastActionAt: now }, { merge: true }).catch(() => {});
+            } catch (e) {}
+        };
+
+        // Bezoek registreren + 'laatst actief' bijhouden zolang de app open staat
+        window.recordVisit = (u) => {
+            try {
+                if (!u || window.__visitRecorded) return;
+                window.__visitRecorded = true;
+                const now = Date.now();
+                const device = /iPad|Tablet/i.test(navigator.userAgent) ? 'tablet' : (/Mobi|Android|iPhone/i.test(navigator.userAgent) ? 'gsm' : 'computer');
+                const base = window.db.collection('users').doc(u.uid);
+                const ref = base.collection('settings').doc('profile');
+                const info = { type: 'profile', uid: u.uid, name: u.displayName || '', email: u.email || '', photo: u.photoURL || '', lastLogin: now, lastActive: now, device, app: window.TL_MODE === 'admin' ? 'beheer' : 'app' };
+                ref.get().then(d => {
+                    const prev = d.exists ? d.data() : {};
+                    ref.set({ ...info, firstSeen: prev.firstSeen || now, visits: (Number(prev.visits) || 0) + 1 }, { merge: true }).catch(() => {});
+                }).catch(() => ref.set(info, { merge: true }).catch(() => {}));
+                // Ook een hoofd-document, zodat de beheerder iedereen kan terugvinden (mag mislukken)
+                base.set({ uid: u.uid, name: u.displayName || '', email: u.email || '', photo: u.photoURL || '', lastActive: now }, { merge: true }).catch(() => {});
+                let lastVisitLog = 0;
+                try { lastVisitLog = Number(sessionStorage.getItem('tl-visit-log') || 0); } catch (e) {}
+                if (now - lastVisitLog > 30 * 60 * 1000) {
+                    base.collection('activity').add({ ts: now, type: 'bezoek', text: `Ingelogd (${device})` }).catch(() => {});
+                    try { sessionStorage.setItem('tl-visit-log', String(now)); } catch (e) {}
+                }
+                const beat = () => {
+                    if (document.visibilityState !== 'visible') return;
+                    ref.set({ lastActive: Date.now() }, { merge: true }).catch(() => {});
+                };
+                setInterval(beat, 5 * 60 * 1000);
+                document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') beat(); });
+            } catch (e) {}
+        };
+
         window.showAlert = (msg) => {
             window.dispatchEvent(new CustomEvent('custom-alert', { detail: msg }));
         };
@@ -837,9 +885,11 @@ const CatalogsTab = ({ isAdmin, section = 'view', showPromotions = true }) => {
                 try {
                     if(editingId) {
                         await window.db.collection('users').doc(targetUid).collection('customers').doc(editingId).update(data);
+                        window.logActivity(targetUid, 'klant', `Klant gewijzigd: ${data.name}`);
                         setEditingId(null);
                     } else {
                         await window.db.collection('users').doc(targetUid).collection('customers').add(data);
+                        window.logActivity(targetUid, 'klant', `Klant toegevoegd: ${data.name}`);
                     }
                     setInput(emptyCustomer);
                 } catch(e) { window.showAlert("Opslaan mislukt: " + e.message); }
@@ -848,7 +898,8 @@ const CatalogsTab = ({ isAdmin, section = 'view', showPromotions = true }) => {
 
             const handleDelete = (id) => { 
                 window.showConfirm("Weet je zeker dat je deze klant wilt verwijderen?", async () => {
-                    await window.db.collection('users').doc(targetUid).collection('customers').doc(id).delete(); 
+                    await window.db.collection('users').doc(targetUid).collection('customers').doc(id).delete();
+                    window.logActivity(targetUid, 'klant', 'Klant verwijderd'); 
                 });
             };
             
@@ -1461,9 +1512,11 @@ const CatalogsTab = ({ isAdmin, section = 'view', showPromotions = true }) => {
                 try {
                     if(editingId) {
                         await window.db.collection('users').doc(targetUid).collection('recipes').doc(editingId).update(data);
+                        window.logActivity(targetUid, 'recept', `Recept gewijzigd: ${data.name}`);
                         setEditingId(null);
                     } else {
                         await window.db.collection('users').doc(targetUid).collection('recipes').add(data);
+                        window.logActivity(targetUid, 'recept', `Recept toegevoegd: ${data.name}`);
                     }
                     setInput(emptyRecipe);
                 } catch(e) { window.showAlert("Opslaan mislukt: " + e.message); }
@@ -1472,7 +1525,8 @@ const CatalogsTab = ({ isAdmin, section = 'view', showPromotions = true }) => {
 
             const handleDelete = (id) => { 
                 window.showConfirm("Recept verwijderen?", async () => {
-                    await window.db.collection('users').doc(targetUid).collection('recipes').doc(id).delete(); 
+                    await window.db.collection('users').doc(targetUid).collection('recipes').doc(id).delete();
+                    window.logActivity(targetUid, 'recept', 'Recept verwijderd'); 
                 });
             };
 
@@ -1684,13 +1738,15 @@ const CatalogsTab = ({ isAdmin, section = 'view', showPromotions = true }) => {
                 const itemData = { ...rest, name: String(newItem.name).trim(), price: Number(newItem.price)||0, quantity: Number(newItem.quantity)||0, vinted: Number(newItem.vinted)||0, updatedAt: Date.now() };
                 try {
                     if (editingId) { 
-                        await window.db.collection('users').doc(targetUid).collection('stock').doc(editingId).update(itemData); 
+                        await window.db.collection('users').doc(targetUid).collection('stock').doc(editingId).update(itemData);
+                        window.logActivity(targetUid, 'voorraad', `Product gewijzigd: ${itemData.name}`); 
                         setEditingId(null); 
                         setNewItem({ name: '', category: '', location: '', quantity: 1, price: 0, status: 'zolder', image: '', vinted: 0 });
                     } 
                     else { 
                         itemData.createdAt = Date.now(); 
-                        await window.db.collection('users').doc(targetUid).collection('stock').add(itemData); 
+                        await window.db.collection('users').doc(targetUid).collection('stock').add(itemData);
+                        window.logActivity(targetUid, 'voorraad', `Product toegevoegd: ${itemData.name}`); 
                         if (keepSettings) {
                             setNewItem(prev => ({ ...prev, name: '', quantity: 1, price: 0, image: '', vinted: 0 }));
                         } else {
@@ -1863,6 +1919,7 @@ const CatalogsTab = ({ isAdmin, section = 'view', showPromotions = true }) => {
                             await Promise.all([...addPromises, ...updatePromises]);
                             if (catsChanged) await window.db.collection('users').doc(targetUid).collection('settings').doc('categories').set({ list: newCats }, { merge: true });
                             if (locsChanged) await window.db.collection('users').doc(targetUid).collection('settings').doc('locations').set({ list: newLocs }, { merge: true });
+                            window.logActivity(targetUid, 'voorraad', `CSV-import: ${addedCount} nieuw, ${updatedCount} bijgewerkt`);
                             window.showAlert(`Import succesvol afgerond!\n\n🆕 ${addedCount} nieuwe producten.\n🔄 ${updatedCount} bestaande producten bijgewerkt (foto of aantal).\n⏭️ ${skippedCount} ongewijzigd gebleven.`);
                         } catch (err) {
                             console.error("Fout bij toevoegen:", err);
@@ -1881,10 +1938,11 @@ const CatalogsTab = ({ isAdmin, section = 'view', showPromotions = true }) => {
 
             const deleteItem = (id) => { 
                 window.showConfirm("Weet je zeker dat je dit product wilt verwijderen?", async () => {
-                    await window.db.collection('users').doc(targetUid).collection('stock').doc(id).delete(); 
+                    await window.db.collection('users').doc(targetUid).collection('stock').doc(id).delete();
+                    window.logActivity(targetUid, 'voorraad', 'Product verwijderd'); 
                 });
             };
-            const updateQuantity = async (id, current, change) => { current = Number(current)||0; if(current+change >= 0) await window.db.collection('users').doc(targetUid).collection('stock').doc(id).update({ quantity: current+change }); };
+            const updateQuantity = async (id, current, change) => { current = Number(current)||0; if(current+change >= 0) { const it = items.find(x => x.id === id); window.logActivity(targetUid, 'voorraad', `Aantal aangepast: ${it ? it.name : 'product'}`); } if(current+change >= 0) await window.db.collection('users').doc(targetUid).collection('stock').doc(id).update({ quantity: current+change }); };
             
             const handleImageUpload = async (e) => {
                 const file = e.target.files[0];
@@ -2312,7 +2370,7 @@ const CatalogsTab = ({ isAdmin, section = 'view', showPromotions = true }) => {
         const DEFAULT_PERMS = PERMISSIONS.reduce((o, p) => { o[p.key] = true; return o; }, {});
         const PERM_GROUPS = ['Tabbladen', 'Overzicht', 'Extra'];
 
-        const AdminUserModal = ({ isOpen, onClose, selectedYear, onSelectUser, inline = false }) => {
+        const AdminUserModal = ({ isOpen, onClose, selectedYear, onSelectUser, inline = false, onlyUid = null, onlyName = '' }) => {
             const [usersList, setUsersList] = useState([]);
             const [loading, setLoading] = useState(true);
             const [permsByUser, setPermsByUser] = useState({});
@@ -2335,11 +2393,12 @@ const CatalogsTab = ({ isAdmin, section = 'view', showPromotions = true }) => {
 
             // Rechten van elke gebruiker live volgen
             useEffect(() => {
-                const unsubs = usersList.map(u => window.db.collection('users').doc(u.uid).collection('settings').doc('config').onSnapshot(doc => {
+                const list = onlyUid && !usersList.some(u => u.uid === onlyUid) ? [...usersList, { uid: onlyUid }] : usersList;
+                const unsubs = list.map(u => window.db.collection('users').doc(u.uid).collection('settings').doc('config').onSnapshot(doc => {
                     setPermsByUser(prev => ({ ...prev, [u.uid]: { ...DEFAULT_PERMS, ...(doc.exists ? doc.data() : {}) } }));
                 }, err => console.error(err)));
                 return () => unsubs.forEach(f => f());
-            }, [usersList.map(u => u.uid).join(',')]);
+            }, [usersList.map(u => u.uid).join(','), onlyUid]);
 
             const savePerms = async (uid, newPerms) => {
                 setPermsByUser(prev => ({ ...prev, [uid]: newPerms }));
@@ -2352,15 +2411,16 @@ const CatalogsTab = ({ isAdmin, section = 'view', showPromotions = true }) => {
             if (!isOpen) return null;
 
             const q = search.trim().toLowerCase();
-            const shown = usersList.filter(u => !q || (u.name || '').toLowerCase().includes(q));
+            let shown = usersList.filter(u => !q || (u.name || '').toLowerCase().includes(q));
+            if (onlyUid) { const f = usersList.find(u => u.uid === onlyUid); shown = [f || { uid: onlyUid, name: onlyName || 'Gebruiker' }]; }
 
             const content = (
                 <div className="space-y-4">
-                    {usersList.length > 4 && (
+                    {usersList.length > 4 && !onlyUid && (
                         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Zoek gebruiker..." className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/30"/>
                     )}
-                    {loading && <div className="text-center py-10"><Icons.Loader className="text-amber-500 text-2xl"/></div>}
-                    {!loading && shown.length === 0 && <p className="text-center text-slate-400 py-8 text-sm">Geen gebruikers gevonden voor {selectedYear}.</p>}
+                    {loading && !onlyUid && <div className="text-center py-10"><Icons.Loader className="text-amber-500 text-2xl"/></div>}
+                    {!loading && !onlyUid && shown.length === 0 && <p className="text-center text-slate-400 py-8 text-sm">Geen gebruikers gevonden voor {selectedYear}.</p>}
                     {shown.map(u => {
                         const perms = permsByUser[u.uid] || DEFAULT_PERMS;
                         const offCount = PERMISSIONS.filter(p => !perms[p.key]).length;
@@ -2634,8 +2694,10 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                 try {
                     if (editingId) {
                         await reqCol().doc(editingId).update(data);
+                        window.logActivity(targetUid, 'wens', `Wens gewijzigd: ${data.product}`);
                     } else {
                         await reqCol().add({ ...data, completed: false, createdAt: Date.now() });
+                        window.logActivity(targetUid, 'wens', `Wens toegevoegd: ${data.product}`);
                     }
                     resetForm();
                 } catch (e) { window.showAlert("Opslaan mislukt: " + e.message); }
@@ -2661,6 +2723,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
 
             const toggleFound = async (item) => {
                 try {
+                    window.logActivity(targetUid, 'wens', item.completed ? `Wens terug op te zoeken: ${item.product}` : `Wens gevonden: ${item.product}`);
                     await reqCol().doc(item.id).update(item.completed
                         ? { completed: false, foundAt: null }
                         : { completed: true, foundAt: Date.now() });
@@ -2671,6 +2734,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                 window.showConfirm("Wens verwijderen?", async () => {
                     try {
                         await reqCol().doc(id).delete();
+                        window.logActivity(targetUid, 'wens', 'Wens verwijderd');
                         if (editingId === id) resetForm();
                     } catch (e) { window.showAlert("Verwijderen mislukt: " + e.message); }
                 });
@@ -3188,7 +3252,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             const [uid, setUid] = useState(users[0] ? users[0].uid : '');
             useEffect(() => { if (!users.some(u => u.uid === uid) && users[0]) setUid(users[0].uid); }, [users.map(u => u.uid).join(',')]);
             const picked = users.find(u => u.uid === uid);
-            const perUser = ['sales', 'goals', 'requests', 'stock'].includes(section);
+            const perUser = ['sales', 'goals', 'requests', 'stock', 'customers', 'recipes'].includes(section);
             const [formSignal, setFormSignal] = useState(0);
             useEffect(() => { setFormSignal(0); }, [section, uid]);
             const addLabel = section === 'requests' ? 'Nieuwe wens toevoegen' : section === 'goals' ? 'Nieuw doel maken' : null;
@@ -3226,6 +3290,8 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                     {section === 'goals' && uid && <AdminGoalsSection key={uid} openFormSignal={formSignal} uid={uid} name={picked ? picked.name : ''} selectedYear={selectedYear} formatCurrency={formatCurrency} />}
                     {section === 'requests' && uid && <RequestsTab key={uid} targetUid={uid} hideAddButton openFormSignal={formSignal} />}
                     {section === 'stock' && uid && <StockTab key={uid} targetUid={uid} user={null} />}
+                    {section === 'customers' && uid && <CustomersTab key={uid} targetUid={uid} />}
+                    {section === 'recipes' && uid && <RecipesTab key={uid} targetUid={uid} />}
                     {section === 'ps' && <GlobalPsAdminModal inline isOpen={true} onClose={() => {}} selectedYear={selectedYear} globalPsData={globalPsData} updateGlobalPsData={updateGlobalPsData} />}
                     {section === 'catalogs' && <CatalogsTab isAdmin={isAdmin} section="admin" />}
                 </div>
@@ -3265,6 +3331,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                         setCameFromAdmin(true);
                     }
                     setUser(u); setLoading(false);
+                    window.recordVisit(u);
                 });
                 return () => unsub();
             }, []);
@@ -3328,14 +3395,16 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                 if (!targetUid) return;
                 try {
                     await window.db.collection('users').doc(targetUid).collection('years').doc(String(selectedYear)).collection('months').doc(month).set({
-                        [field]: value, userId: targetUid, userName: viewingUser ? viewingUser.name : (user.displayName || user.email || 'Onbekend'), yearId: selectedYear, monthId: month
+                        [field]: value, userId: targetUid, userName: viewingUser ? viewingUser.name : (user.displayName || user.email || 'Onbekend'), yearId: selectedYear, monthId: month, updatedAt: Date.now()
                     }, { merge: true });
+                    if (String(field).startsWith('week')) window.logActivity(targetUid, 'verkoop', `Verkoop aangepast: ${month}`);
+                    else if (field === 'psLevels' || field === 'receivedGlobalPs') window.logActivity(targetUid, 'ps', `PS aangepast: ${month}`);
                 } catch (e) { window.showAlert("Opslaan mislukt: " + e.message); }
             };
 
             const updateCustomGoals = async (newGoalsList) => {
                 if (!targetUid) return;
-                try { await window.db.collection('users').doc(targetUid).collection('settings').doc('custom_goals').set({ list: newGoalsList }, { merge: true }); }
+                try { await window.db.collection('users').doc(targetUid).collection('settings').doc('custom_goals').set({ list: newGoalsList }, { merge: true }); window.logActivity(targetUid, 'doel', 'Doelen aangepast'); }
                 catch (e) { window.showAlert("Opslaan mislukt: " + e.message); }
             };
 
@@ -3438,7 +3507,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                         {viewingUser && (
                             <div className="bg-amber-400 text-amber-950 text-xs sm:text-sm font-semibold py-2 px-4 flex justify-center items-center gap-3">
                                 <span><i className="fa-solid fa-user-shield mr-1.5"></i>Je bekijkt het account van <strong>{viewingUser.name}</strong></span>
-                                <button onClick={() => { if (cameFromAdmin) window.location.href = 'beheer.html'; else setViewingUser(null); }} className="bg-amber-950/10 hover:bg-amber-950/20 px-2.5 py-1 rounded-lg font-bold whitespace-nowrap">{cameFromAdmin ? '← Terug naar beheer' : 'Afsluiten'}</button>
+                                <button onClick={() => { if (cameFromAdmin) window.location.href = 'beheer.html#user=' + encodeURIComponent(viewingUser.uid); else setViewingUser(null); }} className="bg-amber-950/10 hover:bg-amber-950/20 px-2.5 py-1 rounded-lg font-bold whitespace-nowrap">{cameFromAdmin ? '← Terug naar beheer' : 'Afsluiten'}</button>
                             </div>
                         )}
                     </header>
@@ -3548,100 +3617,417 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
         //  BEHEERDERS-APP (beheer.html) — gebruikt dezelfde onderdelen als de app
         // =====================================================================
         const ADMIN_NAV = [
-            { id: 'start',    label: 'Start',      short: 'Start',    icon: 'fa-house',            subtitle: 'Verkoop van alle gebruikers samen' },
-            { id: 'sales',    label: 'Verkoop',    short: 'Verkoop',  icon: 'fa-chart-line',       subtitle: 'Verkoop per week van elke gebruiker bekijken en aanpassen' },
-            { id: 'users',    label: 'Gebruikers', short: 'Leden', icon: 'fa-users',            subtitle: 'Accounts openen en rechten instellen' },
-            { id: 'goals',    label: 'Doelen',     short: 'Doelen',   icon: 'fa-bullseye',         subtitle: 'Doelen van elke gebruiker beheren' },
-            { id: 'requests', label: 'Wensen',     short: 'Wensen',   icon: 'fa-gift',             subtitle: 'Wensen van elke gebruiker beheren' },
-            { id: 'stock',    label: 'Voorraad',   short: 'Voorraad', icon: 'fa-box',              subtitle: 'Voorraad van elke gebruiker beheren' },
-            { id: 'ps',       label: 'Globale PS', short: 'PS',       icon: 'fa-award',            subtitle: 'Beloningen voor iedereen, per maand' },
-            { id: 'catalogs', label: 'Catalogen',  short: 'Catalogi', icon: 'fa-book-open-reader', subtitle: 'Catalogen, leaflets en weekpromoties' },
+            { id: 'start',     label: 'Start',       icon: 'fa-house',            group: 'Overzicht', subtitle: 'Alles in één oogopslag: verkoop, gebruikers en activiteit' },
+            { id: 'users',     label: 'Gebruikers',  icon: 'fa-users',            group: 'Overzicht', subtitle: 'Wie gebruikt de app, wanneer en hoeveel' },
+            { id: 'activity',  label: 'Activiteit',  icon: 'fa-clock-rotate-left', group: 'Overzicht', subtitle: 'Logboek: wat heeft iedereen gedaan' },
+            { id: 'sales',     label: 'Verkoop',     icon: 'fa-chart-line',       group: 'Per gebruiker', subtitle: 'Verkoop per week bekijken en aanpassen' },
+            { id: 'goals',     label: 'Doelen',      icon: 'fa-bullseye',         group: 'Per gebruiker', subtitle: 'Doelen van elke gebruiker beheren' },
+            { id: 'requests',  label: 'Wensen',      icon: 'fa-gift',             group: 'Per gebruiker', subtitle: 'Wensen van elke gebruiker beheren' },
+            { id: 'stock',     label: 'Voorraad',    icon: 'fa-box',              group: 'Per gebruiker', subtitle: 'Voorraad van elke gebruiker beheren' },
+            { id: 'customers', label: 'Klanten',     icon: 'fa-address-book',     group: 'Per gebruiker', subtitle: 'Klanten van elke gebruiker beheren' },
+            { id: 'recipes',   label: 'Recepten',    icon: 'fa-utensils',         group: 'Per gebruiker', subtitle: 'Recepten van elke gebruiker beheren' },
+            { id: 'rights',    label: 'Rechten',     icon: 'fa-user-lock',        group: 'Instellingen', subtitle: 'Wat elke gebruiker mag zien en doen' },
+            { id: 'ps',        label: 'Globale PS',  icon: 'fa-award',            group: 'Instellingen', subtitle: 'Beloningen voor iedereen, per maand' },
+            { id: 'catalogs',  label: 'Catalogen',   icon: 'fa-book-open-reader', group: 'Instellingen', subtitle: 'Catalogen, leaflets en weekpromoties' },
         ];
+        const ADMIN_NAV_GROUPS = ['Overzicht', 'Per gebruiker', 'Instellingen'];
+
+        const ACTIVITY_ICONS = {
+            bezoek: { icon: 'fa-right-to-bracket', cls: 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300' },
+            verkoop: { icon: 'fa-euro-sign', cls: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' },
+            ps: { icon: 'fa-award', cls: 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' },
+            wens: { icon: 'fa-gift', cls: 'bg-pink-50 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400' },
+            voorraad: { icon: 'fa-box', cls: 'bg-sky-50 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400' },
+            klant: { icon: 'fa-address-book', cls: 'bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400' },
+            recept: { icon: 'fa-utensils', cls: 'bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400' },
+            doel: { icon: 'fa-bullseye', cls: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400' },
+        };
+        const ACTIVITY_LABELS = { bezoek: 'Bezoeken', verkoop: 'Verkoop', ps: 'PS', wens: 'Wensen', voorraad: 'Voorraad', klant: 'Klanten', recept: 'Recepten', doel: 'Doelen' };
+
+        const timeAgo = (ts) => {
+            if (!ts) return 'nooit';
+            const sec = (Date.now() - ts) / 1000;
+            if (sec < 60) return 'zonet';
+            if (sec < 3600) return `${Math.floor(sec / 60)} min geleden`;
+            if (sec < 86400) return `${Math.floor(sec / 3600)} u geleden`;
+            const d = Math.floor(sec / 86400);
+            if (d === 1) return 'gisteren';
+            if (d < 30) return `${d} dagen geleden`;
+            return new Date(ts).toLocaleDateString('nl-BE', { day: 'numeric', month: 'short', year: 'numeric' });
+        };
+        const fmtDateTime = (ts) => ts ? new Date(ts).toLocaleString('nl-BE', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '–';
+        const activityStatus = (ts) => {
+            if (!ts) return { label: 'Nog niet gezien', dot: 'bg-slate-300 dark:bg-slate-600', cls: 'text-slate-400' };
+            const min = (Date.now() - ts) / 60000;
+            if (min < 10) return { label: 'Nu actief', dot: 'bg-emerald-500 animate-pulse', cls: 'text-emerald-600 dark:text-emerald-400' };
+            if (min < 60 * 24) return { label: `Vandaag (${timeAgo(ts)})`, dot: 'bg-emerald-400', cls: 'text-emerald-600 dark:text-emerald-400' };
+            if (min < 60 * 24 * 7) return { label: `Deze week (${timeAgo(ts)})`, dot: 'bg-amber-400', cls: 'text-amber-600 dark:text-amber-400' };
+            return { label: `Inactief (${timeAgo(ts)})`, dot: 'bg-red-400', cls: 'text-red-500' };
+        };
 
         const openUserApp = (u) => {
             window.location.href = `dashboard.html?view=${encodeURIComponent(u.uid)}&name=${encodeURIComponent(u.name || '')}`;
         };
 
-        const AdminStart = ({ monthDocs, selectedYear, formatCurrency, selfUid }) => {
-            const curName = currentMonthName();
-            const isCurrentYear = selectedYear === new Date().getFullYear();
-            const byUser = {};
-            // Tel exact wat de gebruiker zelf ziet: enkel de 11 maanden uit de app,
-            // enkel uit users/{uid}/years/{jaar}/months, en elke maand maar één keer.
-            const seen = {};
-            monthDocs.filter(d => {
-                if (Number(d.yearId) !== selectedYear || !d.userId) return false;
-                const monthName = d._id || d.monthId;
-                if (!MONTHS.includes(monthName)) return false;
-                if (d._path && d._path !== `users/${d.userId}/years/${selectedYear}/months/${monthName}`) return false;
-                const k = d.userId + '|' + monthName;
-                if (seen[k]) return false;
-                seen[k] = true;
-                return true;
-            }).forEach(d => {
-                d = { ...d, monthId: d._id || d.monthId };
-                const u = byUser[d.userId] || (byUser[d.userId] = { uid: d.userId, name: d.userName || 'Onbekend', total: 0, current: 0, months: 0 });
-                const t = sumMonth(d);
-                u.total += t;
-                if (t > 0) u.months += 1;
-                if (d.monthId === curName) u.current += t;
-            });
-            const rows = Object.values(byUser).sort((a, b) => b.total - a.total);
-            const total = rows.reduce((a, r) => a + r.total, 0);
-            const current = rows.reduce((a, r) => a + r.current, 0);
-            const active = rows.filter(r => r.total > 0).length;
-            const top = rows[0] && rows[0].total > 0 ? rows[0] : null;
+        // Alle gegevens van één gebruiker ophalen (eenmalig, met 'Vernieuwen')
+        const loadUserDetails = async (uid) => {
+            const base = window.db.collection('users').doc(uid);
+            const safe = (p) => p.catch(e => { console.warn('Lezen mislukt', uid, e && e.message); return null; });
+            const [prof, req, stock, cust, rec, goals, act] = await Promise.all([
+                safe(base.collection('settings').doc('profile').get()),
+                safe(base.collection('requests').get()),
+                safe(base.collection('stock').get()),
+                safe(base.collection('customers').get()),
+                safe(base.collection('recipes').get()),
+                safe(base.collection('settings').doc('custom_goals').get()),
+                safe(base.collection('activity').orderBy('ts', 'desc').limit(100).get()),
+            ]);
+            const reqs = req ? req.docs.map(d => d.data()) : [];
+            const st = stock ? stock.docs.map(d => d.data()) : [];
+            const custs = cust ? cust.docs.map(d => d.data()) : [];
+            const recs = rec ? rec.docs.map(d => d.data()) : [];
+            const lastData = Math.max(0, ...reqs.map(r => Math.max(r.createdAt || 0, r.foundAt || 0)), ...st.map(x => Math.max(x.createdAt || 0, x.updatedAt || 0)));
+            return {
+                profile: prof && prof.exists ? prof.data() : null,
+                requests: { total: reqs.length, open: reqs.filter(r => !r.completed).length, found: reqs.filter(r => r.completed).length },
+                stock: { items: st.length, qty: st.reduce((a, x) => a + (Number(x.quantity) || 0), 0), value: st.reduce((a, x) => a + (Number(x.price) || 0) * (Number(x.quantity) || 0), 0), vinted: st.reduce((a, x) => a + (Number(x.vinted) || 0), 0) },
+                customers: custs.length,
+                recipes: recs.length,
+                goals: goals && goals.exists ? (goals.data().list || []).length : 0,
+                activity: act ? act.docs.map(d => ({ id: d.id, ...d.data() })) : [],
+                lastData: lastData || null,
+            };
+        };
 
-            const cards = [
-                { label: `Omzet ${selectedYear} (iedereen)`, value: formatCurrency(total), sub: `Winst ${formatCurrency(total * PROFIT_RATE)}`, icon: 'fa-euro-sign', tint: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' },
-                isCurrentYear
-                    ? { label: `Deze maand (${curName})`, value: formatCurrency(current), icon: 'fa-calendar-day', tint: 'bg-sky-50 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400' }
-                    : { label: 'Gemiddeld per gebruiker', value: formatCurrency(active ? total / active : 0), icon: 'fa-calendar-days', tint: 'bg-sky-50 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400' },
-                { label: 'Actieve gebruikers', value: String(active), sub: `${rows.length} met gegevens in ${selectedYear}`, icon: 'fa-users', tint: 'bg-violet-50 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400' },
-                { label: 'Topverkoper', value: top ? formatCurrency(top.total) : '–', sub: top ? top.name : 'Nog geen verkoop', icon: 'fa-trophy', tint: 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' },
-            ];
+        // Alle gebruikers vinden: via verkoopgegevens, profielen en hoofd-documenten
+        const useAdminData = (user, monthDocs, refreshKey) => {
+            const [profiles, setProfiles] = useState({});
+            const [details, setDetails] = useState({});
+            const [loadingDetails, setLoadingDetails] = useState(true);
+
+            useEffect(() => {
+                if (!user) return;
+                let cancelled = false;
+                const found = {};
+                const p1 = window.db.collectionGroup('settings').get().then(snap => {
+                    snap.forEach(d => {
+                        if (d.id !== 'profile') return;
+                        const data = d.data();
+                        const uid = data.uid || (d.ref && d.ref.parent && d.ref.parent.parent ? d.ref.parent.parent.id : null);
+                        if (uid) found[uid] = { ...(found[uid] || {}), ...data, uid };
+                    });
+                }).catch(e => console.warn('Profielen via collectionGroup niet beschikbaar:', e && e.message));
+                const p2 = window.db.collection('users').get().then(snap => {
+                    snap.forEach(d => { found[d.id] = { ...d.data(), ...(found[d.id] || {}), uid: d.id }; });
+                }).catch(e => console.warn('Gebruikerslijst niet beschikbaar:', e && e.message));
+                Promise.all([p1, p2]).then(() => { if (!cancelled) setProfiles(found); });
+                return () => { cancelled = true; };
+            }, [user && user.uid, refreshKey]);
+
+            const map = {};
+            const add = (uid, patch) => { if (!uid) return; map[uid] = { ...(map[uid] || { uid }), ...Object.fromEntries(Object.entries(patch).filter(([k, v]) => v !== undefined && v !== '' && v !== null)) }; };
+            monthDocs.forEach(d => add(d.userId, { name: d.userName }));
+            Object.values(profiles).forEach(p => add(p.uid, { name: p.name, email: p.email, photo: p.photo }));
+            if (user) add(user.uid, { name: user.displayName, email: user.email, photo: user.photoURL });
+            Object.keys(details).forEach(uid => { const pr = details[uid] && details[uid].profile; if (pr) add(uid, { name: pr.name, email: pr.email, photo: pr.photo }); });
+            const users = Object.values(map).map(u => ({ ...u, name: u.name || u.email || 'Onbekend' })).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'nl'));
+            const uidKey = users.map(u => u.uid).join(',');
+
+            useEffect(() => {
+                if (!uidKey) return;
+                let cancelled = false;
+                setLoadingDetails(true);
+                Promise.all(uidKey.split(',').map(uid => loadUserDetails(uid).then(d => [uid, d]))).then(entries => {
+                    if (cancelled) return;
+                    setDetails(Object.fromEntries(entries));
+                    setLoadingDetails(false);
+                });
+                return () => { cancelled = true; };
+            }, [uidKey, refreshKey]);
+
+            return { users, details, loadingDetails };
+        };
+
+        const salesByUser = (monthDocs, year) => {
+            const curName = currentMonthName();
+            const out = {}, seen = {};
+            monthDocs.forEach(d => {
+                if (Number(d.yearId) !== year || !d.userId) return;
+                const monthName = d._id || d.monthId;
+                if (!MONTHS.includes(monthName)) return;
+                if (d._path && d._path !== `users/${d.userId}/years/${year}/months/${monthName}`) return;
+                const k = d.userId + '|' + monthName; if (seen[k]) return; seen[k] = true;
+                const o = out[d.userId] || (out[d.userId] = { total: 0, current: 0, months: 0, lastSale: 0 });
+                const t = sumMonth(d);
+                o.total += t; if (t > 0) o.months += 1; if (monthName === curName) o.current += t;
+                if (d.updatedAt) o.lastSale = Math.max(o.lastSale, d.updatedAt);
+            });
+            return out;
+        };
+
+        const lastSeenOf = (u, det) => {
+            const p = det && det.profile;
+            return Math.max(p ? (p.lastActive || p.lastLogin || 0) : 0, det && det.activity && det.activity[0] ? det.activity[0].ts : 0) || null;
+        };
+
+        const StatCard = ({ label, value, sub, icon, tint, onClick }) => (
+            <div onClick={onClick} className={`bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-glass dark:shadow-glass-dark ${onClick ? 'cursor-pointer hover:border-slate-300 dark:hover:border-slate-700' : ''}`}>
+                <div className="flex items-start justify-between gap-2">
+                    <div className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 leading-tight">{label}</div>
+                    <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shrink-0 ${tint}`}><i className={`fa-solid ${icon} text-sm`}></i></div>
+                </div>
+                <div className="text-lg sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-2 tracking-tight">{value}</div>
+                {sub && <div className="text-[11px] sm:text-xs text-slate-400 mt-0.5 truncate">{sub}</div>}
+            </div>
+        );
+
+        const Avatar = ({ u, size = 'w-10 h-10' }) => (
+            <div className={`${size} rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden shrink-0 flex items-center justify-center text-slate-500 font-bold`}>
+                {u && u.photo ? <img src={u.photo} referrerPolicy="no-referrer" className="w-full h-full object-cover"/> : <span>{((u && u.name) || '?').trim().charAt(0).toUpperCase()}</span>}
+            </div>
+        );
+
+        const ActivityList = ({ items, showUser = false, empty = 'Nog geen activiteit geregistreerd.' }) => (
+            items.length === 0 ? <p className="text-sm text-slate-400 text-center py-8">{empty}</p> : (
+                <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {items.map((a, i) => {
+                        const ic = ACTIVITY_ICONS[a.type] || ACTIVITY_ICONS.bezoek;
+                        return (
+                            <div key={(a.id || '') + i} className="flex items-center gap-3 py-2.5">
+                                <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${ic.cls}`}><i className={`fa-solid ${ic.icon} text-xs`}></i></span>
+                                <div className="min-w-0 flex-grow">
+                                    <div className="text-sm text-slate-700 dark:text-slate-200 truncate">{showUser && <strong className="font-semibold">{a.userName}: </strong>}{a.text}</div>
+                                    <div className="text-[11px] text-slate-400">{fmtDateTime(a.ts)} · {timeAgo(a.ts)}</div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )
+        );
+
+        const Panel = ({ title, right, children, className = '' }) => (
+            <div className={`bg-white dark:bg-slate-900 rounded-3xl shadow-glass dark:shadow-glass-dark border border-slate-200/80 dark:border-slate-800 ${className}`}>
+                {(title || right) && <div className="px-4 sm:px-6 pt-5 pb-3 flex items-center justify-between gap-3"><h3 className="font-bold text-slate-800 dark:text-white">{title}</h3>{right}</div>}
+                <div className="px-4 sm:px-6 pb-5">{children}</div>
+            </div>
+        );
+
+        // ---------- START ----------
+        const AdminStart = ({ users, details, sales, selectedYear, formatCurrency, onOpenUser, setSection, loadingDetails }) => {
+            const isCurrentYear = selectedYear === new Date().getFullYear();
+            const curName = currentMonthName();
+            const total = users.reduce((a, u) => a + ((sales[u.uid] || {}).total || 0), 0);
+            const current = users.reduce((a, u) => a + ((sales[u.uid] || {}).current || 0), 0);
+            const seen = users.map(u => lastSeenOf(u, details[u.uid]));
+            const onlineNow = seen.filter(t => t && Date.now() - t < 10 * 60000).length;
+            const active7 = seen.filter(t => t && Date.now() - t < 7 * 86400000).length;
+            const sum = (f) => users.reduce((a, u) => a + (details[u.uid] ? f(details[u.uid]) : 0), 0);
+            const ranked = [...users].sort((a, b) => ((sales[b.uid] || {}).total || 0) - ((sales[a.uid] || {}).total || 0));
+            const feed = users.flatMap(u => ((details[u.uid] || {}).activity || []).map(a => ({ ...a, userName: u.name, uid: u.uid }))).sort((a, b) => b.ts - a.ts).slice(0, 12);
 
             return (
                 <div className="space-y-6">
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                        {cards.map(c => (
-                            <div key={c.label} className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-glass dark:shadow-glass-dark">
-                                <div className="flex items-start justify-between gap-2">
-                                    <div className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 leading-tight">{c.label}</div>
-                                    <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shrink-0 ${c.tint}`}><i className={`fa-solid ${c.icon} text-sm`}></i></div>
+                        <StatCard label={`Omzet ${selectedYear} (iedereen)`} value={formatCurrency(total)} sub={`Winst ${formatCurrency(total * PROFIT_RATE)}`} icon="fa-euro-sign" tint="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400" onClick={() => setSection('sales')}/>
+                        <StatCard label={isCurrentYear ? `Deze maand (${curName})` : 'Gemiddeld per gebruiker'} value={formatCurrency(isCurrentYear ? current : (users.length ? total / users.length : 0))} icon="fa-calendar-day" tint="bg-sky-50 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400"/>
+                        <StatCard label="Gebruikers" value={String(users.length)} sub={`${onlineNow} nu actief · ${active7} deze week`} icon="fa-users" tint="bg-violet-50 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400" onClick={() => setSection('users')}/>
+                        <StatCard label="Topverkoper" value={ranked[0] && (sales[ranked[0].uid] || {}).total ? formatCurrency(sales[ranked[0].uid].total) : '–'} sub={ranked[0] && (sales[ranked[0].uid] || {}).total ? ranked[0].name : 'Nog geen verkoop'} icon="fa-trophy" tint="bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400"/>
+                        <StatCard label="Open wensen (iedereen)" value={String(sum(d => d.requests.open))} sub={`${sum(d => d.requests.found)} gevonden`} icon="fa-gift" tint="bg-pink-50 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400" onClick={() => setSection('requests')}/>
+                        <StatCard label="Voorraadwaarde (iedereen)" value={formatCurrency(sum(d => d.stock.value))} sub={`${sum(d => d.stock.qty)} stuks · ${sum(d => d.stock.items)} producten`} icon="fa-box" tint="bg-cyan-50 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400" onClick={() => setSection('stock')}/>
+                        <StatCard label="Klanten (iedereen)" value={String(sum(d => d.customers))} icon="fa-address-book" tint="bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" onClick={() => setSection('customers')}/>
+                        <StatCard label="Recepten / doelen" value={`${sum(d => d.recipes)} / ${sum(d => d.goals)}`} icon="fa-utensils" tint="bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400"/>
+                    </div>
+
+                    <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                        <Panel title={`Gebruikers ${selectedYear}`} className="xl:col-span-2" right={<button onClick={() => setSection('users')} className="text-xs font-semibold text-emerald-600 hover:underline">Alle details →</button>}>
+                            {ranked.length === 0 ? <p className="text-center text-slate-400 py-8 text-sm">{loadingDetails ? 'Laden...' : 'Nog geen gebruikers gevonden.'}</p> : (
+                                <div className="divide-y divide-slate-100 dark:divide-slate-800 -mx-4 sm:-mx-6">
+                                    {ranked.map((u, i) => {
+                                        const sl = sales[u.uid] || {}; const st = activityStatus(lastSeenOf(u, details[u.uid]));
+                                        return (
+                                            <button key={u.uid} onClick={() => onOpenUser(u.uid)} className="w-full flex items-center gap-3 px-4 sm:px-6 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                                <span className="w-6 text-center text-xs font-bold text-slate-400 shrink-0">{i + 1}</span>
+                                                <Avatar u={u}/>
+                                                <span className="flex-grow min-w-0">
+                                                    <span className="block font-semibold text-slate-800 dark:text-slate-100 truncate">{u.name}</span>
+                                                    <span className={`flex items-center gap-1.5 text-xs ${st.cls}`}><span className={`w-2 h-2 rounded-full ${st.dot}`}></span>{st.label}</span>
+                                                </span>
+                                                <span className="text-right shrink-0">
+                                                    <span className="block font-bold text-slate-900 dark:text-white tabular-nums">{formatCurrency(sl.total || 0)}</span>
+                                                    <span className="block text-xs text-slate-400 tabular-nums">{isCurrentYear ? `deze maand ${formatCurrency(sl.current || 0)}` : `${sl.months || 0} maanden`}</span>
+                                                </span>
+                                                <i className="fa-solid fa-chevron-right text-slate-300 text-xs shrink-0"></i>
+                                            </button>
+                                        );
+                                    })}
                                 </div>
-                                <div className="text-lg sm:text-2xl font-extrabold text-slate-900 dark:text-white mt-2 tracking-tight">{c.value}</div>
-                                {c.sub && <div className="text-[11px] sm:text-xs text-slate-400 mt-0.5 truncate">{c.sub}</div>}
-                            </div>
+                            )}
+                        </Panel>
+                        <Panel title="Recente activiteit" right={<button onClick={() => setSection('activity')} className="text-xs font-semibold text-emerald-600 hover:underline">Alles →</button>}>
+                            <ActivityList items={feed} showUser empty={loadingDetails ? 'Laden...' : 'Nog geen activiteit. Die wordt vanaf nu bijgehouden.'}/>
+                        </Panel>
+                    </div>
+                </div>
+            );
+        };
+
+        // ---------- GEBRUIKERS (tabel met alles) ----------
+        const AdminUsersOverview = ({ users, details, sales, formatCurrency, onOpenUser, selectedYear }) => {
+            const [sort, setSort] = useState('active');
+            const [q, setQ] = useState('');
+            const rows = users.filter(u => !q || (u.name + ' ' + (u.email || '')).toLowerCase().includes(q.toLowerCase())).map(u => {
+                const d = details[u.uid] || {}; const sl = sales[u.uid] || {};
+                return { u, d, sl, seen: lastSeenOf(u, d) || 0 };
+            }).sort((a, b) => sort === 'active' ? b.seen - a.seen : sort === 'sales' ? (b.sl.total || 0) - (a.sl.total || 0) : (a.u.name || '').localeCompare(b.u.name || '', 'nl'));
+            const th = "px-3 py-3 text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-bold whitespace-nowrap";
+            const td = "px-3 py-3 whitespace-nowrap text-sm";
+            return (
+                <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row gap-3">
+                        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Zoek op naam of e-mail..." className="flex-grow p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/30"/>
+                        <select value={sort} onChange={e => setSort(e.target.value)} className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white font-semibold outline-none">
+                            <option value="active">Sorteer: laatst actief</option>
+                            <option value="sales">Sorteer: omzet {selectedYear}</option>
+                            <option value="name">Sorteer: naam</option>
+                        </select>
+                    </div>
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-glass border border-slate-200/80 dark:border-slate-800 overflow-x-auto custom-scroll">
+                        <table className="w-full text-left">
+                            <thead className="bg-slate-50/70 dark:bg-slate-800/40 border-b border-slate-100 dark:border-slate-800">
+                                <tr>
+                                    <th className={th}>Gebruiker</th><th className={th}>Status</th><th className={th}>Laatste login</th><th className={th}>Bezoeken</th><th className={th}>Toestel</th>
+                                    <th className={th + ' text-right'}>Omzet {selectedYear}</th><th className={th + ' text-right'}>Deze maand</th><th className={th + ' text-right'}>Wensen open</th>
+                                    <th className={th + ' text-right'}>Voorraad</th><th className={th + ' text-right'}>Klanten</th><th className={th + ' text-right'}>Recepten</th><th className={th + ' text-right'}>Doelen</th><th className={th}>Laatste actie</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                {rows.map(({ u, d, sl, seen }) => {
+                                    const st = activityStatus(seen); const p = d.profile || {};
+                                    return (
+                                        <tr key={u.uid} onClick={() => onOpenUser(u.uid)} className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                            <td className={td}><div className="flex items-center gap-3"><Avatar u={u} size="w-8 h-8"/><div><div className="font-semibold text-slate-800 dark:text-slate-100">{u.name}</div><div className="text-xs text-slate-400">{u.email || '–'}</div></div></div></td>
+                                            <td className={td}><span className={`flex items-center gap-1.5 ${st.cls}`}><span className={`w-2 h-2 rounded-full ${st.dot}`}></span>{st.label}</span></td>
+                                            <td className={td + ' text-slate-600 dark:text-slate-300'}>{fmtDateTime(p.lastLogin)}</td>
+                                            <td className={td + ' text-slate-600 dark:text-slate-300'}>{p.visits || 0}</td>
+                                            <td className={td + ' text-slate-600 dark:text-slate-300'}>{p.device || '–'}</td>
+                                            <td className={td + ' text-right font-bold text-slate-900 dark:text-white tabular-nums'}>{formatCurrency(sl.total || 0)}</td>
+                                            <td className={td + ' text-right tabular-nums text-slate-600 dark:text-slate-300'}>{formatCurrency(sl.current || 0)}</td>
+                                            <td className={td + ' text-right tabular-nums'}>{d.requests ? d.requests.open : '…'}</td>
+                                            <td className={td + ' text-right tabular-nums'}>{d.stock ? `${d.stock.items} (${formatCurrency(d.stock.value)})` : '…'}</td>
+                                            <td className={td + ' text-right tabular-nums'}>{d.customers ?? '…'}</td>
+                                            <td className={td + ' text-right tabular-nums'}>{d.recipes ?? '…'}</td>
+                                            <td className={td + ' text-right tabular-nums'}>{d.goals ?? '…'}</td>
+                                            <td className={td + ' text-slate-500 max-w-[16rem] truncate'}>{d.activity && d.activity[0] ? `${d.activity[0].text} (${timeAgo(d.activity[0].ts)})` : '–'}</td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                    <p className="text-xs text-slate-400">Tik op een gebruiker voor haar volledige fiche. Login, bezoeken en activiteit worden bijgehouden vanaf deze versie van de app.</p>
+                </div>
+            );
+        };
+
+        // ---------- ACTIVITEIT (logboek van iedereen) ----------
+        const AdminActivityFeed = ({ users, details, onOpenUser }) => {
+            const [uidFilter, setUidFilter] = useState('');
+            const [typeFilter, setTypeFilter] = useState('');
+            const all = users.flatMap(u => ((details[u.uid] || {}).activity || []).map(a => ({ ...a, userName: u.name, uid: u.uid })))
+                .filter(a => (!uidFilter || a.uid === uidFilter) && (!typeFilter || a.type === typeFilter))
+                .sort((a, b) => b.ts - a.ts);
+            const byDay = {};
+            all.forEach(a => { const k = new Date(a.ts).toLocaleDateString('nl-BE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); (byDay[k] = byDay[k] || []).push(a); });
+            return (
+                <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row gap-3">
+                        <select value={uidFilter} onChange={e => setUidFilter(e.target.value)} className="flex-grow p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white font-semibold outline-none">
+                            <option value="">Alle gebruikers</option>
+                            {users.map(u => <option key={u.uid} value={u.uid}>{u.name}</option>)}
+                        </select>
+                        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white font-semibold outline-none">
+                            <option value="">Alle soorten</option>
+                            {Object.entries(ACTIVITY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                        </select>
+                    </div>
+                    {Object.keys(byDay).length === 0 && <Panel><ActivityList items={[]} empty="Nog geen activiteit. Vanaf nu wordt alles bijgehouden."/></Panel>}
+                    {Object.entries(byDay).map(([day, items]) => (
+                        <Panel key={day} title={day.charAt(0).toUpperCase() + day.slice(1)} right={<span className="text-xs text-slate-400">{items.length} acties</span>}>
+                            <ActivityList items={items} showUser={!uidFilter}/>
+                        </Panel>
+                    ))}
+                </div>
+            );
+        };
+
+        // ---------- GEBRUIKERSFICHE ----------
+        const AdminUserDetail = ({ u, det, sl, selectedYear, globalPsData, formatCurrency, onBack, onRefresh }) => {
+            const [tab, setTab] = useState('overview');
+            const d = det || {}; const p = d.profile || {};
+            const st = activityStatus(lastSeenOf(u, d));
+            const tabs = [
+                ['overview', 'Overzicht', 'fa-gauge'], ['activity', 'Activiteit', 'fa-clock-rotate-left'], ['sales', 'Verkoop', 'fa-chart-line'], ['goals', 'Doelen', 'fa-bullseye'],
+                ['requests', 'Wensen', 'fa-gift'], ['stock', 'Voorraad', 'fa-box'], ['customers', 'Klanten', 'fa-address-book'], ['recipes', 'Recepten', 'fa-utensils'], ['rights', 'Rechten', 'fa-user-lock'],
+            ];
+            const info = [
+                ['E-mail', u.email || p.email || '–'], ['Status', st.label], ['Laatst actief', fmtDateTime(lastSeenOf(u, d))], ['Laatste login', fmtDateTime(p.lastLogin)],
+                ['Eerst gezien', fmtDateTime(p.firstSeen)], ['Aantal bezoeken', String(p.visits || 0)], ['Toestel', p.device || '–'], ['Laatste actie', p.lastAction ? `${p.lastAction} (${timeAgo(p.lastActionAt)})` : '–'],
+                ['Laatste verkoop ingevuld', sl.lastSale ? fmtDateTime(sl.lastSale) : '–'], ['Laatste wens/voorraad', d.lastData ? fmtDateTime(d.lastData) : '–'],
+            ];
+            return (
+                <div className="space-y-5">
+                    <button onClick={onBack} className="text-sm font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-white flex items-center gap-2"><i className="fa-solid fa-arrow-left"></i> Alle gebruikers</button>
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-glass border border-slate-200/80 dark:border-slate-800 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4">
+                        <Avatar u={u} size="w-16 h-16 text-2xl"/>
+                        <div className="flex-grow min-w-0">
+                            <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white truncate">{u.name}</h3>
+                            <div className={`flex items-center gap-2 text-sm mt-0.5 ${st.cls}`}><span className={`w-2.5 h-2.5 rounded-full ${st.dot}`}></span>{st.label}</div>
+                        </div>
+                        <div className="flex gap-2 shrink-0">
+                            <button onClick={onRefresh} className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-semibold hover:bg-slate-200"><i className="fa-solid fa-rotate mr-2"></i>Vernieuwen</button>
+                            <button onClick={() => openUserApp(u)} className="px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700"><i className="fa-solid fa-arrow-up-right-from-square mr-2"></i>App openen</button>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
+                        {tabs.map(([id, label, icon]) => (
+                            <button key={id} onClick={() => setTab(id)} className={`shrink-0 px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 border transition-colors ${tab === id ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-900' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'}`}><i className={`fa-solid ${icon} text-xs`}></i>{label}</button>
                         ))}
                     </div>
 
-                    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-glass dark:shadow-glass-dark border border-slate-200/80 dark:border-slate-800 overflow-hidden">
-                        <div className="px-4 sm:px-6 pt-5 pb-3 flex items-center justify-between gap-3">
-                            <h3 className="font-bold text-slate-800 dark:text-white">Gebruikers {selectedYear}</h3>
-                            <span className="text-xs text-slate-400 text-right">Tik op een gebruiker om haar app te openen</span>
-                        </div>
-                        {rows.length === 0 ? (
-                            <p className="text-center text-slate-400 py-10 text-sm">Nog geen verkoopgegevens in {selectedYear}.</p>
-                        ) : (
-                            <div className="divide-y divide-slate-100 dark:divide-slate-800 border-t border-slate-100 dark:border-slate-800">
-                                {rows.map((r, i) => (
-                                    <button key={r.uid} onClick={() => openUserApp(r)} className="w-full flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-3.5 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                        <span className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${i === 0 && r.total > 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>{i + 1}</span>
-                                        <span className="flex-grow min-w-0">
-                                            <span className="block font-semibold text-slate-800 dark:text-slate-100 truncate">{r.name}{r.uid === selfUid ? ' (jij)' : ''}</span>
-                                            <span className="block text-xs text-slate-400">{r.months} actieve {r.months === 1 ? 'maand' : 'maanden'}{isCurrentYear ? ` · deze maand ${formatCurrency(r.current)}` : ''}</span>
-                                        </span>
-                                        <span className="text-right shrink-0">
-                                            <span className="block font-bold text-slate-900 dark:text-white tabular-nums">{formatCurrency(r.total)}</span>
-                                            <span className="block text-xs font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">{formatCurrency(r.total * PROFIT_RATE)}</span>
-                                        </span>
-                                        <i className="fa-solid fa-chevron-right text-slate-300 text-xs shrink-0"></i>
-                                    </button>
-                                ))}
+                    {tab === 'overview' && (
+                        <div className="space-y-5">
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                                <StatCard label={`Omzet ${selectedYear}`} value={formatCurrency(sl.total || 0)} sub={`Winst ${formatCurrency((sl.total || 0) * PROFIT_RATE)}`} icon="fa-euro-sign" tint="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400" onClick={() => setTab('sales')}/>
+                                <StatCard label="Deze maand" value={formatCurrency(sl.current || 0)} sub={`${sl.months || 0} actieve maanden`} icon="fa-calendar-day" tint="bg-sky-50 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400"/>
+                                <StatCard label="Wensen" value={d.requests ? `${d.requests.open} open` : '…'} sub={d.requests ? `${d.requests.found} gevonden · ${d.requests.total} totaal` : ''} icon="fa-gift" tint="bg-pink-50 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400" onClick={() => setTab('requests')}/>
+                                <StatCard label="Voorraad" value={d.stock ? formatCurrency(d.stock.value) : '…'} sub={d.stock ? `${d.stock.items} producten · ${d.stock.qty} stuks · ${d.stock.vinted} op Vinted` : ''} icon="fa-box" tint="bg-cyan-50 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400" onClick={() => setTab('stock')}/>
+                                <StatCard label="Klanten" value={String(d.customers ?? '…')} icon="fa-address-book" tint="bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" onClick={() => setTab('customers')}/>
+                                <StatCard label="Recepten" value={String(d.recipes ?? '…')} icon="fa-utensils" tint="bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400" onClick={() => setTab('recipes')}/>
+                                <StatCard label="Doelen" value={String(d.goals ?? '…')} icon="fa-bullseye" tint="bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400" onClick={() => setTab('goals')}/>
+                                <StatCard label="Bezoeken" value={String(p.visits || 0)} sub={p.lastLogin ? `laatste ${timeAgo(p.lastLogin)}` : 'nog niet gezien'} icon="fa-right-to-bracket" tint="bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" onClick={() => setTab('activity')}/>
                             </div>
-                        )}
-                    </div>
+                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+                                <Panel title="Gegevens">
+                                    <dl className="divide-y divide-slate-100 dark:divide-slate-800">
+                                        {info.map(([k, v]) => <div key={k} className="flex justify-between gap-4 py-2.5 text-sm"><dt className="text-slate-500">{k}</dt><dd className="font-semibold text-slate-800 dark:text-slate-100 text-right break-all">{v}</dd></div>)}
+                                    </dl>
+                                </Panel>
+                                <Panel title="Laatste activiteit" right={<button onClick={() => setTab('activity')} className="text-xs font-semibold text-emerald-600 hover:underline">Alles →</button>}>
+                                    <ActivityList items={(d.activity || []).slice(0, 8)}/>
+                                </Panel>
+                            </div>
+                        </div>
+                    )}
+                    {tab === 'activity' && <Panel title={`Activiteit van ${u.name}`} right={<span className="text-xs text-slate-400">laatste {(d.activity || []).length}</span>}><ActivityList items={d.activity || []}/></Panel>}
+                    {tab === 'sales' && <AdminSalesSection key={u.uid} uid={u.uid} realName={u.name} selectedYear={selectedYear} globalPsData={globalPsData} formatCurrency={formatCurrency}/>}
+                    {tab === 'goals' && <AdminGoalsSection key={u.uid} uid={u.uid} name={u.name} selectedYear={selectedYear} formatCurrency={formatCurrency}/>}
+                    {tab === 'requests' && <RequestsTab key={u.uid} targetUid={u.uid}/>}
+                    {tab === 'stock' && <StockTab key={u.uid} targetUid={u.uid} user={null}/>}
+                    {tab === 'customers' && <CustomersTab key={u.uid} targetUid={u.uid}/>}
+                    {tab === 'recipes' && <RecipesTab key={u.uid} targetUid={u.uid}/>}
+                    {tab === 'rights' && <AdminUserModal inline isOpen={true} onClose={() => {}} selectedYear={selectedYear} onSelectUser={openUserApp} onlyUid={u.uid} onlyName={u.name}/>}
                 </div>
             );
         };
@@ -3653,18 +4039,25 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             const [monthDocs, setMonthDocs] = useState([]);
             const [globalPsData, setGlobalPsData] = useState({});
             const [showMenu, setShowMenu] = useState(false);
+            const [refreshKey, setRefreshKey] = useState(0);
             const [darkMode, setDarkMode] = useState(() => { try { return localStorage.getItem('theme') === 'dark'; } catch (e) { return false; } });
-            const initialSection = () => {
+            const parseHash = () => {
                 const h = (window.location.hash || '').slice(1);
-                if (ADMIN_NAV.some(n => n.id === h)) return h;
-                try { const s = localStorage.getItem('tl-admin-nav'); if (ADMIN_NAV.some(n => n.id === s)) return s; } catch (e) {}
-                return 'start';
+                if (h.startsWith('user=')) return { section: 'users', userUid: decodeURIComponent(h.slice(5)) };
+                if (ADMIN_NAV.some(n => n.id === h)) return { section: h, userUid: null };
+                try { const s = localStorage.getItem('tl-admin-nav'); if (ADMIN_NAV.some(n => n.id === s)) return { section: s, userUid: null }; } catch (e) {}
+                return { section: 'start', userUid: null };
             };
-            const [section, setSectionState] = useState(initialSection);
+            const [nav, setNav] = useState(parseHash);
             const setSection = (s) => {
-                setSectionState(s); setShowMenu(false);
+                setNav({ section: s, userUid: null }); setShowMenu(false);
                 try { localStorage.setItem('tl-admin-nav', s); } catch (e) {}
                 try { history.replaceState(null, '', '#' + s); } catch (e) {}
+                window.scrollTo({ top: 0 });
+            };
+            const openUser = (uid) => {
+                setNav({ section: 'users', userUid: uid }); setShowMenu(false);
+                try { history.replaceState(null, '', '#user=' + encodeURIComponent(uid)); } catch (e) {}
                 window.scrollTo({ top: 0 });
             };
 
@@ -3673,6 +4066,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                     if (!u) { window.location.href = 'index.html'; return; }
                     if (!isAdminEmail(u.email)) { window.location.replace('dashboard.html'); return; }
                     setUser(u); setLoading(false);
+                    window.recordVisit(u);
                 });
                 return () => unsub();
             }, []);
@@ -3683,7 +4077,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             }, [darkMode]);
 
             useEffect(() => {
-                const onHash = () => { const h = (window.location.hash || '').slice(1); if (ADMIN_NAV.some(n => n.id === h)) setSectionState(h); };
+                const onHash = () => setNav(parseHash());
                 window.addEventListener('hashchange', onHash);
                 return () => window.removeEventListener('hashchange', onHash);
             }, []);
@@ -3694,10 +4088,13 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                     const arr = [];
                     snap.forEach(d => arr.push({ ...d.data(), _id: d.id, _path: d.ref && d.ref.path ? d.ref.path : '' }));
                     setMonthDocs(arr);
-                }, err => { console.error(err); window.showAlert("Gegevens van gebruikers laden mislukt: " + err.message); });
+                }, err => { console.error(err); window.showAlert("Verkoopgegevens laden mislukt: " + err.message); });
                 const u2 = window.db.collection('settings').doc(`global_ps_${selectedYear}`).onSnapshot(doc => setGlobalPsData(doc.exists ? doc.data() : {}), err => console.error(err));
                 return () => { u1(); u2(); };
             }, [user, selectedYear]);
+
+            const { users, details, loadingDetails } = useAdminData(user, monthDocs, refreshKey);
+            const sales = React.useMemo(() => salesByUser(monthDocs, selectedYear), [monthDocs, selectedYear]);
 
             const formatCurrency = (val) => new Intl.NumberFormat('nl-BE', { style: 'currency', currency: 'EUR' }).format(val || 0);
             const updateGlobalPsData = async (month, newLevels) => {
@@ -3707,20 +4104,27 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
 
             if (loading) return <div className="h-screen flex flex-col items-center justify-center text-emerald-600"><Icons.Loader className="text-4xl mb-4"/><div className="font-semibold">Beheer wordt geladen...</div></div>;
 
-            const userMap = {};
-            monthDocs.forEach(d => { if (d.userId && !userMap[d.userId]) userMap[d.userId] = { uid: d.userId, name: d.userName || 'Onbekend' }; });
-            const others = Object.values(userMap).filter(u => u.uid !== user.uid).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'nl'));
-            const userOptions = [{ uid: user.uid, name: `${user.displayName || 'Mijn account'} (jij)`, realName: user.displayName || user.email || 'Onbekend' }, ...others];
-            const current = ADMIN_NAV.find(n => n.id === section) || ADMIN_NAV[0];
+            const userOptions = users.map(u => ({ uid: u.uid, name: u.uid === user.uid ? `${u.name} (jij)` : u.name, realName: u.name }));
+            const selfFirst = [...userOptions.filter(u => u.uid === user.uid), ...userOptions.filter(u => u.uid !== user.uid)];
+            const current = ADMIN_NAV.find(n => n.id === nav.section) || ADMIN_NAV[0];
+            const detailUser = nav.userUid ? (users.find(u => u.uid === nav.userUid) || { uid: nav.userUid, name: 'Gebruiker' }) : null;
             const yearOptions = [0, 1, 2, 3, 4].map(i => new Date().getFullYear() - 2 + i);
-            const showYear = ['start', 'sales', 'users', 'goals', 'ps'].includes(current.id);
+            const showYear = ['start', 'users', 'sales', 'goals', 'rights', 'ps'].includes(current.id);
+            const navBtn = (n, mobile) => (
+                <button key={n.id} onClick={() => setSection(n.id)} className={mobile
+                    ? `shrink-0 px-3.5 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 ${current.id === n.id && !detailUser ? 'bg-white text-slate-900' : 'text-slate-300 bg-white/5'}`
+                    : `w-full px-3 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-3 transition-colors ${current.id === n.id && !(detailUser && n.id !== 'users') ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
+                    <i className={`fa-solid ${n.icon} w-4 text-center text-[13px]`}></i> {n.label}
+                </button>
+            );
 
             return (
                 <div className="relative min-h-screen">
                     <GlobalDialogs />
 
+                    {/* KOP */}
                     <header className="sticky top-0 z-30 bg-slate-900 text-white border-b border-slate-800">
-                        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-4">
+                        <div className="px-4 sm:px-6 h-16 flex items-center gap-4">
                             <button onClick={() => setSection('start')} className="flex items-center gap-3 shrink-0 select-none">
                                 <img src="apple-touch-icon.png" alt="" className="w-9 h-9 rounded-xl bg-white object-cover"/>
                                 <div className="text-left leading-tight">
@@ -3728,74 +4132,84 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                                     <div className="text-[11px] font-bold text-amber-400 -mt-0.5 uppercase tracking-wider">Beheer</div>
                                 </div>
                             </button>
-                            <nav className="hidden lg:flex items-center gap-1 ml-6 overflow-x-auto no-scrollbar">
-                                {ADMIN_NAV.map(n => (
-                                    <button key={n.id} onClick={() => setSection(n.id)} className={`whitespace-nowrap px-3.5 py-2 rounded-xl text-sm font-semibold transition-colors flex items-center gap-2 ${current.id === n.id ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
-                                        <i className={`fa-solid ${n.icon} text-[13px]`}></i> {n.label}
+                            <div className="ml-auto flex items-center gap-2">
+                                <button onClick={() => setRefreshKey(k => k + 1)} title="Gegevens vernieuwen" className="w-10 h-10 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20"><i className={`fa-solid fa-rotate ${loadingDetails ? 'fa-spin' : ''}`}></i></button>
+                                <div className="relative">
+                                    <button onClick={() => setShowMenu(!showMenu)} aria-label="Profielmenu" className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center border border-white/20 bg-white/10 text-white">
+                                        {user.photoURL ? <img src={user.photoURL} referrerPolicy="no-referrer" className="w-full h-full object-cover"/> : <Icons.User/>}
                                     </button>
-                                ))}
-                            </nav>
-                            <div className="relative ml-auto">
-                                <button onClick={() => setShowMenu(!showMenu)} aria-label="Profielmenu" className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center border border-white/20 bg-white/10 text-white hover:ring-4 hover:ring-white/10">
-                                    {user.photoURL ? <img src={user.photoURL} referrerPolicy="no-referrer" className="w-full h-full object-cover"/> : <Icons.User/>}
-                                </button>
-                                {showMenu && (
-                                    <React.Fragment>
-                                        <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)}></div>
-                                        <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 z-20 py-2 overflow-hidden modal-content">
-                                            <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
-                                                <div className="text-sm font-bold truncate">{user.displayName || 'Beheerder'}</div>
-                                                <div className="text-xs text-slate-500 truncate">{user.email}</div>
+                                    {showMenu && (
+                                        <React.Fragment>
+                                            <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)}></div>
+                                            <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 z-20 py-2 overflow-hidden modal-content">
+                                                <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
+                                                    <div className="text-sm font-bold truncate">{user.displayName || 'Beheerder'}</div>
+                                                    <div className="text-xs text-slate-500 truncate">{user.email}</div>
+                                                </div>
+                                                <a href="dashboard.html" className="w-full px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-semibold flex gap-3 items-center"><i className="fa-solid fa-mobile-screen w-5 text-emerald-500"></i> Mijn eigen app</a>
+                                                <button onClick={() => setDarkMode(!darkMode)} className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800">
+                                                    <span className="text-sm font-semibold flex items-center gap-3"><i className={`fa-solid ${darkMode ? 'fa-moon' : 'fa-sun'} w-5 text-slate-400`}></i> Donkere modus</span>
+                                                    <span className={`w-11 h-6 rounded-full relative transition-colors ${darkMode ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-600'}`}><span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform shadow-sm ${darkMode ? 'translate-x-5' : ''}`}></span></span>
+                                                </button>
+                                                <div className="border-t border-slate-100 dark:border-slate-800 mt-1 pt-1">
+                                                    <button onClick={() => window.auth.signOut()} className="w-full text-left px-4 py-3 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm font-semibold text-red-600 dark:text-red-400 flex gap-3 items-center"><i className="fa-solid fa-right-from-bracket w-5"></i> Uitloggen</button>
+                                                </div>
                                             </div>
-                                            <a href="dashboard.html" className="w-full px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-semibold flex gap-3 items-center"><i className="fa-solid fa-mobile-screen w-5 text-emerald-500"></i> Mijn eigen app</a>
-                                            <button onClick={() => setDarkMode(!darkMode)} className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800">
-                                                <span className="text-sm font-semibold flex items-center gap-3"><i className={`fa-solid ${darkMode ? 'fa-moon' : 'fa-sun'} w-5 text-slate-400`}></i> Donkere modus</span>
-                                                <span className={`w-11 h-6 rounded-full relative transition-colors ${darkMode ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-600'}`}><span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform shadow-sm ${darkMode ? 'translate-x-5' : ''}`}></span></span>
-                                            </button>
-                                            <div className="border-t border-slate-100 dark:border-slate-800 mt-1 pt-1">
-                                                <button onClick={() => window.auth.signOut()} className="w-full text-left px-4 py-3 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm font-semibold text-red-600 dark:text-red-400 flex gap-3 items-center"><i className="fa-solid fa-right-from-bracket w-5"></i> Uitloggen</button>
-                                            </div>
-                                        </div>
-                                    </React.Fragment>
-                                )}
+                                        </React.Fragment>
+                                    )}
+                                </div>
                             </div>
                         </div>
+                        {/* gsm/tablet: menu als schuifbalk */}
+                        <nav className="lg:hidden flex gap-2 overflow-x-auto no-scrollbar px-4 pb-3">
+                            {ADMIN_NAV.map(n => navBtn(n, true))}
+                        </nav>
                     </header>
 
-                    <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-5 sm:pt-8 pb-28 lg:pb-12">
-                        <div className="flex flex-wrap items-center justify-between gap-3 mb-5 sm:mb-7">
-                            <div className="min-w-0">
-                                <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">{current.label}</h2>
-                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{current.subtitle}</p>
+                    <div className="flex">
+                        {/* computer: zijbalk */}
+                        <aside className="hidden lg:block w-60 shrink-0 bg-slate-900 min-h-[calc(100vh-4rem)] sticky top-16 self-start max-h-[calc(100vh-4rem)] overflow-y-auto px-3 py-5">
+                            {ADMIN_NAV_GROUPS.map(g => (
+                                <div key={g} className="mb-5">
+                                    <div className="px-3 mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">{g}</div>
+                                    <div className="space-y-1">{ADMIN_NAV.filter(n => n.group === g).map(n => navBtn(n, false))}</div>
+                                </div>
+                            ))}
+                        </aside>
+
+                        <main className="flex-1 min-w-0 px-4 sm:px-6 lg:px-8 pt-5 sm:pt-8 pb-16">
+                            <div className="max-w-6xl mx-auto">
+                                <div className="flex flex-wrap items-center justify-between gap-3 mb-5 sm:mb-7">
+                                    <div className="min-w-0">
+                                        <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">{detailUser ? 'Gebruikersfiche' : current.label}</h2>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{detailUser ? `Alles over ${detailUser.name}` : current.subtitle}</p>
+                                    </div>
+                                    <div id="page-actions" className="flex flex-wrap items-center justify-end gap-2 sm:gap-3 ml-auto empty:hidden"></div>
+                                    {(showYear || detailUser) && (
+                                        <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} className="shrink-0 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 font-semibold pl-3 pr-8 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-emerald-500/30 shadow-sm text-sm">
+                                            {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+                                        </select>
+                                    )}
+                                </div>
+
+                                <ErrorBoundary key={(detailUser ? 'u:' + detailUser.uid : current.id)}>
+                                    {detailUser ? (
+                                        <AdminUserDetail u={detailUser} det={details[detailUser.uid]} sl={sales[detailUser.uid] || {}} selectedYear={selectedYear} globalPsData={globalPsData} formatCurrency={formatCurrency} onBack={() => setSection('users')} onRefresh={() => setRefreshKey(k => k + 1)}/>
+                                    ) : current.id === 'start' ? (
+                                        <AdminStart users={users} details={details} sales={sales} selectedYear={selectedYear} formatCurrency={formatCurrency} onOpenUser={openUser} setSection={setSection} loadingDetails={loadingDetails}/>
+                                    ) : current.id === 'users' ? (
+                                        <AdminUsersOverview users={users} details={details} sales={sales} formatCurrency={formatCurrency} onOpenUser={openUser} selectedYear={selectedYear}/>
+                                    ) : current.id === 'activity' ? (
+                                        <AdminActivityFeed users={users} details={details} onOpenUser={openUser}/>
+                                    ) : current.id === 'rights' ? (
+                                        <AdminUserModal inline isOpen={true} onClose={() => {}} selectedYear={selectedYear} onSelectUser={openUserApp}/>
+                                    ) : (
+                                        <AdminPage hideNav section={current.id} setSection={setSection} users={selfFirst} formatCurrency={formatCurrency} selectedYear={selectedYear} globalPsData={globalPsData} updateGlobalPsData={updateGlobalPsData} isAdmin={true} onSelectUser={openUserApp}/>
+                                    )}
+                                </ErrorBoundary>
                             </div>
-                            <div id="page-actions" className="flex flex-wrap items-center justify-end gap-2 sm:gap-3 ml-auto empty:hidden"></div>
-                            {showYear && (
-                                <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} className="shrink-0 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 font-semibold pl-3 pr-8 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-emerald-500/30 shadow-sm text-sm">
-                                    {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
-                                </select>
-                            )}
-                        </div>
-
-                        <ErrorBoundary key={current.id}>
-                            {current.id === 'start'
-                                ? <AdminStart monthDocs={monthDocs} selectedYear={selectedYear} formatCurrency={formatCurrency} selfUid={user.uid} />
-                                : <AdminPage hideNav section={current.id} setSection={setSection} users={userOptions} formatCurrency={formatCurrency} selectedYear={selectedYear} globalPsData={globalPsData} updateGlobalPsData={updateGlobalPsData} isAdmin={true} onSelectUser={openUserApp} />}
-                        </ErrorBoundary>
-                    </main>
-
-                    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-900 border-t border-slate-800 pb-safe">
-                        <div className="flex max-w-xl mx-auto">
-                            {ADMIN_NAV.map(n => {
-                                const active = current.id === n.id;
-                                return (
-                                    <button key={n.id} onClick={() => setSection(n.id)} className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-1 pt-2.5 pb-2 transition-colors ${active ? 'text-amber-400' : 'text-slate-400'}`}>
-                                        <span className={`w-10 h-7 rounded-full flex items-center justify-center ${active ? 'bg-white/10' : ''}`}><i className={`fa-solid ${n.icon} text-[15px]`}></i></span>
-                                        <span className={`text-[9.5px] leading-none truncate max-w-full px-0.5 ${active ? 'font-bold' : 'font-medium'}`}>{n.short}</span>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </nav>
+                        </main>
+                    </div>
                 </div>
             );
         }
