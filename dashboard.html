@@ -406,10 +406,7 @@ const CatalogsTab = ({ isAdmin }) => {
                     if (doc.exists && doc.data().list) {
                         const list = doc.data().list || [];
                         setCatalogs(list);
-                        setSelectedItem(prev => {
-                            if (prev) { const updated = list.find(c => c.id === prev.id); if (updated) return updated; }
-                            return list.length > 0 ? list[0] : null;
-                        });
+                        setSelectedItem(prev => prev ? (list.find(c => c.id === prev.id) || null) : null);
                     }
                 });
                 
@@ -443,7 +440,7 @@ const CatalogsTab = ({ isAdmin }) => {
                 window.showConfirm("Weet je zeker dat je dit wilt verwijderen?", async () => {
                     const newList = catalogs.filter(c => c.id !== id);
                     await window.db.collection('settings').doc('global_catalogs').set({ list: newList }, { merge: true });
-                    if (selectedItem?.id === id) setSelectedItem(newList.length > 0 ? newList[0] : null);
+                    if (selectedItem?.id === id) setSelectedItem(null);
                 });
             };
 
@@ -551,6 +548,11 @@ const CatalogsTab = ({ isAdmin }) => {
             };
 
             const types = [...new Set(catalogs.map(c => c.type))];
+            const [selectedPromoId, setSelectedPromoId] = useState('');
+            const selectedPromoIndex = promotions.findIndex(p => p.id === selectedPromoId);
+            const selectedPromo = selectedPromoIndex >= 0 ? promotions[selectedPromoIndex] : null;
+            const typeLabel = (t) => ({ Catalogus: 'Catalogen', Leaflet: 'Leaflets', Ander: 'Andere' }[t] || t);
+            const selectCls = "w-full sm:w-72 p-3 rounded-xl border font-bold outline-none focus:ring-2 cursor-pointer shadow-sm";
 
             const renderCatalogCategory = (categoryType, categoryTitle) => {
                 const categoryItems = catalogs.filter(c => c.type === categoryType);
@@ -720,75 +722,81 @@ const CatalogsTab = ({ isAdmin }) => {
                     {/* GEBRUIKER WEERGAVE (ONDER ELKAAR) */}
                     <div className="flex flex-col gap-8">
                         
-                        {/* SECTIE 1: BLADEREN (CATALOGEN / LEAFLETS) */}
-                        <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-glass dark:shadow-glass-dark flex flex-col gap-6 w-full">
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        {/* SECTIE 1: BLADEREN — klapt pas open na een keuze */}
+                        <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-glass dark:shadow-glass-dark flex flex-col gap-5 w-full">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                                 <h3 className="font-black text-xl text-emerald-800 dark:text-emerald-400 flex items-center gap-2"><Icons.BookReader/> Bladeren</h3>
                                 {catalogs.length > 0 && (
-                                    <select 
-                                        className="w-full sm:w-auto p-3 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-900 dark:text-emerald-200 font-bold outline-none focus:ring-2 focus:ring-emerald-500/50 cursor-pointer shadow-sm"
-                                        value={selectedItem?.id || ''}
-                                        onChange={(e) => setSelectedItem(catalogs.find(c => c.id === e.target.value))}
-                                    >
-                                        {types.map(t => (
-                                            <optgroup key={t} label={t}>
-                                                {catalogs.filter(c => c.type === t).map(c => (
-                                                    <option key={c.id} value={c.id}>{c.title}</option>
-                                                ))}
-                                            </optgroup>
-                                        ))}
-                                    </select>
+                                    <div className="flex gap-2 w-full sm:w-auto">
+                                        <select
+                                            className={`${selectCls} flex-grow border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-900 dark:text-emerald-200 focus:ring-emerald-500/50`}
+                                            value={selectedItem?.id || ''}
+                                            onChange={(e) => setSelectedItem(catalogs.find(c => c.id === e.target.value) || null)}
+                                        >
+                                            <option value="">Kies een catalogus of leaflet...</option>
+                                            {types.map(t => (
+                                                <optgroup key={t} label={typeLabel(t)}>
+                                                    {catalogs.filter(c => c.type === t).map(c => (
+                                                        <option key={c.id} value={c.id}>{c.title}</option>
+                                                    ))}
+                                                </optgroup>
+                                            ))}
+                                        </select>
+                                        {selectedItem && <button onClick={() => setSelectedItem(null)} title="Dichtklappen" className="w-12 shrink-0 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white flex items-center justify-center"><Icons.ChevronUp/></button>}
+                                    </div>
                                 )}
                             </div>
 
                             {catalogs.length === 0 ? (
-                                <div className="text-center py-20 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700">
-                                    <Icons.BookOpen className="text-4xl text-slate-300 mb-4 block mx-auto"/>
-                                    <h4 className="text-lg font-bold text-slate-600 dark:text-slate-300">Nog geen boekjes beschikbaar</h4>
+                                <div className="text-center py-10 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700">
+                                    <Icons.BookOpen className="text-3xl text-slate-300 mb-3 block mx-auto"/>
+                                    <h4 className="font-bold text-slate-600 dark:text-slate-300">Nog geen boekjes beschikbaar</h4>
                                 </div>
                             ) : selectedItem ? (
-                                <div className="catalog-iframe-container bg-slate-100 dark:bg-slate-950 shadow-inner">
-                                    <iframe src={selectedItem.url} allowFullScreen loading="lazy" title={selectedItem.title}></iframe>
+                                <div className="catalog-iframe-container bg-slate-100 dark:bg-slate-950 shadow-inner animate-in">
+                                    <iframe key={selectedItem.id} src={selectedItem.url} allowFullScreen loading="lazy" title={selectedItem.title}></iframe>
                                 </div>
                             ) : null}
                         </div>
 
-                        {/* SECTIE 2: WEEKPROMOTIES (ONDER DE CATALOGEN) */}
-                        <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-glass dark:shadow-glass-dark flex flex-col gap-6 w-full">
-                            <h3 className="font-black text-xl text-orange-600 dark:text-orange-400 flex items-center gap-2"><Icons.Image/> Weekpromoties</h3>
-                            
+                        {/* SECTIE 2: WEEKPROMOTIES — klapt pas open na een keuze */}
+                        <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-glass dark:shadow-glass-dark flex flex-col gap-5 w-full">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                                <h3 className="font-black text-xl text-orange-600 dark:text-orange-400 flex items-center gap-2"><Icons.Image/> Weekpromoties</h3>
+                                {promotions.length > 0 && (
+                                    <div className="flex gap-2 w-full sm:w-auto">
+                                        <select
+                                            className={`${selectCls} flex-grow border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20 text-orange-900 dark:text-orange-200 focus:ring-orange-500/50`}
+                                            value={selectedPromo ? selectedPromo.id : ''}
+                                            onChange={(e) => setSelectedPromoId(e.target.value)}
+                                        >
+                                            <option value="">Kies een weekpromotie...</option>
+                                            {promotions.map((p, index) => (
+                                                <option key={p.id} value={p.id}>{p.title || `Weekpromotie ${index + 1}`}</option>
+                                            ))}
+                                        </select>
+                                        {selectedPromo && <button onClick={() => setSelectedPromoId('')} title="Dichtklappen" className="w-12 shrink-0 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white flex items-center justify-center"><Icons.ChevronUp/></button>}
+                                    </div>
+                                )}
+                            </div>
+
                             {promotions.length === 0 ? (
-                                <div className="text-center py-16 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700">
-                                    <Icons.Image className="text-4xl text-slate-300 mb-4 block mx-auto"/>
-                                    <h4 className="text-lg font-bold text-slate-600 dark:text-slate-300">Geen promoties</h4>
+                                <div className="text-center py-10 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700">
+                                    <Icons.Image className="text-3xl text-slate-300 mb-3 block mx-auto"/>
+                                    <h4 className="font-bold text-slate-600 dark:text-slate-300">Geen promoties</h4>
                                 </div>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {promotions.map((p, index) => {
-                                        const imagesList = p.images || (p.image ? [p.image] : []);
-                                        return (
-                                            <div key={p.id} className="flex flex-col gap-3 bg-slate-50/50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm">
-                                                <div className="text-center">
-                                                    <span className="text-sm font-extrabold text-orange-700 dark:text-orange-300 uppercase tracking-wider">
-                                                        {p.title || `Weekpromotie ${index + 1}`}
-                                                    </span>
-                                                </div>
-                                                
-                                                <div className="flex flex-col gap-2">
-                                                    {imagesList.map((imgUrl, imgIdx) => (
-                                                        <div key={imgIdx} className="relative group cursor-pointer rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm transition-all duration-300 hover:scale-[1.01]" onClick={() => setPreviewImage(imgUrl)}>
-                                                            <img src={imgUrl} className="w-full h-auto object-cover" loading="lazy" />
-                                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors flex items-center justify-center">
-                                                                <Icons.Search className="text-white opacity-0 group-hover:opacity-100 text-3xl drop-shadow-md transition-opacity duration-300"/>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
+                            ) : selectedPromo ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-in">
+                                    {(selectedPromo.images || (selectedPromo.image ? [selectedPromo.image] : [])).map((imgUrl, imgIdx) => (
+                                        <div key={imgIdx} className="relative group cursor-pointer rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm transition-all duration-300 hover:scale-[1.01]" onClick={() => setPreviewImage(imgUrl)}>
+                                            <img src={imgUrl} className="w-full h-auto object-cover" loading="lazy" />
+                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors flex items-center justify-center">
+                                                <Icons.Search className="text-white opacity-0 group-hover:opacity-100 text-3xl drop-shadow-md transition-opacity duration-300"/>
                                             </div>
-                                        );
-                                    })}
+                                        </div>
+                                    ))}
                                 </div>
-                            )}
+                            ) : null}
                         </div>
 
                     </div>
