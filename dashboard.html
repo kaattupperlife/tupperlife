@@ -3509,8 +3509,20 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             const curName = currentMonthName();
             const isCurrentYear = selectedYear === new Date().getFullYear();
             const byUser = {};
-            monthDocs.filter(d => d.yearId === selectedYear).forEach(d => {
-                if (!d.userId) return;
+            // Tel exact wat de gebruiker zelf ziet: enkel de 11 maanden uit de app,
+            // enkel uit users/{uid}/years/{jaar}/months, en elke maand maar één keer.
+            const seen = {};
+            monthDocs.filter(d => {
+                if (Number(d.yearId) !== selectedYear || !d.userId) return false;
+                const monthName = d._id || d.monthId;
+                if (!MONTHS.includes(monthName)) return false;
+                if (d._path && d._path !== `users/${d.userId}/years/${selectedYear}/months/${monthName}`) return false;
+                const k = d.userId + '|' + monthName;
+                if (seen[k]) return false;
+                seen[k] = true;
+                return true;
+            }).forEach(d => {
+                d = { ...d, monthId: d._id || d.monthId };
                 const u = byUser[d.userId] || (byUser[d.userId] = { uid: d.userId, name: d.userName || 'Onbekend', total: 0, current: 0, months: 0 });
                 const t = sumMonth(d);
                 u.total += t;
@@ -3622,7 +3634,9 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             useEffect(() => {
                 if (!user) return;
                 const u1 = window.db.collectionGroup('months').where('yearId', 'in', [selectedYear, selectedYear - 1]).onSnapshot(snap => {
-                    const arr = []; snap.forEach(d => arr.push(d.data())); setMonthDocs(arr);
+                    const arr = [];
+                    snap.forEach(d => arr.push({ ...d.data(), _id: d.id, _path: d.ref && d.ref.path ? d.ref.path : '' }));
+                    setMonthDocs(arr);
                 }, err => { console.error(err); window.showAlert("Gegevens van gebruikers laden mislukt: " + err.message); });
                 const u2 = window.db.collection('settings').doc(`global_ps_${selectedYear}`).onSnapshot(doc => setGlobalPsData(doc.exists ? doc.data() : {}), err => console.error(err));
                 return () => { u1(); u2(); };
