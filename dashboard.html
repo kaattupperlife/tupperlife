@@ -1655,6 +1655,8 @@ const CatalogsTab = ({ isAdmin, section = 'view', showPromotions = true }) => {
             const [sortBy, setSortBy] = useState('name');
             const [currentPage, setCurrentPage] = useState(1);
             const [itemsPerPage, setItemsPerPage] = useState(10); 
+            const [actionsSlot, setActionsSlot] = useState(null);
+            useEffect(() => { setActionsSlot(document.getElementById('page-actions')); }, []);
 
             useEffect(() => {
                 if(!targetUid) return;
@@ -1968,8 +1970,9 @@ const CatalogsTab = ({ isAdmin, section = 'view', showPromotions = true }) => {
 
             return (
                 <div className="space-y-6">
-                    {/* TOP CONTROLS */}
-                    <div className="flex flex-wrap gap-3 justify-end items-center mb-4">
+                    {/* KNOPPEN: staan rechts in de titelrij (of hier als die er niet is) */}
+                    {(() => { const controls = (
+                    <div className="flex flex-wrap gap-2 sm:gap-3 justify-end items-center">
                         {showCsvImport && <button onClick={() => setShowImportModal(true)} className="px-4 py-2 rounded-xl text-white font-bold transition-colors shadow-md flex items-center gap-2 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 hover:-translate-y-0.5">
                             <Icons.Upload/> CSV Import
                         </button>}
@@ -1978,7 +1981,8 @@ const CatalogsTab = ({ isAdmin, section = 'view', showPromotions = true }) => {
                         <button onClick={() => setIsLocked(!isLocked)} className={`px-5 py-2 rounded-xl font-bold transition-all shadow-md flex items-center gap-2 hover:-translate-y-0.5 ${isLocked ? 'bg-gradient-to-r from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-500' : 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-emerald-500/30'}`}>
                             {isLocked ? <Icons.Lock /> : <Icons.Unlock />} {isLocked ? 'Vergrendeld' : 'Aanpassen Mogelijk'}
                         </button>
-                    </div>
+                    </div>);
+                    return actionsSlot ? ReactDOM.createPortal(controls, actionsSlot) : <div className="mb-4">{controls}</div>; })()}
 
                     {/* CONFIG MANAGERS */}
                     {(showCatManager || showLocManager) && (
@@ -3435,7 +3439,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
 
                     {/* ===== INHOUD ===== */}
                     <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-5 sm:pt-8 pb-28 lg:pb-12">
-                        <div className="flex items-end justify-between gap-3 mb-5 sm:mb-7">
+                        <div className="flex flex-wrap items-center justify-between gap-3 mb-5 sm:mb-7">
                             <div className="min-w-0">
                                 <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
                                     {currentTab.label}
@@ -3443,6 +3447,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                                 </h2>
                                 <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{currentTab.subtitle}</p>
                             </div>
+                            <div id="page-actions" className="flex flex-wrap items-center justify-end gap-2 sm:gap-3 ml-auto empty:hidden"></div>
                             {currentTab.id === 'admin' && <div className="shrink-0">{yearSelect}</div>}
                             {currentTab.id === 'catalogs' && isAdmin && (
                                 <button onClick={() => { window.location.href = 'beheer.html#catalogs'; }} className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm"><i className="fa-solid fa-screwdriver-wrench text-amber-500"></i> Beheren</button>
@@ -3752,11 +3757,12 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                     </header>
 
                     <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-5 sm:pt-8 pb-28 lg:pb-12">
-                        <div className="flex items-end justify-between gap-3 mb-5 sm:mb-7">
+                        <div className="flex flex-wrap items-center justify-between gap-3 mb-5 sm:mb-7">
                             <div className="min-w-0">
                                 <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">{current.label}</h2>
                                 <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{current.subtitle}</p>
                             </div>
+                            <div id="page-actions" className="flex flex-wrap items-center justify-end gap-2 sm:gap-3 ml-auto empty:hidden"></div>
                             {showYear && (
                                 <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} className="shrink-0 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 font-semibold pl-3 pr-8 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-emerald-500/30 shadow-sm text-sm">
                                     {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
