@@ -3113,6 +3113,18 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                 return () => { unsubData(); unsubPerms(); unsubGoals(); unsubGlobalPs(); };
             }, [targetUid, selectedYear]);
 
+            // Admin: lijst van gebruikers om snel te wisselen (wie dit of vorig jaar gegevens heeft)
+            const [adminUsers, setAdminUsers] = useState([]);
+            useEffect(() => {
+                if (!isAdmin || !window.db) return;
+                const unsub = window.db.collectionGroup('months').where('yearId', 'in', [selectedYear, selectedYear - 1]).onSnapshot(snap => {
+                    const map = {};
+                    snap.forEach(doc => { const d = doc.data(); if (d.userId && !map[d.userId]) map[d.userId] = { uid: d.userId, name: d.userName || 'Onbekend', email: d.userEmail, photo: d.userPhoto }; });
+                    setAdminUsers(Object.values(map).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'nl')));
+                }, err => console.error('Gebruikerslijst laden mislukt:', err));
+                return () => unsub();
+            }, [isAdmin, selectedYear]);
+
             const availableWeeks = React.useMemo(() => buildAvailableWeeks(selectedYear, monthlyData), [selectedYear, monthlyData]);
 
             const updateMonthData = async (month, field, value) => {
@@ -3144,6 +3156,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
 
             if (loading) return <div className="h-screen flex flex-col items-center justify-center text-emerald-600"><Icons.Loader className="text-4xl mb-4"/><div className="font-semibold">Tupper Life wordt geladen...</div></div>;
 
+            const showSwitcher = isAdmin && adminUsers.some(u => u.uid !== user.uid);
             const yearOptions = [0, 1, 2, 3, 4].map(i => new Date().getFullYear() - 2 + i);
             const yearTotal = MONTHS.reduce((acc, m) => acc + sumMonth(monthlyData[m]), 0);
 
@@ -3162,7 +3175,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-4">
                             <button onClick={() => setActiveTab('overview')} className="flex items-center gap-3 shrink-0 select-none">
                                 <img src="apple-touch-icon.png" alt="" className="w-9 h-9 rounded-xl shadow-sm bg-white object-cover"/>
-                                <div className="text-left leading-tight">
+                                <div className={`text-left leading-tight ${showSwitcher ? 'hidden sm:block' : ''}`}>
                                     <div className="font-extrabold text-[17px] text-slate-900 dark:text-white tracking-tight">Tupper Life</div>
                                     <div className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 -mt-0.5">by Kaat</div>
                                 </div>
@@ -3177,7 +3190,22 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                                 ))}
                             </nav>
 
-                            <div className="relative ml-auto">
+                            {showSwitcher && (
+                                <div className="ml-auto relative">
+                                    <i className={`fa-solid ${viewingUser ? 'fa-user-shield text-amber-600' : 'fa-users text-slate-400'} absolute left-3 top-1/2 -translate-y-1/2 text-xs pointer-events-none`}></i>
+                                    <select
+                                        value={viewingUser ? viewingUser.uid : ''}
+                                        onChange={e => { const u = adminUsers.find(x => x.uid === e.target.value); setViewingUser(u || null); }}
+                                        title="Wissel van gebruiker"
+                                        className={`max-w-[13.5rem] sm:max-w-[16rem] pl-8 pr-7 py-2 rounded-xl border text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500/30 cursor-pointer truncate ${viewingUser ? 'bg-amber-50 border-amber-300 text-amber-900 dark:bg-amber-900/30 dark:border-amber-700 dark:text-amber-200' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200'}`}
+                                    >
+                                        <option value="">Mijn account</option>
+                                        {adminUsers.filter(u => u.uid !== user.uid).map(u => <option key={u.uid} value={u.uid}>{u.name}</option>)}
+                                    </select>
+                                </div>
+                            )}
+
+                            <div className={`relative ${showSwitcher ? '' : 'ml-auto'}`}>
                                 <button onClick={() => setShowProfileMenu(!showProfileMenu)} className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 hover:ring-4 hover:ring-emerald-500/15 transition-all" aria-label="Profielmenu">
                                     {user.photoURL ? <img src={user.photoURL} className="w-full h-full object-cover" referrerPolicy="no-referrer"/> : <Icons.User/>}
                                 </button>
