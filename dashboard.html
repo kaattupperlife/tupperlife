@@ -2616,6 +2616,8 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
 
             const [showForm, setShowForm] = useState(false);
             useEffect(() => { if (openFormSignal) { setShowForm(true); setEditingId(null); setInput(emptyInput); } }, [openFormSignal]);
+            const [actionsSlot, setActionsSlot] = useState(null);
+            useEffect(() => { setActionsSlot(document.getElementById('page-actions')); }, []);
             const resetForm = () => { setInput(emptyInput); setEditingId(null); setShowForm(false); };
 
             const handleSave = async () => {
@@ -2727,11 +2729,15 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             return (
                 <div className="space-y-6">
                     {/* KNOP + FORMULIER */}
-                    {!showForm && !editingId && !hideAddButton && (
-                        <button onClick={() => setShowForm(true)} className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-extrabold shadow-lg shadow-emerald-500/30 hover:-translate-y-0.5 transition-all">
-                            <Icons.Plus/> Nieuwe wens toevoegen
-                        </button>
-                    )}
+                    {!showForm && !editingId && !hideAddButton && (() => {
+                        const addBtn = (
+                            <button onClick={() => setShowForm(true)} className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-extrabold shadow-lg shadow-emerald-500/30 hover:-translate-y-0.5 transition-all whitespace-nowrap">
+                                <Icons.Plus/> Nieuwe wens toevoegen
+                            </button>
+                        );
+                        // Rechts in de titelrij als die er is, anders hier
+                        return actionsSlot ? ReactDOM.createPortal(addBtn, actionsSlot) : addBtn;
+                    })()}
                     {(showForm || editingId) && <div className={`p-6 rounded-3xl animate-in shadow-glass dark:shadow-glass-dark border transition-all duration-300 ${editingId ? 'bg-amber-50/80 dark:bg-amber-900/20 backdrop-blur-md border-amber-200 dark:border-amber-700' : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800'}`}>
                         <h3 className={`font-bold text-lg mb-4 flex items-center gap-2 ${editingId ? 'text-amber-800 dark:text-amber-400' : 'text-emerald-800 dark:text-emerald-400'}`}>
                             {editingId ? <Icons.Edit className="text-amber-500"/> : <Icons.Plus className="text-emerald-500"/>} {editingId ? 'Wens Wijzigen' : 'Nieuwe Wens Toevoegen'}
