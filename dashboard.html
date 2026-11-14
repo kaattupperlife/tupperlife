@@ -3006,7 +3006,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             { id: 'stock',     label: 'Voorraad',  short: 'Voorraad',  icon: 'fa-box',            perm: 'showStock',     subtitle: 'Je eigen producten, op zolder of in gebruik' },
             { id: 'recipes',   label: 'Recepten',  short: 'Recepten',  icon: 'fa-utensils',       perm: 'showRecipes',   subtitle: 'Je receptenverzameling' },
             { id: 'customers', label: 'Klanten',   short: 'Klanten',   icon: 'fa-address-book',   perm: 'showCustomers', subtitle: 'Je klantenlijst met contactgegevens' },
-            { id: 'admin',     label: 'Beheer',    short: 'Beheer',    icon: 'fa-screwdriver-wrench', perm: 'admin',     subtitle: 'Alles beheren op één plek: gebruikers, doelen, globale PS en catalogen' },
+            { id: 'admin',     label: 'Beheer',    short: 'Beheer',    icon: 'fa-screwdriver-wrench', perm: 'admin',     subtitle: 'Alles beheren op één plek: gebruikers, doelen, wensen, voorraad, globale PS en catalogen' },
         ];
 
         const PROFIT_RATE = 0.29184;
@@ -3056,15 +3056,15 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
         const ADMIN_SECTIONS = [
             { id: 'users',    label: 'Gebruikers',  icon: 'fa-users',            desc: 'Accounts bekijken en rechten instellen' },
             { id: 'goals',    label: 'Doelen',      icon: 'fa-bullseye',         desc: 'Doelen van elke gebruiker beheren' },
-            { id: 'ps',       label: 'Globale PS',  icon: 'fa-gift',             desc: 'Beloningen voor iedereen, per maand' },
+            { id: 'requests', label: 'Wensen',      icon: 'fa-gift',            desc: 'Wensen van elke gebruiker beheren' },
+            { id: 'stock',    label: 'Voorraad',    icon: 'fa-box',              desc: 'Voorraad van elke gebruiker beheren' },
+            { id: 'ps',       label: 'Globale PS',  icon: 'fa-award',             desc: 'Beloningen voor iedereen, per maand' },
             { id: 'catalogs', label: 'Catalogen',   icon: 'fa-book-open-reader', desc: 'Catalogen, leaflets en weekpromoties' },
         ];
 
-        const AdminGoalsSection = ({ users, selectedYear, formatCurrency }) => {
-            const [uid, setUid] = useState(users[0] ? users[0].uid : '');
+        const AdminGoalsSection = ({ uid, name, selectedYear, formatCurrency }) => {
             const [goals, setGoals] = useState([]);
             const [mData, setMData] = useState({});
-            useEffect(() => { if (!uid && users[0]) setUid(users[0].uid); }, [users.length]);
             useEffect(() => {
                 if (!uid) return;
                 const base = window.db.collection('users').doc(uid);
@@ -3077,43 +3077,49 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                 try { await window.db.collection('users').doc(uid).collection('settings').doc('custom_goals').set({ list }, { merge: true }); }
                 catch (e) { window.showAlert("Opslaan mislukt: " + e.message); }
             };
-            const current = users.find(u => u.uid === uid);
+            return <CustomGoalsModal inline isOpen={true} onClose={() => {}} title={`Doelen van ${name}`} customGoals={goals} updateCustomGoals={save} formatCurrency={formatCurrency} availableWeeks={weeks} />;
+        };
+
+        const AdminPage = ({ section, setSection, selectedYear, globalPsData, updateGlobalPsData, onSelectUser, isAdmin, users, formatCurrency }) => {
+            const [uid, setUid] = useState(users[0] ? users[0].uid : '');
+            useEffect(() => { if (!users.some(u => u.uid === uid) && users[0]) setUid(users[0].uid); }, [users.map(u => u.uid).join(',')]);
+            const picked = users.find(u => u.uid === uid);
+            const perUser = ['goals', 'requests', 'stock'].includes(section);
             return (
-                <div className="space-y-4">
-                    <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-glass flex flex-col sm:flex-row sm:items-center gap-3">
-                        <label className="text-sm font-bold text-slate-600 dark:text-slate-300 shrink-0"><i className="fa-solid fa-user mr-2 text-indigo-500"></i>Doelen van</label>
-                        <select value={uid} onChange={e => setUid(e.target.value)} className="flex-grow p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white font-semibold outline-none focus:ring-2 focus:ring-indigo-500/30">
-                            {users.map(u => <option key={u.uid} value={u.uid}>{u.name}</option>)}
-                        </select>
+                <div className="space-y-5">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
+                        {ADMIN_SECTIONS.map(sct => {
+                            const active = section === sct.id;
+                            return (
+                                <button key={sct.id} onClick={() => setSection(sct.id)} className={`flex items-center gap-3 p-3 sm:p-4 rounded-2xl border text-left transition-all ${active ? 'bg-gradient-to-br from-emerald-500 to-teal-500 border-transparent text-white shadow-md' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'}`}>
+                                    <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${active ? 'bg-white/20' : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'}`}><i className={`fa-solid ${sct.icon}`}></i></span>
+                                    <span className="min-w-0">
+                                        <span className={`block font-bold text-sm ${active ? '' : 'text-slate-800 dark:text-slate-100'}`}>{sct.label}</span>
+                                        <span className={`hidden sm:block text-xs mt-0.5 ${active ? 'text-white/80' : 'text-slate-400'}`}>{sct.desc}</span>
+                                    </span>
+                                </button>
+                            );
+                        })}
                     </div>
-                    {uid && <CustomGoalsModal key={uid} inline isOpen={true} onClose={() => {}} title={`Doelen van ${current ? current.name : ''}`} customGoals={goals} updateCustomGoals={save} formatCurrency={formatCurrency} availableWeeks={weeks} />}
+
+                    {perUser && (
+                        <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-glass flex flex-col sm:flex-row sm:items-center gap-3">
+                            <label className="text-sm font-bold text-slate-600 dark:text-slate-300 shrink-0"><i className="fa-solid fa-user mr-2 text-emerald-500"></i>Gebruiker</label>
+                            <select value={uid} onChange={e => setUid(e.target.value)} className="flex-grow p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white font-semibold outline-none focus:ring-2 focus:ring-emerald-500/30">
+                                {users.map(u => <option key={u.uid} value={u.uid}>{u.name}</option>)}
+                            </select>
+                        </div>
+                    )}
+
+                    {section === 'users' && <AdminUserModal inline isOpen={true} onClose={() => {}} selectedYear={selectedYear} onSelectUser={onSelectUser} />}
+                    {section === 'goals' && uid && <AdminGoalsSection key={uid} uid={uid} name={picked ? picked.name : ''} selectedYear={selectedYear} formatCurrency={formatCurrency} />}
+                    {section === 'requests' && uid && <RequestsTab key={uid} targetUid={uid} />}
+                    {section === 'stock' && uid && <StockTab key={uid} targetUid={uid} user={null} />}
+                    {section === 'ps' && <GlobalPsAdminModal inline isOpen={true} onClose={() => {}} selectedYear={selectedYear} globalPsData={globalPsData} updateGlobalPsData={updateGlobalPsData} />}
+                    {section === 'catalogs' && <CatalogsTab isAdmin={isAdmin} section="admin" />}
                 </div>
             );
         };
-
-        const AdminPage = ({ section, setSection, selectedYear, globalPsData, updateGlobalPsData, onSelectUser, isAdmin, users, formatCurrency }) => (
-            <div className="space-y-5">
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
-                    {ADMIN_SECTIONS.map(sct => {
-                        const active = section === sct.id;
-                        return (
-                            <button key={sct.id} onClick={() => setSection(sct.id)} className={`flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-3 p-3 sm:p-4 rounded-2xl border text-center sm:text-left transition-all ${active ? 'bg-gradient-to-br from-emerald-500 to-teal-500 border-transparent text-white shadow-md' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'}`}>
-                                <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${active ? 'bg-white/20' : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'}`}><i className={`fa-solid ${sct.icon}`}></i></span>
-                                <span className="min-w-0">
-                                    <span className={`block font-bold text-sm ${active ? '' : 'text-slate-800 dark:text-slate-100'}`}>{sct.label}</span>
-                                    <span className={`hidden sm:block text-xs mt-0.5 ${active ? 'text-white/80' : 'text-slate-400'}`}>{sct.desc}</span>
-                                </span>
-                            </button>
-                        );
-                    })}
-                </div>
-
-                {section === 'users' && <AdminUserModal inline isOpen={true} onClose={() => {}} selectedYear={selectedYear} onSelectUser={onSelectUser} />}
-                {section === 'goals' && <AdminGoalsSection users={users} selectedYear={selectedYear} formatCurrency={formatCurrency} />}
-                {section === 'ps' && <GlobalPsAdminModal inline isOpen={true} onClose={() => {}} selectedYear={selectedYear} globalPsData={globalPsData} updateGlobalPsData={updateGlobalPsData} />}
-                {section === 'catalogs' && <CatalogsTab isAdmin={isAdmin} section="admin" />}
-            </div>
-        );
 
         function DashboardPage() {
             const [user, setUser] = useState(null);
