@@ -3012,6 +3012,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
         };
 
         const OverviewStats = ({ monthlyData, selectedYear, formatCurrency }) => {
+            const [open, setOpen] = useState(false);
             const totals = MONTHS.map(m => ({ month: m, total: sumMonth(monthlyData[m]) }));
             const yearTotal = totals.reduce((a, b) => a + b.total, 0);
             const best = totals.reduce((a, b) => (b.total > a.total ? b : a), { month: null, total: 0 });
@@ -3031,7 +3032,14 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             ];
 
             return (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <div>
+                    <button onClick={() => setOpen(!open)} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm transition-colors">
+                        <i className="fa-solid fa-chart-simple text-emerald-500"></i>
+                        {open ? 'Kerncijfers verbergen' : 'Kerncijfers tonen'}
+                        <Icons.ChevronDown className={`text-xs transition-transform ${open ? 'rotate-180' : ''}`}/>
+                    </button>
+                    {open && (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-3 animate-in">
                     {cards.map(c => (
                         <div key={c.label} className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-glass dark:shadow-glass-dark">
                             <div className="flex items-start justify-between gap-2">
@@ -3042,6 +3050,8 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                             {c.sub && <div className="text-[11px] sm:text-xs text-slate-400 mt-0.5 truncate">{c.sub}</div>}
                         </div>
                     ))}
+                </div>
+                    )}
                 </div>
             );
         };
