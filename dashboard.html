@@ -1173,8 +1173,10 @@ const CatalogsTab = ({ isAdmin, section = 'view', showPromotions = true }) => {
             );
         };
 
-        const CustomGoalsModal = ({ isOpen, onClose, customGoals, updateCustomGoals, formatCurrency, availableWeeks, inline = false, title = 'Mijn doelen beheren' }) => {
+        const CustomGoalsModal = ({ isOpen, onClose, customGoals, updateCustomGoals, formatCurrency, availableWeeks, inline = false, title = 'Mijn doelen beheren', openFormSignal = 0, hideAddButton = false }) => {
             const [tab, setTab] = useState('active'); 
+            const [showForm, setShowForm] = useState(false);
+            useEffect(() => { if (openFormSignal) { setShowForm(true); setEditingId(null); } }, [openFormSignal]);
             const [editingId, setEditingId] = useState(null);
             const [input, setInput] = useState({ name: '', amount: '', startWeekId: '', endWeekId: '', startDate: '', endDate: '', type: 'sales', colSpan: 1 });
 
@@ -1230,6 +1232,7 @@ const CatalogsTab = ({ isAdmin, section = 'view', showPromotions = true }) => {
                 }
                 setInput({ name: '', amount: '', startWeekId: '', endWeekId: '', startDate: '', endDate: '', type: 'sales', colSpan: 1 });
                 setTab('active');
+                setShowForm(false);
             };
 
             const handleEdit = (goal) => {
@@ -1246,6 +1249,7 @@ const CatalogsTab = ({ isAdmin, section = 'view', showPromotions = true }) => {
 
             const cancelEdit = () => {
                 setEditingId(null);
+                setShowForm(false);
                 setInput({ name: '', amount: '', startWeekId: '', endWeekId: '', startDate: '', endDate: '', type: 'sales', colSpan: 1 });
             };
 
@@ -1273,15 +1277,16 @@ const CatalogsTab = ({ isAdmin, section = 'view', showPromotions = true }) => {
                         </div>
 
                         <div className={`p-5 space-y-6 ${inline ? '' : 'overflow-y-auto custom-scroll'}`}>
-                            <div className="bg-indigo-50/50 dark:bg-indigo-900/20 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-800/50">
+                            {!showForm && !editingId && !hideAddButton && (
+                                <button onClick={() => setShowForm(true)} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 text-white font-bold shadow-lg shadow-indigo-500/30 hover:-translate-y-0.5 transition-all"><Icons.Plus/> Nieuw doel maken</button>
+                            )}
+                            {(showForm || editingId) && <div className="bg-indigo-50/50 dark:bg-indigo-900/20 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-800/50 animate-in">
                                 <div className="flex justify-between items-center mb-4">
                                     <h4 className="font-bold text-indigo-800 dark:text-indigo-300 text-sm flex items-center gap-2">
                                         {editingId ? <Icons.Edit className="w-3"/> : <Icons.Plus className="w-3"/>} 
                                         {editingId ? 'Doel Wijzigen' : 'Nieuw Doel Instellen'}
                                     </h4>
-                                    {editingId && (
-                                        <button onClick={cancelEdit} className="text-xs font-bold text-indigo-500 hover:text-indigo-700">Annuleren</button>
-                                    )}
+                                    <button onClick={cancelEdit} className="text-xs font-bold text-indigo-500 hover:text-indigo-700">Annuleren</button>
                                 </div>
 
                                 <div className="flex gap-2 mb-4 p-1 bg-slate-100 dark:bg-slate-800/50 rounded-xl">
@@ -1374,7 +1379,7 @@ const CatalogsTab = ({ isAdmin, section = 'view', showPromotions = true }) => {
                                 <button onClick={handleSave} className="w-full py-3.5 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/30 transition-all hover:-translate-y-0.5">
                                     {editingId ? 'Wijzigingen Opslaan' : 'Doel Toevoegen'}
                                 </button>
-                            </div>
+                            </div>}
 
                             <div>
                                 <div className="flex border-b border-slate-200 dark:border-slate-800 mb-4">
@@ -2557,7 +2562,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             )
         };
 
-        const RequestsTab = ({ targetUid }) => {
+        const RequestsTab = ({ targetUid, openFormSignal = 0, hideAddButton = false }) => {
             const emptyInput = { customer: '', product: '', note: '', image: '', email: '', phone: '' };
             const [list, setList] = useState([]);
             const [loading, setLoading] = useState(true);
@@ -2606,6 +2611,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             }, [targetUid]);
 
             const [showForm, setShowForm] = useState(false);
+            useEffect(() => { if (openFormSignal) { setShowForm(true); setEditingId(null); setInput(emptyInput); } }, [openFormSignal]);
             const resetForm = () => { setInput(emptyInput); setEditingId(null); setShowForm(false); };
 
             const handleSave = async () => {
@@ -2717,7 +2723,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             return (
                 <div className="space-y-6">
                     {/* KNOP + FORMULIER */}
-                    {!showForm && !editingId && (
+                    {!showForm && !editingId && !hideAddButton && (
                         <button onClick={() => setShowForm(true)} className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-extrabold shadow-lg shadow-emerald-500/30 hover:-translate-y-0.5 transition-all">
                             <Icons.Plus/> Nieuwe wens toevoegen
                         </button>
@@ -3150,7 +3156,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             );
         };
 
-        const AdminGoalsSection = ({ uid, name, selectedYear, formatCurrency }) => {
+        const AdminGoalsSection = ({ uid, name, selectedYear, formatCurrency, openFormSignal = 0 }) => {
             const [goals, setGoals] = useState([]);
             const [mData, setMData] = useState({});
             useEffect(() => {
@@ -3165,7 +3171,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                 try { await window.db.collection('users').doc(uid).collection('settings').doc('custom_goals').set({ list }, { merge: true }); }
                 catch (e) { window.showAlert("Opslaan mislukt: " + e.message); }
             };
-            return <CustomGoalsModal inline isOpen={true} onClose={() => {}} title={`Doelen van ${name}`} customGoals={goals} updateCustomGoals={save} formatCurrency={formatCurrency} availableWeeks={weeks} />;
+            return <CustomGoalsModal inline hideAddButton openFormSignal={openFormSignal} isOpen={true} onClose={() => {}} title={`Doelen van ${name}`} customGoals={goals} updateCustomGoals={save} formatCurrency={formatCurrency} availableWeeks={weeks} />;
         };
 
         const AdminPage = ({ section, setSection, selectedYear, globalPsData, updateGlobalPsData, onSelectUser, isAdmin, users, formatCurrency, hideNav = false }) => {
@@ -3173,6 +3179,9 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             useEffect(() => { if (!users.some(u => u.uid === uid) && users[0]) setUid(users[0].uid); }, [users.map(u => u.uid).join(',')]);
             const picked = users.find(u => u.uid === uid);
             const perUser = ['sales', 'goals', 'requests', 'stock'].includes(section);
+            const [formSignal, setFormSignal] = useState(0);
+            useEffect(() => { setFormSignal(0); }, [section, uid]);
+            const addLabel = section === 'requests' ? 'Nieuwe wens toevoegen' : section === 'goals' ? 'Nieuw doel maken' : null;
             return (
                 <div className="space-y-5">
                     {!hideNav && <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
@@ -3193,16 +3202,19 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                     {perUser && (
                         <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-glass flex flex-col sm:flex-row sm:items-center gap-3">
                             <label className="text-sm font-bold text-slate-600 dark:text-slate-300 shrink-0"><i className="fa-solid fa-user mr-2 text-emerald-500"></i>Gebruiker</label>
-                            <select value={uid} onChange={e => setUid(e.target.value)} className="flex-grow p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white font-semibold outline-none focus:ring-2 focus:ring-emerald-500/30">
+                            <select value={uid} onChange={e => setUid(e.target.value)} className="flex-grow min-w-0 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-white font-semibold outline-none focus:ring-2 focus:ring-emerald-500/30">
                                 {users.map(u => <option key={u.uid} value={u.uid}>{u.name}</option>)}
                             </select>
+                            {addLabel && (
+                                <button onClick={() => setFormSignal(n => n + 1)} className={`shrink-0 flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-white font-bold shadow-md hover:-translate-y-0.5 transition-all whitespace-nowrap ${section === 'goals' ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 shadow-indigo-500/30' : 'bg-gradient-to-r from-emerald-500 to-teal-500 shadow-emerald-500/30'}`}><Icons.Plus/> {addLabel}</button>
+                            )}
                         </div>
                     )}
 
                     {section === 'users' && <AdminUserModal inline isOpen={true} onClose={() => {}} selectedYear={selectedYear} onSelectUser={onSelectUser} />}
                     {section === 'sales' && uid && <AdminSalesSection key={uid} uid={uid} realName={picked ? (picked.realName || picked.name) : ''} selectedYear={selectedYear} globalPsData={globalPsData} formatCurrency={formatCurrency} />}
-                    {section === 'goals' && uid && <AdminGoalsSection key={uid} uid={uid} name={picked ? picked.name : ''} selectedYear={selectedYear} formatCurrency={formatCurrency} />}
-                    {section === 'requests' && uid && <RequestsTab key={uid} targetUid={uid} />}
+                    {section === 'goals' && uid && <AdminGoalsSection key={uid} openFormSignal={formSignal} uid={uid} name={picked ? picked.name : ''} selectedYear={selectedYear} formatCurrency={formatCurrency} />}
+                    {section === 'requests' && uid && <RequestsTab key={uid} targetUid={uid} hideAddButton openFormSignal={formSignal} />}
                     {section === 'stock' && uid && <StockTab key={uid} targetUid={uid} user={null} />}
                     {section === 'ps' && <GlobalPsAdminModal inline isOpen={true} onClose={() => {}} selectedYear={selectedYear} globalPsData={globalPsData} updateGlobalPsData={updateGlobalPsData} />}
                     {section === 'catalogs' && <CatalogsTab isAdmin={isAdmin} section="admin" />}
