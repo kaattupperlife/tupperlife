@@ -379,6 +379,15 @@ const CatalogsTab = ({ isAdmin }) => {
             const [selectedItem, setSelectedItem] = useState(null);
             
             const [isAdding, setIsAdding] = useState(false);
+            const [adminPanel, setAdminPanel] = useState(null); // 'Catalogus' | 'Leaflet' | 'Ander' | 'promo'
+            const ADMIN_PANELS = [
+                { id: 'Catalogus', label: 'Catalogen',     icon: 'fa-book-open',  iconCls: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400', activeCls: 'bg-gradient-to-br from-emerald-500 to-teal-500 border-transparent' },
+                { id: 'Leaflet',   label: 'Leaflets',      icon: 'fa-newspaper',  iconCls: 'bg-sky-50 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400',             activeCls: 'bg-gradient-to-br from-sky-500 to-blue-500 border-transparent' },
+                { id: 'Ander',     label: 'Andere',        icon: 'fa-folder-open', iconCls: 'bg-violet-50 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400', activeCls: 'bg-gradient-to-br from-violet-500 to-purple-500 border-transparent' },
+                { id: 'promo',     label: 'Weekpromoties', icon: 'fa-images',     iconCls: 'bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400', activeCls: 'bg-gradient-to-br from-orange-500 to-rose-500 border-transparent' },
+            ];
+            const openPanel = (id) => { setAdminPanel(prev => prev === id ? null : id); setIsAdding(false); setEditingCatalogId(null); };
+            const currentCatPanel = ADMIN_PANELS.find(pnl => pnl.id === adminPanel && pnl.id !== 'promo');
             const [input, setInput] = useState({ title: '', type: 'Catalogus', url: '' });
             
             const [uploading, setUploading] = useState(false);
@@ -545,11 +554,10 @@ const CatalogsTab = ({ isAdmin }) => {
 
             const renderCatalogCategory = (categoryType, categoryTitle) => {
                 const categoryItems = catalogs.filter(c => c.type === categoryType);
-                if (categoryItems.length === 0) return null;
+                if (categoryItems.length === 0) return <p className="text-sm text-slate-400 text-center py-4">Nog geen {categoryTitle.toLowerCase()}. Tik op "+ Toevoegen".</p>;
 
                 return (
-                    <div className="mt-4 mb-6">
-                        <h4 className="text-xs font-bold text-slate-500 mb-2 uppercase tracking-widest">{categoryTitle}</h4>
+                    <div>
                         <div className="flex flex-col gap-2">
                             {categoryItems.map((c, index) => (
                                 <div key={c.id} className="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 transition-all">
@@ -591,59 +599,70 @@ const CatalogsTab = ({ isAdmin }) => {
 
             return (
                 <div className="space-y-6">
-                    {/* ADMIN BEHEER PANEEL */}
+                    {/* ADMIN BEHEER: knoppen, met het beheer achter elke knop */}
                     {isAdmin && (
-                        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-glass dark:shadow-glass-dark">
-                            
-                            {/* --- DEEL 1: CATALOGEN & LEAFLETS --- */}
-                            <div className="flex justify-between items-center gap-3 mb-4">
-                                <h3 className="font-bold text-lg text-slate-800 dark:text-slate-200 flex items-center gap-2"><Icons.Settings className="text-emerald-500"/> Beheer catalogen</h3>
-                                <button onClick={() => setIsAdding(!isAdding)} className="shrink-0 whitespace-nowrap px-4 py-2 rounded-xl text-white font-bold transition-colors shadow-md bg-gradient-to-r from-emerald-500 to-teal-500 hover:-translate-y-0.5">
-                                    {isAdding ? 'Annuleren' : '+ Toevoegen'}
-                                </button>
+                        <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-glass dark:shadow-glass-dark">
+                            <h3 className="font-bold text-base text-slate-800 dark:text-slate-200 flex items-center gap-2 mb-3"><Icons.Settings className="text-emerald-500"/> Beheer (admin)</h3>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                                {ADMIN_PANELS.map(pnl => {
+                                    const active = adminPanel === pnl.id;
+                                    const count = pnl.id === 'promo' ? promotions.length : catalogs.filter(c => c.type === pnl.id).length;
+                                    return (
+                                        <button key={pnl.id} onClick={() => openPanel(pnl.id)} className={`flex items-center gap-3 p-3 sm:p-4 rounded-2xl border text-left transition-all ${active ? `${pnl.activeCls} shadow-md` : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'}`}>
+                                            <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${active ? 'bg-white/25 text-white' : pnl.iconCls}`}><i className={`fa-solid ${pnl.icon}`}></i></span>
+                                            <span className="min-w-0">
+                                                <span className={`block font-bold text-sm leading-tight ${active ? 'text-white' : 'text-slate-800 dark:text-slate-100'}`}>{pnl.label}</span>
+                                                <span className={`block text-xs mt-0.5 ${active ? 'text-white/80' : 'text-slate-400'}`}>{count} {count === 1 ? 'item' : 'items'}</span>
+                                            </span>
+                                            <i className={`hidden sm:inline fa-solid fa-chevron-down ml-auto text-xs transition-transform ${active ? 'rotate-180 text-white' : 'text-slate-400'}`}></i>
+                                        </button>
+                                    );
+                                })}
                             </div>
 
-                            {isAdding && (
-                                <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 animate-in space-y-4 mb-6">
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                        <div>
-                                            <label className="text-[11px] font-bold text-slate-500 uppercase block mb-1">Type</label>
-                                            <select value={input.type} onChange={e=>setInput({...input, type:e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/30">
-                                                <option value="Catalogus">Catalogus</option>
-                                                <option value="Leaflet">Leaflet</option>
-                                                <option value="Ander">Ander</option>
-                                            </select>
-                                        </div>
-                                        <div className="sm:col-span-2">
-                                            <label className="text-[11px] font-bold text-slate-500 uppercase block mb-1">Titel (bijv. Voorjaar 2024)</label>
-                                            <input value={input.title} onChange={e=>setInput({...input, title:e.target.value})} placeholder="Titel..." className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/30"/>
-                                        </div>
-                                        <div className="sm:col-span-3">
-                                            <label className="text-[11px] font-bold text-slate-500 uppercase block mb-1">Embed Link (URL)</label>
-                                            <input value={input.url} onChange={e=>setInput({...input, url:e.target.value})} placeholder="https://heyzine.com/flip-book/..." className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/30"/>
-                                        </div>
+                            {/* --- CATALOGEN / LEAFLETS / ANDERE --- */}
+                            {currentCatPanel && (
+                                <div className="mt-5 pt-5 border-t border-slate-100 dark:border-slate-800 animate-in">
+                                    <div className="flex justify-between items-center gap-3 mb-4">
+                                        <h4 className="font-bold text-lg text-slate-800 dark:text-slate-200">{currentCatPanel.label}</h4>
+                                        <button onClick={() => { setIsAdding(!isAdding); setInput({ title: '', type: currentCatPanel.id, url: '' }); }} className="shrink-0 whitespace-nowrap px-4 py-2 rounded-xl text-white font-bold transition-colors shadow-md bg-gradient-to-r from-emerald-500 to-teal-500 hover:-translate-y-0.5">
+                                            {isAdding ? 'Annuleren' : '+ Toevoegen'}
+                                        </button>
                                     </div>
-                                    <button onClick={handleSaveCatalog} className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-md transition-all">Opslaan</button>
+
+                                    {isAdding && (
+                                        <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 animate-in space-y-4 mb-5">
+                                            <div className="grid grid-cols-1 gap-4">
+                                                <div>
+                                                    <label className="text-[11px] font-bold text-slate-500 uppercase block mb-1">Titel (bijv. Voorjaar {new Date().getFullYear() + 1})</label>
+                                                    <input value={input.title} onChange={e=>setInput({...input, title:e.target.value})} placeholder="Titel..." className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/30"/>
+                                                </div>
+                                                <div>
+                                                    <label className="text-[11px] font-bold text-slate-500 uppercase block mb-1">Embed Link (URL)</label>
+                                                    <input value={input.url} onChange={e=>setInput({...input, url:e.target.value.trim()})} placeholder="https://heyzine.com/flip-book/..." className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/30"/>
+                                                </div>
+                                            </div>
+                                            <button onClick={handleSaveCatalog} className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-md transition-all">Opslaan</button>
+                                        </div>
+                                    )}
+
+                                    {renderCatalogCategory(currentCatPanel.id, currentCatPanel.label)}
                                 </div>
                             )}
 
-                            {renderCatalogCategory('Catalogus', 'Catalogen')}
-                            {renderCatalogCategory('Leaflet', 'Leaflets')}
-                            {renderCatalogCategory('Ander', 'Andere')}
-
-                            <hr className="border-slate-200 dark:border-slate-700 mb-6 mt-2" />
-
-                            {/* --- DEEL 2: WEEKPROMOTIES --- */}
+                            {/* --- WEEKPROMOTIES --- */}
+                            {adminPanel === 'promo' && (
+                            <div className="mt-5 pt-5 border-t border-slate-100 dark:border-slate-800 animate-in">
                             <div className="flex justify-between items-center gap-3 mb-4">
-                                <h3 className="font-bold text-lg text-slate-800 dark:text-slate-200 flex items-center gap-2"><Icons.Image className="text-orange-500"/> Beheer Weekpromoties</h3>
+                                <h4 className="font-bold text-lg text-slate-800 dark:text-slate-200">Weekpromoties</h4>
                                 <label className="shrink-0 whitespace-nowrap px-4 py-2 rounded-xl text-white font-bold transition-colors shadow-md bg-gradient-to-r from-orange-500 to-rose-500 hover:-translate-y-0.5 cursor-pointer flex items-center gap-2">
                                     <input type="file" multiple className="hidden" accept="image/*" onChange={handlePromoUpload} disabled={uploading}/>
-                                    {uploading ? <><Icons.Loader className="animate-spin"/> Uploaden...</> : '+ Foto\'s'}
+                                    {uploading ? <><Icons.Loader className="animate-spin"/> Uploaden...</> : '+ Foto\'s uploaden'}
                                 </label>
                             </div>
 
                             <div className="flex flex-col sm:flex-row gap-2 mb-2">
-                                <textarea value={promoLinks} onChange={e=>setPromoLinks(e.target.value)} rows={1} placeholder="Of plak link(s) naar afbeeldingen (https://...), één per regel" className="flex-grow p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-orange-500/30 text-sm resize-y min-h-[46px]"/>
+                                <textarea value={promoLinks} onChange={e=>setPromoLinks(e.target.value)} rows={1} placeholder="Of plak afbeeldingslink(s), één per regel" className="flex-grow p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-orange-500/30 text-sm resize-y min-h-[46px]"/>
                                 <button onClick={handlePromoLinks} className="shrink-0 whitespace-nowrap px-4 py-2.5 rounded-xl font-bold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 hover:bg-orange-100 transition-colors">+ Via link</button>
                             </div>
 
@@ -690,6 +709,9 @@ const CatalogsTab = ({ isAdmin }) => {
                                         })}
                                     </div>
                                 </div>
+                            )}
+                            {promotions.length === 0 && <p className="text-sm text-slate-400 text-center py-4">Nog geen weekpromoties.</p>}
+                            </div>
                             )}
 
                         </div>
