@@ -2432,52 +2432,235 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
         };
 
         const RequestsTab = ({ targetUid }) => {
-            const [requests, setRequests] = useState([]);
-            const [input, setInput] = useState({ name: '', product: '', note: '' });
+            const emptyInput = { customer: '', product: '', note: '', image: '', email: '', phone: '' };
+            const [list, setList] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [loadError, setLoadError] = useState('');
+            const [input, setInput] = useState(emptyInput);
+            const [uploading, setUploading] = useState(false);
+            const [previewImage, setPreviewImage] = useState(null);
+            const [editingId, setEditingId] = useState(null);
+            const [view, setView] = useState('open'); // 'open' | 'found'
+            const [search, setSearch] = useState('');
+
+            const reqCol = () => window.db.collection('users').doc(targetUid).collection('requests');
+
+            // Oude wensen gebruikten 'customer', een tussenversie gebruikte 'name'. Beide tonen.
+            const normalize = (d) => {
+                const data = d.data() || {};
+                return {
+                    id: d.id,
+                    ...data,
+                    customer: data.customer || data.name || '',
+                    product: data.product || '',
+                    completed: !!data.completed,
+                    createdAt: data.createdAt || 0,
+                    foundAt: data.foundAt || null,
+                };
+            };
 
             useEffect(() => {
-                if(!targetUid) return;
-                const unsub = window.db.collection('users').doc(targetUid).collection('requests').onSnapshot(snap => {
-                    setRequests(snap.docs.map(d => ({id: d.id, ...d.data()})));
-                });
+                if (!targetUid) return;
+                setLoading(true);
+                // Geen orderBy in de query: die zou wensen zonder 'createdAt' verbergen. We sorteren lokaal.
+                const unsub = reqCol().onSnapshot(
+                    snap => {
+                        const items = snap.docs.map(normalize).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                        setList(items);
+                        setLoadError('');
+                        setLoading(false);
+                    },
+                    err => {
+                        console.error('Wensen laden mislukt:', err);
+                        setLoadError('De wensen konden niet geladen worden (' + (err.code || err.message) + ').');
+                        setLoading(false);
+                    }
+                );
                 return () => unsub();
             }, [targetUid]);
 
+            const resetForm = () => { setInput(emptyInput); setEditingId(null); };
+
             const handleSave = async () => {
-                if(!input.name || !input.product) return window.showAlert("Vul naam en product in.");
-                await window.db.collection('users').doc(targetUid).collection('requests').add({...input, createdAt: Date.now()});
-                setInput({ name: '', product: '', note: '' });
+                if (!input.customer.trim() || !input.product.trim()) return window.showAlert("Vul minimaal de klantnaam en het product in.");
+                const data = {
+                    customer: input.customer.trim(),
+                    name: input.customer.trim(),
+                    product: input.product.trim(),
+                    note: input.note.trim(),
+                    image: input.image.trim(),
+                    email: input.email.trim(),
+                    phone: input.phone.trim(),
+                };
+                try {
+                    if (editingId) {
+                        await reqCol().doc(editingId).update(data);
+                    } else {
+                        await reqCol().add({ ...data, completed: false, createdAt: Date.now() });
+                    }
+                    resetForm();
+                } catch (e) { window.showAlert("Opslaan mislukt: " + e.message); }
+            };
+
+            const handleEdit = (item) => {
+                setInput({ customer: item.customer || '', product: item.product || '', note: item.note || '', image: item.image || '', email: item.email || '', phone: item.phone || '' });
+                setEditingId(item.id);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            };
+
+            const handleImageUpload = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                setUploading(true);
+                try {
+                    const url = await window.uploadToImgBB(file);
+                    setInput(prev => ({ ...prev, image: url }));
+                } catch (error) { window.showAlert("Upload fout: " + error.message); }
+                finally { setUploading(false); e.target.value = ''; }
+            };
+
+            const toggleFound = async (item) => {
+                try {
+                    await reqCol().doc(item.id).update(item.completed
+                        ? { completed: false, foundAt: null }
+                        : { completed: true, foundAt: Date.now() });
+                } catch (e) { window.showAlert("Bijwerken mislukt: " + e.message); }
             };
 
             const handleDelete = (id) => {
                 window.showConfirm("Wens verwijderen?", async () => {
-                    await window.db.collection('users').doc(targetUid).collection('requests').doc(id).delete();
+                    try {
+                        await reqCol().doc(id).delete();
+                        if (editingId === id) resetForm();
+                    } catch (e) { window.showAlert("Verwijderen mislukt: " + e.message); }
                 });
             };
 
+            const fmtDate = (ts) => ts ? new Date(ts).toLocaleDateString('nl-BE', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+
+            const q = search.trim().toLowerCase();
+            const matches = (item) => !q || [item.product, item.customer, item.note, item.email, item.phone].some(v => (v || '').toLowerCase().includes(q));
+            const openRequests = list.filter(i => !i.completed);
+            const foundRequests = list.filter(i => i.completed).sort((a, b) => (b.foundAt || b.createdAt || 0) - (a.foundAt || a.createdAt || 0));
+            const shown = (view === 'open' ? openRequests : foundRequests).filter(matches);
+
+            const now = new Date();
+            const foundThisMonth = foundRequests.filter(i => { if (!i.foundAt) return false; const d = new Date(i.foundAt); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); }).length;
+            const foundPct = list.length ? Math.round((foundRequests.length / list.length) * 100) : 0;
+
+            const inputCls = "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 dark:text-white p-3 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all font-medium shadow-sm w-full";
+
+            const StatCard = ({ label, value, sub, color }) => (
+                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-4 rounded-2xl border border-white/40 dark:border-slate-700 shadow-glass dark:shadow-glass-dark">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{label}</div>
+                    <div className={`text-2xl font-black mt-1 ${color}`}>{value}</div>
+                    {sub && <div className="text-xs text-slate-400 mt-0.5">{sub}</div>}
+                </div>
+            );
+
+            const RequestCard = ({ item }) => (
+                <div className={`p-4 rounded-2xl border flex gap-4 items-start shadow-sm hover:shadow-md transition-shadow ${item.completed ? 'bg-emerald-50/70 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-800/50' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700'}`}>
+                    <div onClick={() => item.image && setPreviewImage(item.image)} className={`w-16 h-16 rounded-xl shrink-0 overflow-hidden flex items-center justify-center border border-slate-100 dark:border-slate-700 ${item.image ? 'cursor-pointer bg-white' : 'bg-slate-50 dark:bg-slate-900'}`}>
+                        {item.image ? <img src={item.image} className="w-full h-full object-cover"/> : <Icons.Gift className={`text-2xl ${item.completed ? 'text-emerald-300 dark:text-emerald-700' : 'text-slate-300 dark:text-slate-600'}`}/>}
+                    </div>
+                    <div className="flex-grow min-w-0">
+                        <div className={`font-bold text-base break-words ${item.completed ? 'text-emerald-800 dark:text-emerald-300' : 'text-slate-800 dark:text-slate-100'}`}>{item.product || <span className="italic text-slate-400">(geen product)</span>}</div>
+                        <div className="text-sm font-medium text-slate-700 dark:text-slate-300 mt-1 flex items-center gap-1.5"><Icons.User className="text-[11px] opacity-50"/> {item.customer || <span className="italic text-slate-400">onbekende klant</span>}</div>
+                        {(item.email || item.phone) && (
+                            <div className="flex flex-wrap gap-2 mt-2 text-xs">
+                                {item.email && <a href={`mailto:${item.email}`} className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-1 rounded-lg hover:text-emerald-600 break-all"><Icons.Envelope className="text-[10px]"/> {item.email}</a>}
+                                {item.phone && <a href={`tel:${item.phone}`} className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-1 rounded-lg hover:text-emerald-600"><Icons.Phone className="text-[10px]"/> {item.phone}</a>}
+                            </div>
+                        )}
+                        {item.note && <div className="italic text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 inline-block px-2 py-1 rounded-lg mt-2 break-words">"{item.note}"</div>}
+                        <div className="text-[11px] text-slate-400 mt-2 flex flex-wrap gap-x-3">
+                            {item.createdAt > 0 && <span>Gevraagd: {fmtDate(item.createdAt)}</span>}
+                            {item.completed && item.foundAt && <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Gevonden: {fmtDate(item.foundAt)}</span>}
+                        </div>
+                    </div>
+                    <div className="flex flex-col gap-2 shrink-0">
+                        <button onClick={() => toggleFound(item)} title={item.completed ? 'Terugzetten naar te zoeken' : 'Markeer als gevonden'} className={`w-10 h-10 rounded-full flex items-center justify-center shadow-sm transition-all ${item.completed ? 'bg-emerald-500 text-white hover:bg-slate-400' : 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400 hover:bg-emerald-500 hover:text-white'}`}><Icons.Check className="text-lg"/></button>
+                        <button onClick={() => handleEdit(item)} title="Wijzigen" className="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 bg-slate-50 dark:bg-slate-700 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-colors"><Icons.Edit className="text-sm"/></button>
+                        <button onClick={() => handleDelete(item.id)} title="Verwijderen" className="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 bg-slate-50 dark:bg-slate-700 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"><Icons.Trash className="text-sm"/></button>
+                    </div>
+                </div>
+            );
+
             return (
                 <div className="space-y-6">
-                    <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-6 rounded-3xl border border-white/40 dark:border-slate-700 shadow-glass">
-                        <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-slate-700 dark:text-slate-200"><Icons.Gift className="text-pink-500"/> Nieuwe Wens</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <input value={input.name} onChange={e=>setInput({...input, name:e.target.value})} placeholder="Naam Klant" className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 p-3 rounded-xl dark:text-white outline-none focus:ring-2 focus:ring-pink-500/30 transition-all"/>
-                            <input value={input.product} onChange={e=>setInput({...input, product:e.target.value})} placeholder="Gewenst Product" className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 p-3 rounded-xl dark:text-white outline-none focus:ring-2 focus:ring-pink-500/30 transition-all"/>
-                            <input value={input.note} onChange={e=>setInput({...input, note:e.target.value})} placeholder="Extra Notitie" className="w-full sm:col-span-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 p-3 rounded-xl dark:text-white outline-none focus:ring-2 focus:ring-pink-500/30 transition-all"/>
+                    {/* FORMULIER */}
+                    <div className={`p-6 rounded-3xl shadow-glass dark:shadow-glass-dark border transition-all duration-300 ${editingId ? 'bg-amber-50/80 dark:bg-amber-900/20 backdrop-blur-md border-amber-200 dark:border-amber-700' : 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-white/40 dark:border-slate-700'}`}>
+                        <h3 className={`font-bold text-lg mb-4 flex items-center gap-2 ${editingId ? 'text-amber-800 dark:text-amber-400' : 'text-emerald-800 dark:text-emerald-400'}`}>
+                            {editingId ? <Icons.Edit className="text-amber-500"/> : <Icons.Plus className="text-emerald-500"/>} {editingId ? 'Wens Wijzigen' : 'Nieuwe Wens Toevoegen'}
+                        </h3>
+                        <div className="flex flex-col gap-4">
+                            <div className="flex flex-col sm:flex-row gap-4">
+                                <label className="w-full sm:w-28 h-28 border border-dashed border-slate-300 dark:border-slate-600 rounded-2xl bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-center cursor-pointer hover:bg-emerald-50 dark:hover:bg-slate-700 shrink-0 relative overflow-hidden transition-colors">
+                                    <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload}/>
+                                    {uploading ? <Icons.Loader className="text-emerald-600 text-xl"/> : (input.image ? <img src={input.image} className="w-full h-full object-cover"/> : <div className="text-center text-slate-400 font-medium text-[10px]"><Icons.Image className="text-2xl mb-1"/><br/>Foto</div>)}
+                                </label>
+                                <div className="flex flex-col gap-3 flex-grow">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <input value={input.customer} onChange={e => setInput({ ...input, customer: e.target.value })} placeholder="Klant naam" className={inputCls}/>
+                                        <input value={input.product} onChange={e => setInput({ ...input, product: e.target.value })} placeholder="Gezocht product" className={inputCls}/>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <input type="email" value={input.email} onChange={e => setInput({ ...input, email: e.target.value })} placeholder="E-mail (optioneel)" className={inputCls}/>
+                                        <input type="tel" value={input.phone} onChange={e => setInput({ ...input, phone: e.target.value })} placeholder="Telefoon (optioneel)" className={inputCls}/>
+                                    </div>
+                                </div>
+                            </div>
+                            <input value={input.image} onChange={e => setInput({ ...input, image: e.target.value })} placeholder="Of plak een link naar een afbeelding..." className={inputCls + " text-sm"}/>
+                            <input value={input.note} onChange={e => setInput({ ...input, note: e.target.value })} placeholder="Notitie of specifieke wensen (optioneel)" className={inputCls + " text-sm"}/>
                         </div>
-                        <button onClick={handleSave} className="w-full mt-4 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-bold rounded-xl shadow-md hover:-translate-y-0.5 transition-all">Toevoegen</button>
+                        <div className="flex gap-3 mt-6">
+                            <button onClick={handleSave} disabled={uploading} className={`flex-grow py-3.5 text-white font-extrabold rounded-2xl shadow-lg transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60 ${editingId ? 'bg-gradient-to-r from-amber-500 to-amber-600 shadow-amber-500/30' : 'bg-gradient-to-r from-emerald-500 to-teal-500 shadow-emerald-500/30'}`}>
+                                {editingId ? 'Wijziging Opslaan' : 'Wens Toevoegen'}
+                            </button>
+                            {editingId && <button onClick={resetForm} className="px-5 py-3.5 font-bold rounded-2xl bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">Annuleren</button>}
+                        </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {requests.map(r => (
-                            <div key={r.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 relative hover:shadow-lg transition-all group">
-                                <h4 className="font-bold text-slate-800 dark:text-white text-lg">{r.product}</h4>
-                                <div className="text-sm text-pink-600 dark:text-pink-400 font-medium my-1 flex items-center gap-2"><Icons.User className="text-xs"/> {r.name}</div>
-                                {r.note && <div className="text-sm text-slate-500 mt-2">{r.note}</div>}
-                                <button onClick={()=>handleDelete(r.id)} className="absolute top-3 right-3 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-100 dark:bg-slate-700 w-8 h-8 rounded-full flex items-center justify-center"><Icons.Trash className="text-xs"/></button>
-                            </div>
-                        ))}
-                        {requests.length === 0 && <div className="col-span-full text-center p-8 text-slate-400 font-medium">Geen wensen gevonden.</div>}
+                    {/* OVERZICHT */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        <StatCard label="Totaal wensen" value={list.length} color="text-slate-800 dark:text-white"/>
+                        <StatCard label="Nog te zoeken" value={openRequests.length} color="text-amber-600 dark:text-amber-400"/>
+                        <StatCard label="Gevonden" value={foundRequests.length} sub={`${foundPct}% van alle wensen`} color="text-emerald-600 dark:text-emerald-400"/>
+                        <StatCard label="Gevonden deze maand" value={foundThisMonth} color="text-teal-600 dark:text-teal-400"/>
                     </div>
+
+                    {/* LIJST */}
+                    <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-4 sm:p-6 rounded-3xl border border-white/40 dark:border-slate-700 shadow-glass dark:shadow-glass-dark">
+                        <div className="flex flex-col sm:flex-row gap-3 sm:items-center mb-5">
+                            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl shrink-0">
+                                <button onClick={() => setView('open')} className={`flex-1 px-4 py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${view === 'open' ? 'bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-300 shadow' : 'text-slate-500'}`}>
+                                    <Icons.Search/> Nog te zoeken <span className="bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 text-xs px-2 py-0.5 rounded-lg">{openRequests.length}</span>
+                                </button>
+                                <button onClick={() => setView('found')} className={`flex-1 px-4 py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${view === 'found' ? 'bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-300 shadow' : 'text-slate-500'}`}>
+                                    <Icons.CheckCircle/> Gevonden <span className="bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 text-xs px-2 py-0.5 rounded-lg">{foundRequests.length}</span>
+                                </button>
+                            </div>
+                            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Zoek op product, klant, notitie..." className={inputCls + " text-sm sm:ml-auto sm:max-w-xs"}/>
+                        </div>
+
+                        {loadError && <div className="p-4 mb-4 rounded-2xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 font-medium text-sm">{loadError}</div>}
+                        {loading && !loadError && <div className="text-center py-10 text-slate-400"><Icons.Loader className="text-2xl"/></div>}
+
+                        {!loading && shown.length === 0 && (
+                            <div className="text-center text-slate-400 py-10 bg-slate-50 dark:bg-slate-800/50 border-2 border-dashed dark:border-slate-700 rounded-2xl font-medium">
+                                {q ? 'Geen wensen gevonden voor deze zoekopdracht.' : (view === 'open' ? 'Geen openstaande wensen. Goed bezig!' : 'Nog geen wensen gevonden.')}
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                            {shown.map(item => <RequestCard key={item.id} item={item}/>)}
+                        </div>
+                    </div>
+
+                    {previewImage && <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in" onClick={() => setPreviewImage(null)}>
+                        <img src={previewImage} className="max-w-full max-h-[85vh] rounded-2xl shadow-2xl border border-white/20"/>
+                        <button className="absolute top-4 right-4 w-12 h-12 bg-white/20 hover:bg-white/40 rounded-full flex items-center justify-center text-white backdrop-blur-md transition-colors"><Icons.X className="text-2xl"/></button>
+                    </div>}
                 </div>
             );
         };
