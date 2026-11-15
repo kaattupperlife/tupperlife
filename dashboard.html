@@ -159,7 +159,7 @@
 
         // ===== ACTIVITEIT =====
         // Houdt bij wat een gebruiker in haar EIGEN account doet (niet wat een beheerder voor haar doet).
-        window.logActivity = (targetUid, type, text) => {
+        window.logActivity = (targetUid, type, text, extra) => {
             try {
                 const me = window.auth && window.auth.currentUser;
                 if (!me || !targetUid || me.uid !== targetUid) return;
@@ -169,7 +169,7 @@
                 if (window.__actThrottle[key] && now - window.__actThrottle[key] < 120000) return; // zelfde actie max. 1x per 2 min
                 window.__actThrottle[key] = now;
                 const base = window.db.collection('users').doc(me.uid);
-                base.collection('activity').add({ ts: now, type, text }).catch(() => {});
+                base.collection('activity').add({ ...(extra || {}), ts: now, type, text }).catch(() => {});
                 base.collection('settings').doc('profile').set({ lastActive: now, lastAction: text, lastActionAt: now }, { merge: true }).catch(() => {});
             } catch (e) {}
         };
@@ -2475,8 +2475,16 @@ const CatalogsTab = ({ isAdmin, section = 'view', showPromotions = true }) => {
             );
         };
 
-const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurrency, user, globalPs, showPs = true, canEdit = true, canEditPs = true }) => {
+const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurrency, user, globalPs, showPs = true, canEdit = true, canEditPs = true, onSaleCommit }) => {
             const [expanded, setExpanded] = useState(false);
+            const focusVals = React.useRef({});
+            const saleFocus = (w) => { focusVals.current[w] = data[`week${w}`] || ''; };
+            const saleBlur = (w, label) => {
+                const oldV = focusVals.current[w]; const newV = data[`week${w}`] || '';
+                delete focusVals.current[w];
+                if (oldV === undefined || String(oldV) === String(newV) || Number(oldV) === Number(newV) && String(oldV) !== '' && String(newV) !== '') return;
+                if (onSaleCommit) onSaleCommit({ month, week: w, weekLabel: label, oldValue: oldV === '' ? null : Number(oldV), newValue: newV === '' ? null : Number(newV) });
+            };
             const [isModalOpen, setIsModalOpen] = useState(false);
             
             const useCalendar = monthIndex >= 3;
@@ -2555,7 +2563,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                                                             <div className="flex items-center gap-2 sm:gap-4">
                                                                 <div className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex justify-center items-center text-xs sm:text-sm font-black border border-emerald-100 dark:border-emerald-800 shrink-0">W{weekInfo.weekNumber}</div>
                                                                 <div className="flex-grow">
-                                                                    <input type="text" inputMode="decimal" placeholder="0.00" readOnly={!canEdit} value={data[`week${w}`]||''} onClick={e=>e.stopPropagation()} onChange={e=>{ if (!canEdit) return; const val = e.target.value.replace(',', '.'); if (/^\d*\.?\d*$/.test(val)) updateMonthData(month,`week${w}`,val); }} className="w-full px-2 sm:px-3 py-2 sm:py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/30 text-sm sm:text-lg font-black font-mono transition-all"/>
+                                                                    <input type="text" inputMode="decimal" placeholder="0.00" readOnly={!canEdit} value={data[`week${w}`]||''} onFocus={()=>saleFocus(w)} onBlur={()=>saleBlur(w, typeof weekInfo !== 'undefined' && weekInfo ? `W${weekInfo.weekNumber} (${weekInfo.label.split('(')[1].replace(')', '')})` : `week ${w}`)} onClick={e=>e.stopPropagation()} onChange={e=>{ if (!canEdit) return; const val = e.target.value.replace(',', '.'); if (/^\d*\.?\d*$/.test(val)) updateMonthData(month,`week${w}`,val); }} className="w-full px-2 sm:px-3 py-2 sm:py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/30 text-sm sm:text-lg font-black font-mono transition-all"/>
                                                                 </div>
                                                                 <div className="text-right shrink-0 min-w-[60px] sm:min-w-[80px]">
                                                                     <div className="text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-widest mb-0.5">Winst</div>
@@ -2573,7 +2581,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                                                         <div key={w} className="flex items-center gap-2 sm:gap-4 bg-white dark:bg-slate-800/60 p-3 sm:p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50 shadow-glass transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:hover:shadow-[0_8px_30px_rgba(16,185,129,0.05)] hover:-translate-y-0.5">
                                                             <div className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex justify-center items-center text-sm sm:text-lg font-black border border-emerald-100 dark:border-emerald-800 shrink-0">{w}</div>
                                                             <div className="flex-grow">
-                                                                <input type="text" inputMode="decimal" placeholder="0.00" readOnly={!canEdit} value={data[`week${w}`]||''} onClick={e=>e.stopPropagation()} onChange={e=>{ if (!canEdit) return; const val = e.target.value.replace(',', '.'); if (/^\d*\.?\d*$/.test(val)) updateMonthData(month,`week${w}`,val); }} className="w-full px-2 sm:px-3 py-2 sm:py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/30 text-sm sm:text-lg font-black font-mono transition-all"/>
+                                                                <input type="text" inputMode="decimal" placeholder="0.00" readOnly={!canEdit} value={data[`week${w}`]||''} onFocus={()=>saleFocus(w)} onBlur={()=>saleBlur(w, typeof weekInfo !== 'undefined' && weekInfo ? `W${weekInfo.weekNumber} (${weekInfo.label.split('(')[1].replace(')', '')})` : `week ${w}`)} onClick={e=>e.stopPropagation()} onChange={e=>{ if (!canEdit) return; const val = e.target.value.replace(',', '.'); if (/^\d*\.?\d*$/.test(val)) updateMonthData(month,`week${w}`,val); }} className="w-full px-2 sm:px-3 py-2 sm:py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/30 text-sm sm:text-lg font-black font-mono transition-all"/>
                                                             </div>
                                                             <div className="text-right shrink-0 min-w-[60px] sm:min-w-[80px]">
                                                                 <div className="text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-widest mb-0.5">Winst</div>
@@ -3397,8 +3405,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                     await window.db.collection('users').doc(targetUid).collection('years').doc(String(selectedYear)).collection('months').doc(month).set({
                         [field]: value, userId: targetUid, userName: viewingUser ? viewingUser.name : (user.displayName || user.email || 'Onbekend'), yearId: selectedYear, monthId: month, updatedAt: Date.now()
                     }, { merge: true });
-                    if (String(field).startsWith('week')) window.logActivity(targetUid, 'verkoop', `Verkoop aangepast: ${month}`);
-                    else if (field === 'psLevels' || field === 'receivedGlobalPs') window.logActivity(targetUid, 'ps', `PS aangepast: ${month}`);
+                    if (field === 'psLevels' || field === 'receivedGlobalPs') window.logActivity(targetUid, 'ps', `PS aangepast: ${month}`);
                 } catch (e) { window.showAlert("Opslaan mislukt: " + e.message); }
             };
 
@@ -3567,7 +3574,14 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {MONTHS.map((m, index) => <MonthRow key={m} month={m} monthIndex={index} year={selectedYear} data={monthlyData[m] || {}} updateMonthData={updateMonthData} formatCurrency={formatCurrency} user={user} globalPs={globalPsData[m] || []} showPs={can('showPs')} canEdit={can('canEditSales')} canEditPs={can('canEditPersonalPs')} />)}
+                                                    {MONTHS.map((m, index) => <MonthRow key={m} month={m} monthIndex={index} year={selectedYear} data={monthlyData[m] || {}} updateMonthData={updateMonthData} formatCurrency={formatCurrency} user={user} globalPs={globalPsData[m] || []} showPs={can('showPs')} canEdit={can('canEditSales')} canEditPs={can('canEditPersonalPs')} onSaleCommit={(info) => {
+                                                        const eur = (v) => formatCurrency(v || 0);
+                                                        const wasEmpty = info.oldValue === null || info.oldValue === 0;
+                                                        const text = wasEmpty
+                                                            ? `Verkoop ingevuld: ${info.month} ${info.weekLabel}: ${eur(info.newValue)}`
+                                                            : `Verkoop aangepast: ${info.month} ${info.weekLabel}: ${eur(info.oldValue)} → ${eur(info.newValue)}`;
+                                                        window.logActivity(targetUid, 'verkoop', text, { month: info.month, week: info.week, weekLabel: info.weekLabel, oldValue: info.oldValue, newValue: info.newValue, year: selectedYear });
+                                                    }} />)}
                                                 </tbody>
                                                 <tfoot className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white">
                                                     <tr>
@@ -3765,6 +3779,73 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             return out;
         };
 
+        // Maanddata van één gebruiker (enkel de echte maanden)
+        const userMonthData = (monthDocs, uid, year) => {
+            const m = {};
+            monthDocs.forEach(d => {
+                if (d.userId !== uid || Number(d.yearId) !== year) return;
+                const mn = d._id || d.monthId;
+                if (!MONTHS.includes(mn)) return;
+                if (d._path && d._path !== `users/${uid}/years/${year}/months/${mn}`) return;
+                m[mn] = d;
+            });
+            return m;
+        };
+
+        // Hoeveel nog tot de volgende PS (deze maand)?
+        const nextPsInfo = (mData, monthName, globalPsData) => {
+            const d = mData[monthName] || {};
+            const total = sumMonth(d);
+            const levels = [...(d.psLevels || []), ...(((globalPsData || {})[monthName]) || [])]
+                .map(l => ({ ...l, amount: Number(l.amount) || 0 })).filter(l => l.amount > 0).sort((a, b) => a.amount - b.amount);
+            const next = levels.find(l => l.amount > total) || null;
+            return { total, next, remaining: next ? Math.round((next.amount - total) * 100) / 100 : 0, reached: levels.filter(l => l.amount <= total).length, count: levels.length };
+        };
+
+        // Welke van de laatste N afgelopen weken zijn ingevuld?
+        const weeklyEntries = (mData, year, n = 8) => {
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+            const all = buildAvailableWeeks(year, mData).filter(w => new Date(w.endDate) < today);
+            const merged = [];
+            all.forEach(w => {
+                const v = (mData[w.month] || {})[`week${w.week}`];
+                const filled = v !== undefined && v !== null && String(v) !== '';
+                const key = w.weekNumber ? 'W' + w.weekNumber : w.id;
+                const last = merged[merged.length - 1];
+                if (last && last.key === key) { last.filled = last.filled || filled; last.amount += Number(v) || 0; return; }
+                merged.push({ key, label: w.weekNumber ? `W${w.weekNumber}` : `${w.month.slice(0, 3)} ${w.week}`, title: w.label, filled, amount: Number(v) || 0 });
+            });
+            const weeks = merged.slice(-n);
+            const filledCount = weeks.filter(w => w.filled).length;
+            const lastWeek = weeks[weeks.length - 1] || null;
+            let streak = 0; for (let i = weeks.length - 1; i >= 0 && weeks[i].filled; i--) streak++;
+            return { weeks, filledCount, total: weeks.length, lastWeek, streak };
+        };
+
+        const eurNL = (v) => new Intl.NumberFormat('nl-BE', { style: 'currency', currency: 'EUR' }).format(v || 0);
+        const firstName = (n) => String(n || '').split(' ')[0];
+        const PushButtons = ({ u, message, subject }) => {
+            const wa = `https://wa.me/?text=${encodeURIComponent(message)}`;
+            const mail = u.email ? `mailto:${u.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}` : null;
+            return (
+                <div className="flex gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
+                    <a href={wa} target="_blank" rel="noopener" title="Bericht via WhatsApp" className="w-9 h-9 rounded-lg flex items-center justify-center bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400"><i className="fa-brands fa-whatsapp text-base"></i></a>
+                    {mail && <a href={mail} title="Bericht via e-mail" className="w-9 h-9 rounded-lg flex items-center justify-center bg-sky-50 text-sky-600 hover:bg-sky-100 dark:bg-sky-900/30 dark:text-sky-400"><i className="fa-solid fa-envelope"></i></a>}
+                </div>
+            );
+        };
+
+        const WeekChips = ({ info, small = false }) => (
+            <div className="flex flex-wrap gap-1">
+                {info.weeks.map(w => (
+                    <span key={w.key} title={`${w.title}: ${w.filled ? eurNL(w.amount) : 'niet ingevuld'}`} className={`inline-flex items-center gap-1 rounded-md border font-bold ${small ? 'text-[10px] px-1.5 py-0.5' : 'text-[11px] px-2 py-1'} ${w.filled ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800' : 'bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900'}`}>
+                        <i className={`fa-solid ${w.filled ? 'fa-check' : 'fa-xmark'} text-[9px]`}></i>{w.label}
+                    </span>
+                ))}
+                {info.weeks.length === 0 && <span className="text-xs text-slate-400">Nog geen afgelopen weken</span>}
+            </div>
+        );
+
         const lastSeenOf = (u, det) => {
             const p = det && det.profile;
             return Math.max(p ? (p.lastActive || p.lastLogin || 0) : 0, det && det.activity && det.activity[0] ? det.activity[0].ts : 0) || null;
@@ -3796,7 +3877,14 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                             <div key={(a.id || '') + i} className="flex items-center gap-3 py-2.5">
                                 <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${ic.cls}`}><i className={`fa-solid ${ic.icon} text-xs`}></i></span>
                                 <div className="min-w-0 flex-grow">
-                                    <div className="text-sm text-slate-700 dark:text-slate-200 truncate">{showUser && <strong className="font-semibold">{a.userName}: </strong>}{a.text}</div>
+                                    <div className="text-sm text-slate-700 dark:text-slate-200 truncate">{showUser && <strong className="font-semibold">{a.userName}: </strong>}{a.type === 'verkoop' && a.weekLabel ? `${a.oldValue ? 'Verkoop aangepast' : 'Verkoop ingevuld'}: ${a.month} ${a.weekLabel}` : a.text}</div>
+                                    {a.type === 'verkoop' && a.newValue !== undefined && (
+                                        <div className="flex items-center gap-1.5 mt-1 text-xs font-bold">
+                                            {a.oldValue ? <><span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 line-through dark:bg-slate-800">{eurNL(a.oldValue)}</span><i className="fa-solid fa-arrow-right text-[9px] text-slate-400"></i></> : null}
+                                            <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">{eurNL(a.newValue)}</span>
+                                            {a.oldValue ? <span className={`ml-1 ${a.newValue - a.oldValue >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>({a.newValue - a.oldValue >= 0 ? '+' : ''}{eurNL(a.newValue - a.oldValue)})</span> : null}
+                                        </div>
+                                    )}
                                     <div className="text-[11px] text-slate-400">{fmtDateTime(a.ts)} · {timeAgo(a.ts)}</div>
                                 </div>
                             </div>
@@ -3814,7 +3902,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
         );
 
         // ---------- START ----------
-        const AdminStart = ({ users, details, sales, selectedYear, formatCurrency, onOpenUser, setSection, loadingDetails }) => {
+        const AdminStart = ({ users, details, sales, selectedYear, formatCurrency, onOpenUser, setSection, loadingDetails, monthDocs, globalPsData }) => {
             const isCurrentYear = selectedYear === new Date().getFullYear();
             const curName = currentMonthName();
             const total = users.reduce((a, u) => a + ((sales[u.uid] || {}).total || 0), 0);
@@ -3837,6 +3925,11 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                         <StatCard label="Voorraadwaarde (iedereen)" value={formatCurrency(sum(d => d.stock.value))} sub={`${sum(d => d.stock.qty)} stuks · ${sum(d => d.stock.items)} producten`} icon="fa-box" tint="bg-cyan-50 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400" onClick={() => setSection('stock')}/>
                         <StatCard label="Klanten (iedereen)" value={String(sum(d => d.customers))} icon="fa-address-book" tint="bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" onClick={() => setSection('customers')}/>
                         <StatCard label="Recepten / doelen" value={`${sum(d => d.recipes)} / ${sum(d => d.goals)}`} icon="fa-utensils" tint="bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400"/>
+                    </div>
+
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                        <AdminPsPushPanel users={users} monthDocs={monthDocs} globalPsData={globalPsData} selectedYear={selectedYear} onOpenUser={onOpenUser}/>
+                        <AdminWeeklyPanel users={users} monthDocs={monthDocs} selectedYear={selectedYear} onOpenUser={onOpenUser}/>
                     </div>
 
                     <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -3872,8 +3965,74 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
             );
         };
 
+        // ---------- PUSHEN: BIJNA EEN PS ----------
+        const AdminPsPushPanel = ({ users, monthDocs, globalPsData, selectedYear, onOpenUser, onlyUid = null }) => {
+            const isCurrentYear = selectedYear === new Date().getFullYear();
+            const monthName = currentMonthName();
+            if (!isCurrentYear) return <Panel title="Volgende PS"><p className="text-sm text-slate-400 py-4 text-center">Alleen beschikbaar voor het huidige jaar.</p></Panel>;
+            const rows = users.filter(u => !onlyUid || u.uid === onlyUid).map(u => ({ u, info: nextPsInfo(userMonthData(monthDocs, u.uid, selectedYear), monthName, globalPsData) }))
+                .sort((a, b) => (a.info.next ? a.info.remaining : 1e12) - (b.info.next ? b.info.remaining : 1e12));
+            return (
+                <Panel title={onlyUid ? `Volgende PS (${monthName})` : `Volgende PS — ${monthName}`} right={!onlyUid && <span className="text-xs text-slate-400">wie staat het dichtst bij?</span>}>
+                    <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {rows.map(({ u, info }) => {
+                            const close = info.next && info.remaining <= 100;
+                            const msg = info.next ? `Hoi ${firstName(u.name)}! Je moet deze maand nog maar ${eurNL(info.remaining)} verkopen voor je PS "${info.next.name}"${info.next.label ? ` (${formatPsLabel(info.next.label)})` : ''}. Dat lukt je zeker! 💪` : '';
+                            return (
+                                <div key={u.uid} onClick={() => onOpenUser && onOpenUser(u.uid)} className={`flex items-center gap-3 py-3 ${onOpenUser ? 'cursor-pointer' : ''}`}>
+                                    {!onlyUid && <Avatar u={u} size="w-9 h-9"/>}
+                                    <div className="min-w-0 flex-grow">
+                                        {!onlyUid && <div className="font-semibold text-sm text-slate-800 dark:text-slate-100 truncate">{u.name}</div>}
+                                        {info.count === 0 ? <div className="text-xs text-slate-400">Geen PS ingesteld deze maand</div>
+                                            : info.next ? (
+                                                <div className="text-xs text-slate-500 dark:text-slate-400">
+                                                    Nog <strong className={close ? 'text-amber-600 dark:text-amber-400' : 'text-slate-700 dark:text-slate-200'}>{eurNL(info.remaining)}</strong> voor <strong>{info.next.name}</strong>{info.next.label ? ` (${formatPsLabel(info.next.label)})` : ''}
+                                                    <span className="text-slate-400"> · nu {eurNL(info.total)} · {info.reached}/{info.count} behaald</span>
+                                                </div>
+                                            ) : <div className="text-xs font-semibold text-emerald-600">Alle {info.count} PS behaald! 🎉</div>}
+                                    </div>
+                                    {close && <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 px-2 py-1 rounded-md">Bijna!</span>}
+                                    {info.next && <PushButtons u={u} message={msg} subject="Bijna je PS!"/>}
+                                </div>
+                            );
+                        })}
+                        {rows.length === 0 && <p className="text-sm text-slate-400 py-4 text-center">Geen gebruikers.</p>}
+                    </div>
+                </Panel>
+            );
+        };
+
+        // ---------- WEKELIJKSE INVOER ----------
+        const AdminWeeklyPanel = ({ users, monthDocs, selectedYear, onOpenUser, onlyUid = null }) => {
+            const rows = users.filter(u => !onlyUid || u.uid === onlyUid).map(u => ({ u, info: weeklyEntries(userMonthData(monthDocs, u.uid, selectedYear), selectedYear, 8) }))
+                .sort((a, b) => a.info.filledCount - b.info.filledCount);
+            return (
+                <Panel title={onlyUid ? 'Wekelijkse invoer (laatste 8 weken)' : 'Wekelijks ingevuld? (laatste 8 weken)'} right={!onlyUid && <span className="text-xs text-slate-400">rood = geen waarde ingegeven</span>}>
+                    <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {rows.map(({ u, info }) => {
+                            const missedLast = info.lastWeek && !info.lastWeek.filled;
+                            const msg = `Hoi ${firstName(u.name)}! Vergeet je je verkoop van ${info.lastWeek ? info.lastWeek.label : 'vorige week'} niet in te vullen in Tupper Life? 😊`;
+                            return (
+                                <div key={u.uid} onClick={() => onOpenUser && onOpenUser(u.uid)} className={`flex items-center gap-3 py-3 ${onOpenUser ? 'cursor-pointer' : ''}`}>
+                                    {!onlyUid && <Avatar u={u} size="w-9 h-9"/>}
+                                    <div className="min-w-0 flex-grow">
+                                        {!onlyUid && <div className="font-semibold text-sm text-slate-800 dark:text-slate-100 truncate">{u.name}</div>}
+                                        <div className="text-xs text-slate-500 mb-1.5">{info.filledCount}/{info.total} weken ingevuld{info.streak > 1 ? ` · ${info.streak} weken op rij` : ''}{missedLast ? <span className="text-red-500 font-semibold"> · vorige week niet ingevuld</span> : null}</div>
+                                        <WeekChips info={info} small={!onlyUid}/>
+                                    </div>
+                                    {missedLast && <PushButtons u={u} message={msg} subject="Je verkoop van vorige week"/>}
+                                </div>
+                            );
+                        })}
+                        {rows.length === 0 && <p className="text-sm text-slate-400 py-4 text-center">Geen gebruikers.</p>}
+                    </div>
+                </Panel>
+            );
+        };
+
         // ---------- GEBRUIKERS (tabel met alles) ----------
-        const AdminUsersOverview = ({ users, details, sales, formatCurrency, onOpenUser, selectedYear }) => {
+        const AdminUsersOverview = ({ users, details, sales, formatCurrency, onOpenUser, selectedYear, monthDocs, globalPsData }) => {
+            const isCurrentYear = selectedYear === new Date().getFullYear();
             const [sort, setSort] = useState('active');
             const [q, setQ] = useState('');
             const rows = users.filter(u => !q || (u.name + ' ' + (u.email || '')).toLowerCase().includes(q.toLowerCase())).map(u => {
@@ -3897,7 +4056,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                             <thead className="bg-slate-50/70 dark:bg-slate-800/40 border-b border-slate-100 dark:border-slate-800">
                                 <tr>
                                     <th className={th}>Gebruiker</th><th className={th}>Status</th><th className={th}>Laatste login</th><th className={th}>Bezoeken</th><th className={th}>Toestel</th>
-                                    <th className={th + ' text-right'}>Omzet {selectedYear}</th><th className={th + ' text-right'}>Deze maand</th><th className={th + ' text-right'}>Wensen open</th>
+                                    <th className={th + ' text-right'}>Omzet {selectedYear}</th><th className={th + ' text-right'}>Deze maand</th><th className={th}>Volgende PS</th><th className={th}>Weken ingevuld (8)</th><th className={th + ' text-right'}>Wensen open</th>
                                     <th className={th + ' text-right'}>Voorraad</th><th className={th + ' text-right'}>Klanten</th><th className={th + ' text-right'}>Recepten</th><th className={th + ' text-right'}>Doelen</th><th className={th}>Laatste actie</th>
                                 </tr>
                             </thead>
@@ -3913,6 +4072,10 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                                             <td className={td + ' text-slate-600 dark:text-slate-300'}>{p.device || '–'}</td>
                                             <td className={td + ' text-right font-bold text-slate-900 dark:text-white tabular-nums'}>{formatCurrency(sl.total || 0)}</td>
                                             <td className={td + ' text-right tabular-nums text-slate-600 dark:text-slate-300'}>{formatCurrency(sl.current || 0)}</td>
+                                            {(() => { const md = userMonthData(monthDocs || [], u.uid, selectedYear); const ps = isCurrentYear ? nextPsInfo(md, currentMonthName(), globalPsData) : null; const wk = weeklyEntries(md, selectedYear, 8); return (<>
+                                                <td className={td}>{!ps ? '–' : ps.count === 0 ? <span className="text-slate-400">geen PS</span> : ps.next ? <span className={ps.remaining <= 100 ? 'text-amber-600 font-semibold' : 'text-slate-600 dark:text-slate-300'}>nog {formatCurrency(ps.remaining)} <span className="text-slate-400 font-normal">({ps.next.name})</span></span> : <span className="text-emerald-600 font-semibold">alles behaald</span>}</td>
+                                                <td className={td}><span className={`font-semibold ${wk.filledCount === wk.total ? 'text-emerald-600' : wk.filledCount >= wk.total / 2 ? 'text-amber-600' : 'text-red-500'}`}>{wk.filledCount}/{wk.total}</span>{wk.lastWeek && !wk.lastWeek.filled && <span className="text-red-500 text-xs"> · vorige week leeg</span>}</td>
+                                            </>); })()}
                                             <td className={td + ' text-right tabular-nums'}>{d.requests ? d.requests.open : '…'}</td>
                                             <td className={td + ' text-right tabular-nums'}>{d.stock ? `${d.stock.items} (${formatCurrency(d.stock.value)})` : '…'}</td>
                                             <td className={td + ' text-right tabular-nums'}>{d.customers ?? '…'}</td>
@@ -3962,7 +4125,7 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
         };
 
         // ---------- GEBRUIKERSFICHE ----------
-        const AdminUserDetail = ({ u, det, sl, selectedYear, globalPsData, formatCurrency, onBack, onRefresh }) => {
+        const AdminUserDetail = ({ u, det, sl, selectedYear, globalPsData, formatCurrency, onBack, onRefresh, monthDocs }) => {
             const [tab, setTab] = useState('overview');
             const d = det || {}; const p = d.profile || {};
             const st = activityStatus(lastSeenOf(u, d));
@@ -4007,6 +4170,10 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
                                 <StatCard label="Recepten" value={String(d.recipes ?? '…')} icon="fa-utensils" tint="bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400" onClick={() => setTab('recipes')}/>
                                 <StatCard label="Doelen" value={String(d.goals ?? '…')} icon="fa-bullseye" tint="bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400" onClick={() => setTab('goals')}/>
                                 <StatCard label="Bezoeken" value={String(p.visits || 0)} sub={p.lastLogin ? `laatste ${timeAgo(p.lastLogin)}` : 'nog niet gezien'} icon="fa-right-to-bracket" tint="bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" onClick={() => setTab('activity')}/>
+                            </div>
+                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+                                <AdminPsPushPanel users={[u]} onlyUid={u.uid} monthDocs={monthDocs || []} globalPsData={globalPsData} selectedYear={selectedYear}/>
+                                <AdminWeeklyPanel users={[u]} onlyUid={u.uid} monthDocs={monthDocs || []} selectedYear={selectedYear}/>
                             </div>
                             <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
                                 <Panel title="Gegevens">
@@ -4223,11 +4390,11 @@ const MonthRow = ({ month, monthIndex, year, data, updateMonthData, formatCurren
 
                                 <ErrorBoundary key={(detailUser ? 'u:' + detailUser.uid : current.id)}>
                                     {detailUser ? (
-                                        <AdminUserDetail u={detailUser} det={details[detailUser.uid]} sl={sales[detailUser.uid] || {}} selectedYear={selectedYear} globalPsData={globalPsData} formatCurrency={formatCurrency} onBack={() => setSection('users')} onRefresh={() => setRefreshKey(k => k + 1)}/>
+                                        <AdminUserDetail monthDocs={monthDocs} u={detailUser} det={details[detailUser.uid]} sl={sales[detailUser.uid] || {}} selectedYear={selectedYear} globalPsData={globalPsData} formatCurrency={formatCurrency} onBack={() => setSection('users')} onRefresh={() => setRefreshKey(k => k + 1)}/>
                                     ) : current.id === 'start' ? (
-                                        <AdminStart users={users} details={details} sales={sales} selectedYear={selectedYear} formatCurrency={formatCurrency} onOpenUser={openUser} setSection={setSection} loadingDetails={loadingDetails}/>
+                                        <AdminStart monthDocs={monthDocs} globalPsData={globalPsData} users={users} details={details} sales={sales} selectedYear={selectedYear} formatCurrency={formatCurrency} onOpenUser={openUser} setSection={setSection} loadingDetails={loadingDetails}/>
                                     ) : current.id === 'users' ? (
-                                        <AdminUsersOverview users={users} details={details} sales={sales} formatCurrency={formatCurrency} onOpenUser={openUser} selectedYear={selectedYear}/>
+                                        <AdminUsersOverview monthDocs={monthDocs} globalPsData={globalPsData} users={users} details={details} sales={sales} formatCurrency={formatCurrency} onOpenUser={openUser} selectedYear={selectedYear}/>
                                     ) : current.id === 'activity' ? (
                                         <AdminActivityFeed users={users} details={details} onOpenUser={openUser}/>
                                     ) : current.id === 'rights' ? (
